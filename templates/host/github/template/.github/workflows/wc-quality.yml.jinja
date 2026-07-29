@@ -34,6 +34,15 @@ jobs:
           # hooks run rather than whatever is newest.
           cache: true
 
+      # Both generated files are rebuilt from a fragment directory, so a layer
+      # rendered without re-running the generator leaves them stale. Each check
+      # compares in a copy rather than rewriting, so a failure here is reproducible.
+      - name: Generated files current
+        run: |
+          if [ -f justfile ] && grep -q 'just-check' justfile; then
+            just just-check
+          fi
+
       # The layer that actually enforces. A local hook is advisory: --no-verify
       # defeats it, and a fresh clone has no shims until someone runs `just setup`.
       # Running the whole set here is what makes the checks hold.

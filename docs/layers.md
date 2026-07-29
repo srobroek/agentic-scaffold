@@ -187,12 +187,26 @@ carries the root config and the repository-wide hygiene hooks alone.
 | Layer | Writes | Variables |
 |---|---|---|
 | `workspace/monorepo` | the workspace manifest: `[workspace] members`, uv workspace, or bun workspaces | `layout`, `members` |
-| `workspace/just` | `justfile` carrying one `import` per `.just.d/*.just` | none |
+| `workspace/just` | `justfile` carrying one `import?` per `.just.d/*.just`, `scripts/gen_justfile.py`, `.mise/conf.d/just.toml` | none |
 | `workspace/moon` | `.moon/workspace.yml` | `members` |
 | `workspace/devcontainer` | `.devcontainer/devcontainer.json` | none |
 | `workspace/worktrunk` | `.config/wt.toml`, `.worktreeinclude` | `forge_platform`, `forge_hostname`, `worktree_includes` |
 
 `workspace/monorepo` owns `just add`.
+
+Each import is written `import?`, the optional form. Under the hard form a missing
+file is a parse error that takes down every recipe in the justfile, so a fragment
+deleted by hand would break `just` entirely rather than only its own recipes.
+
+Every fragment shares one flat namespace, and just rejects a name defined twice.
+Prefixing each recipe with its layer name is what keeps that from happening, and
+`gen_justfile.py` refuses a colliding set while naming both fragments, since just's
+own error breaks the whole file rather than the pair.
+
+The aggregate recipes probe rather than depend. `check` and `each <phase>` ask
+`just --show <name>` which per-language recipes exist, so one language renders and
+one runs. A `needs:`-style dependency on a recipe no fragment provided is a parse
+error, which is why `check` probes `hooks-all` rather than depending on it.
 
 `workspace/worktrunk` sets `pre-merge = "just check"`, so a merge runs the same
 gate CI does and cannot land what CI would reject. A project-defined command is
@@ -377,6 +391,12 @@ so they follow every contributor including `agentic/*`: apm and beads add
 ignores for `apm_modules/` and `.beads/dolt/`, and may contribute a
 `.just.d/apm.just`.
 
+Both of the generated files can therefore go stale when a layer is adopted later.
+`just just-check` and `just hooks-all` catch each case, and the quality workflow runs
+the first, so a pull request cannot merge a justfile that omits a fragment. Both
+compare in a copy rather than rewriting, since a check that fixes what it checks
+leaves a dirty tree and passes on the rerun.
+
 `agentic/marketplace` reads the finished tree.
 
 A profile states this order directly. 19 layers with a fixed order need no
@@ -390,7 +410,7 @@ dependency solver.
 | `.github/{quality,security}.d/<name>.yml` | a matrix in the host layer's shared workflow |
 | `.pre-commit.d/<name>.yaml` | see below |
 | `.mise/conf.d/<name>.toml` | mise reads the directory |
-| `.just.d/<name>.just` | `import` lines in `workspace/just` |
+| `.just.d/<name>.just` | `import?` lines written by `gen_justfile.py` in `workspace/just` |
 | `.github/workflows/wc-*.yml` | the caller the agent writes |
 | `.gitlab/ci/<name>.yml` | GitLab's `include: local:` glob |
 

@@ -1,0 +1,125 @@
+# justfile -- the task surface. Run `just` to list every recipe.
+#
+# Recipes live in .just.d/, one fragment per layer, imported below. A language's
+# recipes travel with its layer, so this file names no language.
+#
+# Add a project-specific recipe with `just just-add <name>`, which writes a new
+# fragment. Editing this file directly works too, outside the generated block.
+
+# macOS ships bash 3.2, where `mapfile` and `readarray` do not exist. A recipe
+# using either reports success while doing nothing.
+set shell := ["bash", "-uc"]
+
+# Show every recipe, grouped
+default:
+    @just --list
+
+# BEGIN GENERATED: imports
+# One line per .just.d fragment, rebuilt by `just just-sync`. Do not edit by hand.
+#
+# `import?` rather than `import`: the optional form. A missing file under the hard
+# form is a parse error that takes down every recipe in the justfile, so a fragment
+# removed by hand would break `just` entirely rather than just its own recipes.
+# No fragments rendered yet.
+# END GENERATED: imports
+
+# --- aggregates ------------------------------------------------------------
+#
+# These dispatch to whichever per-language recipes exist rather than naming them.
+# `just --show <name>` exits non-zero for a recipe that was never imported, so a
+# repository with one language runs one, and adding a language layer needs no edit
+# here.
+
+# `hooks-all` is probed rather than declared as a dependency. A dependency on a
+# recipe no fragment provided is a parse error that breaks every recipe in the
+# file, and quality/hooks may not have rendered.
+#
+# The comment directly above a recipe becomes its `--list` description, so the
+# rationale goes here and the description stays on the last line.
+
+# Format, lint, type-check, and test every language present
+[group('all')]
+check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if just --show hooks-all >/dev/null 2>&1; then
+      echo "==> hooks"
+      just hooks-all
+    fi
+    ran=0
+    for name in rust python go ts; do
+      if just --show "$name" >/dev/null 2>&1; then
+        echo "==> $name"
+        just "$name"
+        ran=1
+      fi
+    done
+    if [ "$ran" = 0 ]; then
+      echo "no language recipes found; nothing to check" >&2
+    fi
+
+# Run one phase across every language: fmt, lint, test, types, or cov
+[group('all')]
+each phase:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ran=0
+    for name in rust python go ts; do
+      recipe="$name-{{ phase }}"
+      if just --show "$recipe" >/dev/null 2>&1; then
+        echo "==> $recipe"
+        just "$recipe"
+        ran=1
+      fi
+    done
+    if [ "$ran" = 0 ]; then
+      echo "no recipe matches *-{{ phase }}" >&2
+      exit 1
+    fi
+
+# --- the task surface itself -----------------------------------------------
+
+# Rebuild the import block from .just.d/
+[group('just')]
+just-sync:
+    @python3 scripts/gen_justfile.py .
+
+# Start a new fragment for project-specific recipes
+[group('just')]
+just-add name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target=".just.d/{{ name }}.just"
+    if [ -e "$target" ]; then
+      echo "$target already exists" >&2
+      exit 1
+    fi
+    mkdir -p .just.d
+    cat > "$target" <<EOF
+    # {{ name }} recipes, imported by the root justfile.
+
+    [group('{{ name }}')]
+    {{ name }}-example:
+        @echo "replace me"
+    EOF
+    just just-sync
+    echo "wrote $target"
+
+# Checked in a copy: a check that rewrites the file it is checking leaves a dirty
+# tree in CI, and the second run passes because the first one fixed it.
+
+# Fail when the import block is stale
+[group('just')]
+just-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    scratch=$(mktemp -d)
+    trap 'rm -rf "$scratch"' EXIT
+    cp justfile "$scratch/justfile"
+    ln -s "$PWD/.just.d" "$scratch/.just.d" 2>/dev/null || true
+    python3 scripts/gen_justfile.py "$scratch" >/dev/null
+    if ! diff -q justfile "$scratch/justfile" >/dev/null; then
+      echo "justfile imports are stale; run 'just just-sync'" >&2
+      diff justfile "$scratch/justfile" || true
+      exit 1
+    fi

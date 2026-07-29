@@ -106,13 +106,18 @@ has a native mechanism instead of a merge script.
 | `.pre-commit-config.yaml` | prek workspace mode: one config per directory, unioned and namespaced `<dir>:<hook-id>` |
 | `.gitignore` | `gitnr create <templates> -s` concatenates sources |
 | `.mise/conf.d/` | mise reads the directory |
-| `justfile` | `mod` for namespaced submodules, `import` for a flat namespace |
+| `justfile` | `import?` per fragment, one flat namespace, written by `gen_justfile.py` |
 | `.gitlab-ci.yml` | `include: - local: .gitlab/ci/*.yml` |
 | projen's `.gitignore` | `project.gitignore.addPatterns()` |
 
 prek has no include directive and skips dot-prefixed directories during
 discovery, so a `.pre-commit.d/` fragment directory does not work. A single
 directory with two language layers concatenates fragments in a `just` recipe.
+
+`just` has no glob import either, so one line per fragment has to be written, which
+is what `gen_justfile.py` does between two markers. `mod` was the alternative and
+would namespace each fragment as `just rust::fmt`; `import` keeps the flat names the
+fragments already use, at the cost of requiring them to be unique.
 
 lefthook is excluded. `lefthook install` rewrites the configured
 `core.hooksPath` directory, which fails without write access to it, and

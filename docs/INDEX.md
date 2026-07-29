@@ -21,6 +21,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `lang/rust` | 3 | 14 |
 | `lang/ts` | 2 | 13 |
 | `quality/hooks` | 3 | 5 |
+| `workspace/just` | 0 | 3 |
 | `workspace/worktrunk` | 6 | 2 |
 
 ## `agentic/index`
@@ -281,6 +282,20 @@ Writes:
 .pre-commit.d/beads.yaml
 .pre-commit.d/hygiene.yaml
 scripts/merge_hooks.py
+```
+
+## `workspace/just`
+
+The root justfile, carrying one optional import per .just.d fragment plus the aggregate recipes that dispatch to whichever language layers rendered.
+
+Requires `just` on `PATH`.
+
+Writes:
+
+```
+.mise/conf.d/just.toml
+justfile
+scripts/gen_justfile.py
 ```
 
 ## `workspace/worktrunk`
