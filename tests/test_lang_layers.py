@@ -18,6 +18,7 @@ ANSWERS = {
     "rust": 'crate_kind: lib\nrust_edition: "2024"\n',
     "python": 'python_version: "3.13"\npython_layout: src\npython_framework: none\n',
     "go": 'go_module_path: github.com/srobroek/demo\ngo_version: "1.26"\ngo_vendor: false\n',
+    "ts": 'node_version: "24"\nts_typeaware: true\n',
 }
 
 
@@ -245,3 +246,59 @@ def test_vendor_is_ignored_unless_committed(tmp_path: Path) -> None:
     render("lang/go", on, ANSWERS["go"].replace("go_vendor: false", "go_vendor: true"))
     body = (on / ".gitignore.d" / "go").read_text()
     assert not any(line.strip() == "vendor/" for line in body.splitlines())
+
+
+# --- lang/ts ---------------------------------------------------------------
+
+
+def test_biome_lints_nothing_oxlint_covers(tmp_path: Path) -> None:
+    """Both linting would report one finding twice, with nothing to de-duplicate."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("lang/ts", dest, ANSWERS["ts"])
+    rules = json.loads((dest / "biome.json").read_text())["linter"]["rules"]
+
+    # `recommended` is deprecated in biome 2.5; `preset` replaced it.
+    assert "recommended" not in rules
+    assert rules["preset"] == "none"
+
+
+def test_biome_owns_formatting_and_assists(tmp_path: Path) -> None:
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("lang/ts", dest, ANSWERS["ts"])
+    config = json.loads((dest / "biome.json").read_text())
+    assert config["formatter"]["enabled"] is True
+    assert config["assist"]["actions"]["source"]["organizeImports"] == "on"
+
+
+def test_type_aware_linting_declares_its_package(tmp_path: Path) -> None:
+    """oxlint fails with "Failed to find tsgolint executable" without it."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("lang/ts", dest, ANSWERS["ts"])
+    assert json.loads((dest / ".oxlintrc.json").read_text())["options"]["typeAware"] is True
+
+    task = (
+        REPO_ROOT / "templates" / "lang" / "ts" / "tasks" / "add_dev_deps.py"
+    ).read_text()
+    assert "oxlint-tsgolint" in task
+
+
+def test_type_aware_can_be_turned_off(tmp_path: Path) -> None:
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("lang/ts", dest, ANSWERS["ts"].replace("ts_typeaware: true", "ts_typeaware: false"))
+    assert "options" not in json.loads((dest / ".oxlintrc.json").read_text())
+
+
+def test_a_generated_tsconfig_is_not_overwritten(tmp_path: Path) -> None:
+    """bun init and better-t-stack both write one, and theirs wins."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    (dest / "package.json").write_text('{"name": "demo"}\n')
+    (dest / "tsconfig.json").write_text('{"compilerOptions": {"strict": false}}\n')
+
+    render("lang/ts", dest, ANSWERS["ts"])
+
+    assert '"strict": false' in (dest / "tsconfig.json").read_text()

@@ -18,6 +18,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `lang/go` | 3 | 11 |
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
+| `lang/ts` | 2 | 13 |
 | `workspace/worktrunk` | 6 | 2 |
 
 ## `agentic/index`
@@ -195,6 +196,35 @@ clippy.toml
 deny.toml
 rust-toolchain.toml
 rustfmt.toml
+```
+
+## `lang/ts`
+
+TypeScript tooling: bun, biome for formatting and assists, oxlint for type-aware linting, vitest, tsc, knip, plus the CI jobs and the fragments every aggregating layer folds in.
+
+Requires `bun` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `node_version` | str | `24` |
+| `ts_typeaware` | bool | `True` |
+
+Writes:
+
+```
+.github/actions/setup-ts/action.yml
+.github/quality.d/ts.yml
+.github/security.d/ts.yml
+.github/workflows/wc-lint-ts.yml
+.github/workflows/wc-test-ts.yml
+.gitignore.d/ts
+.gitlab/ci/ts.yml
+.just.d/ts.just
+.mise/conf.d/ts.toml
+.oxlintrc.json
+.pre-commit.d/ts.yaml
+biome.json
+tsconfig.json
 ```
 
 ## `workspace/worktrunk`

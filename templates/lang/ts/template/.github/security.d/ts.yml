@@ -1,0 +1,10 @@
+# A job fragment the host layer's wc-security.yml folds into its matrix. CodeQL's
+# language name is not ours: it analyses TypeScript under javascript-typescript.
+codeql:
+  supported: true
+  language: javascript-typescript
+osv:
+  lockfiles: ["bun.lock", "package-lock.json", "pnpm-lock.yaml"]
+trivy:
+  mode: fs
+  scanners: ["vuln", "secret"]

@@ -64,3 +64,21 @@ variable (gosec)`.
 
 `go mod tidy -diff` reports without writing, so it works as a check. Available in
 Go 1.26.
+
+### TypeScript
+
+`options.typeAware: true` in `.oxlintrc.json` fails with `Failed to find tsgolint
+executable` unless `oxlint-tsgolint` is installed. It is a separate package from
+`oxlint`, published by the same org. Verified working afterwards: a floating
+promise produced `typescript(no-floating-promises)`, which biome carries only in
+nursery at information severity.
+
+`recommended` in a biome `linter.rules` block is deprecated as of 2.5 and prints a
+DEPRECATED diagnostic. `preset` replaced it, and `biome migrate --write` rewrites
+`"recommended": false` to `"preset": "none"`, which is the setting the split with
+oxlint needs anyway.
+
+`bun init` writes an `index.ts` with no trailing newline, which biome's formatter
+rejects, so a fresh scaffold fails its own gate. It also writes a `tsconfig.json`,
+as better-t-stack does, so the layer guards both with `_skip_if_exists` and
+normalises the formatting once after rendering.
