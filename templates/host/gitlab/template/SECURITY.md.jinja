@@ -1,0 +1,31 @@
+# Security policy
+
+## Supported versions
+
+Security fixes go to the latest release.
+
+## Reporting a vulnerability
+
+{% if security_contact -%}
+Report a vulnerability to {{ security_contact }}. Do not open a public issue: an
+issue is visible to everyone the moment it is filed, including before a fix exists.
+{%- else -%}
+Open a **confidential issue** on this project: choose New issue and tick "This issue
+is confidential". A confidential issue is visible only to project members at
+Reporter level and above, which is the private channel a GitLab project has without
+extra configuration.
+
+Do not open an ordinary issue, which is visible to everyone the moment it is filed.
+{%- endif %}
+
+Expect an acknowledgement within a few days. If a report goes unanswered for two
+weeks, escalate by opening a public issue asking only for a maintainer's attention,
+with no detail about the vulnerability.
+
+## What to include
+
+- What an attacker can do, and what they need in order to do it.
+- The affected version or commit.
+- Steps that reproduce it.
+
+A proof of concept helps and is not required.

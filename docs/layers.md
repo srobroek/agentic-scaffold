@@ -138,6 +138,21 @@ extractor.
 |---|---|---|
 | `host/github` | `workflows/{wc-changes,wc-gate,wc-quality,wc-security}.yml`, `actions/ci-gate/`, `CODEOWNERS`, issue and pull-request templates, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` | `security_contact`, `coc_contact`, `default_branch`, `job_timeout_minutes` |
 
+`host/gitlab` was written rather than ported: bailiff had no GitLab CI package, only
+`repo/gitlab-repo`, so its four language fragments had no pipeline to be included by.
+
+The `stages:` list is generated from what the `.gitlab/ci/*.yml` fragments declare.
+GitLab fails the whole pipeline when a job names a stage the list omits rather than
+skipping that job, and the include is a glob, so a language layer adopted later
+contributes a fragment the list has to learn about. `quality` and `security` are
+unconditional, because this layer's own two jobs sit there. A stage no `STAGE_ORDER`
+entry covers fails the generator, where the message can name the fragment.
+
+Governance wording differs between the hosts, though the substance does not. GitLab
+has merge requests rather than pull requests, and no private vulnerability reporting
+form, so `SECURITY.md` points at a confidential issue instead. That is the private
+channel a GitLab project has without extra configuration.
+
 `host/github` also takes `project_name` and `org`, threaded from `base/repo` for
 the clone line and `CODEOWNERS`. An empty `org` writes a commented-out rule rather
 than `*  @`, which GitHub reports as a parse error on every pull request.
@@ -149,7 +164,7 @@ parameter, so it silently never loads.
 `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and `CODEOWNERS` carry
 `_skip_if_exists`: each holds a contact address or a project-specific rule edited
 after rendering.
-| `host/gitlab` | `.gitlab-ci.yml` with the glob include and stages list, `.gitlab/ci/{quality,security}.yml`, `CODEOWNERS` | `gitlab_host`, `security_contact` |
+| `host/gitlab` | `.gitlab-ci.yml` with the generated stages list and the glob include, `.gitlab/{CODEOWNERS,issue_templates,merge_request_templates}`, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `scripts/gen_gitlab_stages.py`, `.just.d/gitlab.just` | `gitlab_host`, `security_contact`, `coc_contact`, `default_branch`, `job_timeout_minutes` |
 
 ## quality
 

@@ -25,6 +25,10 @@ security_contact: ""
 coc_contact: ""
 """
 
+# A language layer to render alongside a host layer, so the fragment-driven parts
+# have something real to fold in.
+ANSWERS_GO = 'go_module_path: github.com/srobroek/demo\ngo_version: "1.26"\ngo_vendor: false\n'
+
 
 def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
     answers_file = dest.parent / f"{dest.name}-answers.yml"
@@ -337,6 +341,241 @@ def test_the_rendered_workflows_pass_their_own_linters(tool: str, rendered: Path
 
     result = subprocess.run(argv, capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+# --- host/gitlab ----------------------------------------------------------
+
+GITLAB_ANSWERS = """\
+gitlab_host: gitlab.com
+security_contact: ""
+coc_contact: ""
+default_branch: main
+job_timeout_minutes: 15
+project_name: demo
+org: srobroek
+"""
+
+
+@pytest.fixture
+def gitlab(tmp_path: Path) -> Path:
+    dest = tmp_path / "gl"
+    dest.mkdir()
+    result = render("host/gitlab", dest, GITLAB_ANSWERS)
+    assert result.returncode == 0, result.stderr
+    return dest
+
+
+def pipeline(dest: Path) -> dict:
+    return yaml.safe_load((dest / ".gitlab-ci.yml").read_text())
+
+
+def test_the_pipeline_needs_no_caller(gitlab: Path) -> None:
+    """Unlike GitHub, the glob include resolves whichever fragments rendered."""
+    spec = pipeline(gitlab)
+    assert spec["include"] == [{"local": ".gitlab/ci/*.yml"}]
+
+
+def test_the_gitlab_layer_runs_no_language_tooling(gitlab: Path) -> None:
+    """Each lang/* layer supplies its own .gitlab/ci fragment."""
+    tooling = [
+        "cargo", "clippy", "rustfmt", "nextest", "ruff", "pytest", "biome",
+        "oxlint", "tsc", "bun", "golangci-lint", "gofmt", "govulncheck",
+    ]
+    offenders = []
+    for path in sorted(gitlab.rglob("*")):
+        if not path.is_file():
+            continue
+        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            for tool in tooling:
+                if re.search(rf"(?<![\w-]){re.escape(tool)}(?![\w-])", line, re.IGNORECASE):
+                    offenders.append(f"{path.name}:{lineno} runs {tool!r}")
+    assert not offenders, "language tooling in the host layer: " + "; ".join(offenders)
+
+
+def test_every_declared_stage_reaches_the_stages_list(gitlab: Path) -> None:
+    """GitLab fails the whole pipeline on a job naming an undeclared stage.
+
+    It does not skip the job, so the list has to cover every fragment. The include is
+    a glob, which is why the list is generated rather than written by hand.
+    """
+    render("lang/go", gitlab, ANSWERS_GO)
+    subprocess.run(
+        [sys.executable, str(gitlab / "scripts" / "gen_gitlab_stages.py"), str(gitlab)],
+        check=True,
+        capture_output=True,
+    )
+
+    spec = pipeline(gitlab)
+    merged: dict = {}
+    for fragment in sorted((gitlab / ".gitlab" / "ci").glob("*.yml")):
+        merged.update(yaml.safe_load(fragment.read_text()) or {})
+    merged.update({k: v for k, v in spec.items() if isinstance(v, dict)})
+
+    reserved = {"default", "workflow", "variables", "include"}
+    for name, job in merged.items():
+        if name.startswith(".") or name in reserved or not isinstance(job, dict):
+            continue
+        if stage := job.get("stage"):
+            assert stage in spec["stages"], f"job {name!r} names undeclared stage {stage!r}"
+
+
+def test_the_stages_are_in_pipeline_order(gitlab: Path) -> None:
+    """`stages:` defines what runs before what, so alphabetical would be wrong."""
+    render("lang/go", gitlab, ANSWERS_GO)
+    subprocess.run(
+        [sys.executable, str(gitlab / "scripts" / "gen_gitlab_stages.py"), str(gitlab)],
+        check=True,
+        capture_output=True,
+    )
+    assert pipeline(gitlab)["stages"] == ["quality", "lint", "test", "security"]
+
+
+def test_the_host_stages_apply_with_no_language_layer(gitlab: Path) -> None:
+    """This layer's own jobs sit in quality and security.
+
+    A pipeline whose only jobs name stages the list omits fails rather than skipping,
+    so those two are unconditional.
+    """
+    assert pipeline(gitlab)["stages"] == ["quality", "security"]
+
+
+def test_an_unknown_stage_is_refused(gitlab: Path) -> None:
+    """A typo would otherwise reach the pipeline and fail every job in it."""
+    (gitlab / ".gitlab" / "ci").mkdir(parents=True, exist_ok=True)
+    (gitlab / ".gitlab" / "ci" / "bad.yml").write_text(
+        "bad-job:\n  stage: notastage\n  script:\n    - true\n"
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(gitlab / "scripts" / "gen_gitlab_stages.py"), str(gitlab)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "notastage" in result.stderr
+    # The message has to say what a valid stage is, or it just says no.
+    assert "quality" in result.stderr
+
+
+def test_a_template_key_is_not_mistaken_for_a_job(gitlab: Path) -> None:
+    """A key opening with a dot is a template, and GitLab never runs it."""
+    (gitlab / ".gitlab" / "ci").mkdir(parents=True, exist_ok=True)
+    (gitlab / ".gitlab" / "ci" / "tpl.yml").write_text(
+        ".hidden-setup:\n  stage: notastage\n  script:\n    - true\n"
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(gitlab / "scripts" / "gen_gitlab_stages.py"), str(gitlab)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_the_pipeline_does_not_run_twice_for_one_push(gitlab: Path) -> None:
+    """Without the branch condition a push to a branch with an open MR runs two."""
+    rules = pipeline(gitlab)["workflow"]["rules"]
+    assert any("merge_request_event" in str(rule) for rule in rules)
+    assert any("CI_COMMIT_BRANCH" in str(rule) for rule in rules)
+
+
+def test_the_secret_scan_reads_full_history(gitlab: Path) -> None:
+    """A secret usually sits in an older commit, which a shallow clone never fetches."""
+    spec = pipeline(gitlab)
+    assert spec["variables"]["GIT_DEPTH"] == "50"
+    assert spec["secret-scan"]["variables"]["GIT_DEPTH"] == "0"
+
+
+def test_the_jobs_carry_a_timeout(gitlab: Path) -> None:
+    """GitLab takes its default from the runner, not the job."""
+    assert pipeline(gitlab)["default"]["timeout"] == "15m"
+
+
+def test_the_generated_pipeline_is_valid_yaml(gitlab: Path) -> None:
+    """An inline `{extends: relaxed, ...}` parses as a flow mapping, not a string.
+
+    That is what broke the first version of the yamllint step, so the argument sits
+    inside a block scalar.
+    """
+    if shutil.which("yamllint") is None:
+        pytest.skip("yamllint absent from PATH")
+
+    result = subprocess.run(
+        [
+            "yamllint",
+            "-f",
+            "parsable",
+            "-d",
+            "{extends: relaxed, rules: {line-length: disable, document-start: disable}}",
+            str(gitlab / ".gitlab-ci.yml"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout
+
+
+def test_gitlab_governance_uses_gitlab_terminology(gitlab: Path) -> None:
+    """"Pull request" is GitHub's term, and a contributor reads these literally."""
+    contributing = (gitlab / "CONTRIBUTING.md").read_text()
+    assert "merge request" in contributing.lower()
+    assert "pull request" not in contributing.lower()
+
+    # GitLab has no private vulnerability reporting form; a confidential issue is
+    # the private channel a project has without extra configuration.
+    security = (gitlab / "SECURITY.md").read_text()
+    assert "confidential issue" in security.lower()
+
+
+def test_the_gitlab_governance_surface_renders(gitlab: Path) -> None:
+    for expected in (
+        ".gitlab/CODEOWNERS",
+        ".gitlab/issue_templates/bug_report.md",
+        ".gitlab/issue_templates/feature_request.md",
+        ".gitlab/merge_request_templates/default.md",
+        "SECURITY.md",
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
+    ):
+        assert (gitlab / expected).is_file(), f"missing {expected}"
+
+
+def test_both_hosts_coexist_and_the_first_owns_the_shared_files(tmp_path: Path) -> None:
+    """A repository mirrored to both forges renders both layers.
+
+    `SECURITY.md`, `CONTRIBUTING.md`, and `CODE_OF_CONDUCT.md` are not host-specific
+    paths, so both layers would write them. `_skip_if_exists` gives them to whichever
+    rendered first rather than leaving the second layer's wording to win silently;
+    the host-specific trees stay separate either way.
+    """
+    dest = tmp_path / "both"
+    dest.mkdir()
+    assert render("host/github", dest, ANSWERS).returncode == 0
+    assert render("host/gitlab", dest, GITLAB_ANSWERS).returncode == 0
+
+    # Each host's own tree is untouched by the other.
+    assert (dest / ".github" / "workflows" / "wc-gate.yml").is_file()
+    assert (dest / ".gitlab-ci.yml").is_file()
+    assert (dest / ".github" / "PULL_REQUEST_TEMPLATE.md").is_file()
+    assert (dest / ".gitlab" / "merge_request_templates" / "default.md").is_file()
+
+    # github rendered first, so its CONTRIBUTING survived rather than being replaced.
+    assert "pull request" in (dest / "CONTRIBUTING.md").read_text().lower()
+
+
+def test_an_absent_owner_writes_no_wildcard_rule_on_gitlab(tmp_path: Path) -> None:
+    dest = tmp_path / "gl"
+    dest.mkdir()
+    render("host/gitlab", dest, GITLAB_ANSWERS.replace("org: srobroek", 'org: ""'))
+    body = (dest / ".gitlab" / "CODEOWNERS").read_text()
+    assert "*  @\n" not in body
 
 
 # --- governance -----------------------------------------------------------

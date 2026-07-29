@@ -1,0 +1,103 @@
+# .gitlab-ci.yml -- the pipeline root.
+#
+# No caller workflow, unlike GitHub. The glob include below resolves whichever
+# `.gitlab/ci/<lang>.yml` fragments the language layers rendered, so a language's
+# jobs arrive with its layer and nothing here names a language.
+
+# BEGIN GENERATED: stages
+# Rebuilt by `just gitlab-sync` from the stages the .gitlab/ci/ fragments declare.
+# Do not edit by hand.
+#
+# A job naming a stage absent from this list fails the whole pipeline, and the
+# include below is a glob, so a language layer adopted later contributes a fragment
+# this file has to learn about.
+stages:
+  - quality
+  - security
+# END GENERATED: stages
+
+# `*` matches one directory level; `**` recurses. Merge order across a glob is not
+# deterministic, so no two fragments may set the same key. `gen_gitlab_stages.py`
+# refuses a colliding set.
+include:
+  - local: .gitlab/ci/*.yml
+
+default:
+  # GitLab takes its default timeout from the runner rather than the job, so a hung
+  # job runs to the project limit without this.
+  timeout: {{ job_timeout_minutes }}m
+  image: debian:stable-slim
+
+# Merge-request pipelines plus the default branch, and nothing twice. Without the
+# second rule a push to a branch with an open merge request runs two pipelines.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "{{ default_branch }}"
+    - if: $CI_COMMIT_TAG
+
+variables:
+  # A shallow clone breaks the secret scan, which reads history. Jobs needing the
+  # full history override this; the rest keep the cheap default.
+  GIT_DEPTH: "50"
+
+# The toolchain comes from mise rather than a per-language image, so a job runs the
+# versions .mise/conf.d/ pins and CI matches a developer's machine.
+.mise:
+  before_script:
+    - apt-get update -qq && apt-get install -yqq curl git
+    - curl -sSf https://mise.run | sh
+    - export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
+    - mise install --yes
+    - eval "$(mise activate bash --shims)"
+
+# --- language-blind jobs ---------------------------------------------------
+#
+# Everything here needs no language knowledge. What cannot live in this layer sits
+# in each lang/* fragment instead: lizard's thresholds differ per language, trivy's
+# mode differs between dependencies and IaC, and osv keys off which lockfiles exist.
+
+quality:
+  extends: .mise
+  stage: quality
+  script:
+    # The whole hook set, unbypassable. A local hook is advisory, since --no-verify
+    # defeats it and a fresh clone has no shims until someone runs `just setup`.
+    - |
+      if [ -f .pre-commit-config.yaml ]; then
+        prek run --all-files --show-diff-on-failure
+      else
+        echo "no .pre-commit-config.yaml, skipping"
+      fi
+    - |
+      if [ -f justfile ] && grep -q 'just-check' justfile; then
+        just just-check
+      fi
+    # A block scalar, not an inline string: yamllint's own config argument opens with
+    # a brace, which YAML would otherwise read as a flow mapping rather than text.
+    #
+    # Without a project .yamllint the defaults flag 80-column lines and a missing
+    # document start, neither of which is a project rule.
+    - |
+      if [ -f .yamllint ] || [ -f .yamllint.yaml ]; then
+        yamllint -f parsable .
+      else
+        yamllint -f parsable \
+          -d "{extends: relaxed, rules: {line-length: disable, document-start: disable}}" .
+      fi
+    - taplo fmt --check --diff
+    - npx --yes markdownlint-cli2 "**/*.md" "#node_modules"
+    - npx --yes cspell lint --no-progress --no-summary .
+    - lychee --no-progress --accept 200,204,206,429 '**/*.md'
+
+secret-scan:
+  extends: .mise
+  stage: security
+  variables:
+    # A secret usually sits in an older commit, which the shallow default never
+    # fetches.
+    GIT_DEPTH: "0"
+  script:
+    # trufflehog verifies a candidate against the issuing API, so it reports live
+    # credentials the regex scanners rate too low-entropy to flag.
+    - trufflehog git file://. --results=verified --fail --no-update

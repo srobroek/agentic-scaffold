@@ -177,6 +177,25 @@ def test_gitignore_covers_the_os_artifacts_with_no_language_layer(
     )
 
 
+def test_a_pattern_holding_a_carriage_return_survives(tmp_path: Path) -> None:
+    """GitHub's macOS template carries `Icon[\\r]`, a filename with a literal CR.
+
+    Reading gitnr's output with `text=True` enables universal newlines, which rewrites
+    that CR to LF and splits the pattern across two lines. What is left, `Icon[`, is an
+    unterminated character class, and every tool that reads .gitignore errors on it:
+    zizmor exited 1 with "error parsing glob 'Icon['" while auditing workflows.
+    """
+    dest = tmp_path / "d"
+    dest.mkdir()
+    result = render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    assert result.returncode == 0, result.stderr
+
+    raw = (dest / ".gitignore").read_bytes()
+    assert b"Icon[\r]" in raw, "the CR was translated, splitting the pattern"
+    # The truncated form is what a tool chokes on.
+    assert b"Icon[\n" not in raw
+
+
 def test_gitignore_leaves_editor_directories_to_the_developer(tmp_path: Path) -> None:
     """`.vscode/` and `.idea/` follow the developer, not the project.
 

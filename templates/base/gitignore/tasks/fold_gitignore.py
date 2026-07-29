@@ -53,17 +53,21 @@ def gitnr_output(sources: list[str]) -> str:
     if shutil.which("gitnr") is None:
         print("gitnr absent from PATH, skipping its templates", file=sys.stderr)
         return ""
+    # Bytes, not text. `text=True` enables universal newlines, which rewrites a lone
+    # CR to LF, and GitHub's macOS template carries two patterns holding a literal CR:
+    # `Icon[\r]` and `.HFS+ Private Directory Data[\r]`. Converting it splits each
+    # across two lines, leaving `Icon[` behind, which is an unterminated character
+    # class. Every tool reading the file then errors on it, zizmor among them.
     result = subprocess.run(
         ["gitnr", "create", *sources],
         capture_output=True,
-        text=True,
         check=False,
         timeout=GITNR_TIMEOUT_SECONDS,
     )
     if result.returncode != 0:
-        detail = result.stderr.strip() or f"exit {result.returncode}"
+        detail = result.stderr.decode(errors="replace").strip() or f"exit {result.returncode}"
         raise SystemExit(f"gitnr failed for {' '.join(sources)}: {detail}")
-    return result.stdout
+    return result.stdout.decode(errors="replace")
 
 
 def fragments(dest: Path) -> str:

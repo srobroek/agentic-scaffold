@@ -29,6 +29,21 @@ against lizard's own list.
 
 ### GitLab CI
 
+| Failure | Cause |
+|---|---|
+| the whole pipeline fails, not one job | a job names a stage absent from the top-level `stages:` list. GitLab rejects the pipeline rather than skipping the job |
+| `mapping values are not allowed here` | an inline `-d "{extends: relaxed, ...}"` parses as a YAML flow mapping, not a string. Put the command in a block scalar |
+| two pipelines run for one push | a branch with an open merge request matches both the branch rule and the merge-request rule. Gate on `$CI_PIPELINE_SOURCE` |
+
+A job naming an undeclared stage takes down every other job with it, which makes the
+`stages:` list the same class of hazard as `default_install_hook_types`: a glob
+include means a layer adopted later contributes a stage nothing declared.
+`gen_gitlab_stages.py` generates the list and refuses an unrecognised stage.
+
+A key opening with a dot is a template rather than a job, and GitLab never runs it, so
+a stage named there does not need declaring. Every language fragment carries one, as
+`.<lang>-setup`.
+
 The Terraform CI templates were removed in 18.0. The replacement is the
 `components/opentofu` component. Components resolve from the instance they run
 on, so a self-managed instance needs the component mirrored.

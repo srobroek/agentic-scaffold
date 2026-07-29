@@ -1,0 +1,9 @@
+# CODEOWNERS -- one owner per path pattern, space-separated. Later patterns win.
+# https://docs.gitlab.com/ee/user/project/codeowners/
+{% if org -%}
+*  @{{ org }}
+{%- else -%}
+# No owner was set when this rendered. Until a line here names one, a merge request
+# requests no review automatically.
+# *  @your-group
+{%- endif %}

@@ -42,6 +42,11 @@ jobs:
           if [ -f justfile ] && grep -q 'just-check' justfile; then
             just just-check
           fi
+          # Present only when host/gitlab also rendered, which a repository mirrored
+          # to both forges does.
+          if [ -f .gitlab-ci.yml ] && [ -f scripts/gen_gitlab_stages.py ]; then
+            just gitlab-check
+          fi
 
       # The layer that actually enforces. A local hook is advisory: --no-verify
       # defeats it, and a fresh clone has no shims until someone runs `just setup`.

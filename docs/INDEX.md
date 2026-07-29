@@ -18,6 +18,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/repo` | 3 | 5 |
 | `docs/agents` | 1 | 10 |
 | `host/github` | 6 | 12 |
+| `host/gitlab` | 7 | 10 |
 | `lang/go` | 3 | 11 |
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
@@ -135,7 +136,7 @@ scripts/.gitkeep
 
 ## `docs/agents`
 
-Steering directories under docs/agents, with generated blocks the steering skill rewrites, plus AGENTS.md and the CLAUDE.md symlink.
+steering directories under docs/agents, with generated blocks the steering skill rewrites, plus AGENTS.md and the CLAUDE.md symlink.
 
 | Question | Type | Default |
 |---|---|---|
@@ -186,6 +187,37 @@ Writes:
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 SECURITY.md
+```
+
+## `host/gitlab`
+
+GitLab CI and governance: .gitlab-ci.yml with the stages list and the glob include, the language-blind quality and security jobs, CODEOWNERS, and the issue and merge-request templates.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `gitlab_host` | str | `gitlab.com` |
+| `security_contact` | str |  |
+| `coc_contact` | str |  |
+| `default_branch` | str | `main` |
+| `job_timeout_minutes` | int | `15` |
+| `project_name` | str |  |
+| `org` | str |  |
+
+Writes:
+
+```
+.gitlab/CODEOWNERS
+.gitlab/issue_templates/bug_report.md
+.gitlab/issue_templates/feature_request.md
+.gitlab/merge_request_templates/default.md
+.gitlab-ci.yml
+.just.d/gitlab.just
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+SECURITY.md
+scripts/gen_gitlab_stages.py
 ```
 
 ## `lang/go`

@@ -70,6 +70,16 @@ the working directory.
 A `mise.toml` key holding a colon, such as `pipx:structkit`, must be quoted or
 every `mise install` fails.
 
+`gitnr`'s macOS template carries two patterns holding a literal carriage return,
+`Icon[\r]` and `.HFS+ Private Directory Data[\r]`, because those are the real
+filenames. Reading its output through `subprocess.run(text=True)` enables universal
+newlines, which rewrites that CR to LF and splits each pattern across two lines.
+
+What survives is `Icon[`, an unterminated character class, and every tool that reads
+`.gitignore` errors on it. Symptom: `zizmor` exited 1 with
+`error parsing glob 'Icon[': unclosed character class` while auditing workflows, which
+looks like a workflow problem and is not. Capture bytes and decode explicitly.
+
 ### repomix
 
 `--compress` cut 21 percent on a 4,107-file Rust and TypeScript repository, not
