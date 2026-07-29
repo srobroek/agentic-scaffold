@@ -1,0 +1,87 @@
+{#-
+  .gitlab/ci/terraform.yml -- included by .gitlab-ci.yml through
+  `include: - local: .gitlab/ci/*.yml`.
+
+  Merge order across a glob is not deterministic, so no key here may be set by any
+  other fragment. Every job and anchor below is prefixed `tofu`.
+-#}
+# The stages named here (`lint` and `deploy`) must appear in .gitlab-ci.yml's
+# top-level `stages:` list. `gen_gitlab_stages.py` reads this file and rebuilds that
+# list, so `just gitlab-sync` after rendering is what keeps the pipeline valid: a job
+# naming an absent stage fails the whole pipeline rather than skipping.
+
+.tofu-setup:
+  image: debian:stable-slim
+  before_script:
+    - apt-get update -qq && apt-get install -yqq curl git unzip
+    - curl -sSf https://mise.run | sh
+    - export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
+    - mise install --yes
+    - eval "$(mise activate bash --shims)"
+
+tofu-lint:
+  extends: .tofu-setup
+  stage: lint
+  script:
+    - just tf-fmt-check
+    - just tf-validate
+    - just tf-lint
+    - just tf-test
+
+# One plan job per environment, on every merge request. GitLab's `parallel: matrix`
+# is the equivalent of GitHub's strategy matrix.
+#
+# Authentication is left to the project rather than assumed: GitLab's OIDC (`id_tokens`)
+# needs the account's trust policy to name the GitLab issuer, which this layer does not
+# create. Without TOFU_ROLE_ARN the job reports that and stops.
+tofu-plan:
+  extends: .tofu-setup
+  stage: lint
+  parallel:
+    matrix:
+      - TOFU_ENV: [{% for env in environments %}{{ env }}{% if not loop.last %}, {% endif %}{% endfor %}]
+  id_tokens:
+    AWS_ID_TOKEN:
+      aud: sts.amazonaws.com
+  script:
+    - |
+      if [ -z "${TOFU_ROLE_ARN:-}" ]; then
+        echo "TOFU_ROLE_ARN is not set, so the plan for $TOFU_ENV was skipped."
+        echo "Run 'just tf-bootstrap' and set TOFU_ROLE_ARN as a CI/CD variable."
+        exit 0
+      fi
+      just tf-plan "$TOFU_ENV"
+  artifacts:
+    paths:
+      - infra/$TOFU_ENV.tfplan
+    # A plan holds every variable value in cleartext, so it expires rather than
+    # persisting as a downloadable artifact.
+    expire_in: 1 day
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# Manual, and only on the default branch. This is what keeps two people from applying
+# at once, which a local wrapper cannot do.
+tofu-apply:
+  extends: .tofu-setup
+  stage: deploy
+  parallel:
+    matrix:
+      - TOFU_ENV: [{% for env in environments %}{{ env }}{% if not loop.last %}, {% endif %}{% endfor %}]
+  id_tokens:
+    AWS_ID_TOKEN:
+      aud: sts.amazonaws.com
+  # One apply at a time per environment. `resource_group` serialises the jobs rather
+  # than running them concurrently against one state file.
+  resource_group: tofu-apply-$TOFU_ENV
+  script:
+    - |
+      if [ -z "${TOFU_ROLE_ARN:-}" ]; then
+        echo "TOFU_ROLE_ARN is not set; refusing to apply." >&2
+        exit 1
+      fi
+      just tf-plan "$TOFU_ENV"
+      just tf-apply "$TOFU_ENV"
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == "{{ default_branch }}"

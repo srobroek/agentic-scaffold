@@ -1,0 +1,30 @@
+{#-
+  infra/variables.tf -- the three variables every environment sets, and nothing else.
+  Project-specific variables are added here as the infrastructure grows.
+-#}
+# The values live in envs/<env>.tfvars, one file per environment.
+
+variable "project_name" {
+  description = "Name prefix for every resource, and the state key prefix."
+  type        = string
+  default     = "{{ project_name | default('project', true) }}"
+}
+
+variable "environment" {
+  description = "Which environment this root module is planning against."
+  type        = string
+
+  # Guards the case the backend cannot: passing the wrong -var-file, or none. An
+  # environment absent from this list is a hard error rather than a resource named
+  # after a typo.
+  validation {
+    condition     = contains([{% for env in environments %}"{{ env }}"{% if not loop.last %}, {% endif %}{% endfor %}], var.environment)
+    error_message = "environment must be one of: {{ environments | join(', ') }}."
+  }
+}
+
+variable "aws_region" {
+  description = "Region for the provider and every regional resource."
+  type        = string
+  default     = "{{ aws_region }}"
+}

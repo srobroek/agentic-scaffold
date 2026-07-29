@@ -1,0 +1,13 @@
+{#-
+  .mise/conf.d/terraform.toml -- this layer's tools only. mise reads every
+  .mise/conf.d/*.toml, so a layer contributes its own without touching a shared file.
+-#}
+# The hooks call these through `language: system` and CI installs them with
+# mise-action, so this pin is what makes a version mean the same thing in both
+# places.
+[tools]
+# opentofu, not terraform. The tool name mise knows is "opentofu"; the binary it
+# installs is `tofu`.
+opentofu = "{{ opentofu_version }}"
+tflint = "{{ tflint_version }}"
+trivy = "latest"

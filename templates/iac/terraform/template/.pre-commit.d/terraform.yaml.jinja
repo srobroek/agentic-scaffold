@@ -1,0 +1,73 @@
+{#-
+  .pre-commit.d/terraform.yaml -- this layer's hook block only.
+
+  quality/hooks folds every .pre-commit.d/*.yaml into the root .pre-commit-config.yaml,
+  which is why that layer renders AFTER this one. Rendering it earlier leaves this
+  fragment out with nothing to report the omission: prek reads the merged file and
+  never sees the fragment directory.
+-#}
+repos:
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: {{ pre_commit_terraform_rev }}
+    hooks:
+      # The hook ids are `terraform_*` even on OpenTofu; there is no `tofu_*` set.
+      # The scripts pick a binary in this order: --tf-path, PCT_TFPATH,
+      # TERRAGRUNT_TFPATH, `terraform`, then `tofu`. `terraform` comes FIRST, so on a
+      # machine with both installed these run terraform against a repository this
+      # layer pins to OpenTofu. PCT_TFPATH is set per hook below to settle it.
+      #
+      # `terraform_fmt` matches .tftest.hcl too, so the tests are formatted with the
+      # configuration rather than drifting from it.
+      - id: terraform_fmt
+        args: [--args=-recursive]
+        env:
+          PCT_TFPATH: tofu
+        groups: [quality]
+
+      # Runs `tofu init -backend=false` per directory before validating, so it works
+      # with the empty `backend "s3" {}` block and needs no credentials.
+      - id: terraform_validate
+        args: [--hook-config=--retry-once-with-cleanup=true]
+        env:
+          PCT_TFPATH: tofu
+        groups: [quality]
+
+      # --config must be absolute: the script chdirs into each directory it lints, and
+      # tflint reads only its working directory's config, never a parent's. Verified
+      # against tflint 0.64.0.
+      - id: terraform_tflint
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+          - --args=--minimum-failure-severity=warning
+        env:
+          PCT_TFPATH: tofu
+        groups: [quality]
+
+      # Misconfiguration scanning: a public bucket, an unencrypted volume, an open
+      # security group. Confined to infra/ because the repository-wide trivy run
+      # happens in CI.
+      - id: terraform_trivy
+        # Quoted, because this is a flow sequence: an unquoted
+        # `[--args=--severity=HIGH,CRITICAL]` splits on the comma into two entries and
+        # trivy receives a bare `CRITICAL` as a positional argument.
+        args: ["--args=--severity=HIGH,CRITICAL"]
+        files: ^infra/
+        groups: [security]
+
+  - repo: local
+    hooks:
+      # The lock file has to carry every platform CI and every developer runs on, or
+      # `tofu init` in CI fails with "provider not available for linux_amd64" against
+      # a lock generated on a Mac. `-platform` is passed for both, so a commit that
+      # changes providers regenerates a lock valid for both.
+      #
+      # pre-commit-terraform ships `terraform_providers_lock`, but it triggers only on
+      # an existing .terraform.lock.hcl, so the first commit that adds a provider is
+      # exactly the one it skips.
+      - id: tofu-providers-lock
+        name: tofu providers lock (linux and darwin)
+        entry: scripts/tofu_lock.sh
+        language: script
+        files: ^infra/.*\.(tf|terraform\.lock\.hcl)$
+        pass_filenames: false
+        groups: [quality]

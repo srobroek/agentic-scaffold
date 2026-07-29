@@ -1,0 +1,61 @@
+{#-
+  .tflint.hcl -- at the REPOSITORY ROOT, not under infra/.
+
+  tflint does NOT search parent directories for a config: verified against tflint
+  0.64.0, where running from infra/ with the config at the root applied none of the
+  rules below and reported the default set instead. `just tf-lint` therefore passes
+  `--config` with an absolute path, and the recipe and this location have to agree.
+-#}
+# Rules for the OpenTofu configuration under infra/.
+#
+# The config is passed explicitly by `just tf-lint`, because tflint reads only the
+# config in its working directory and never one in a parent. With `--recursive` it
+# visits infra/, infra/modules/*, and infra/bootstrap, each as its own working
+# directory, so without `--config` every one of them would run unconfigured.
+
+config {
+  # Follows `module "x" { source = "./..." }` into the child module so a bad argument
+  # to a local module is reported. Off by default.
+  call_module_type = "local"
+}
+
+plugin "terraform" {
+  enabled = true
+  preset  = "recommended"
+}
+
+# The AWS ruleset is what catches an invalid instance type or a malformed ARN, none
+# of which the language-only ruleset models. Pinned rather than floating: an
+# unpinned ruleset means a rule can appear and fail CI on an unrelated commit.
+plugin "aws" {
+  enabled = true
+  version = "0.48.0"
+  source  = "github.com/terraform-linters/tflint-ruleset-aws"
+}
+
+# Every variable and output carries a description. tflint reports these as warnings,
+# and `just tf-lint` treats a warning as a failure, so they hold.
+rule "terraform_documented_variables" {
+  enabled = true
+}
+
+rule "terraform_documented_outputs" {
+  enabled = true
+}
+
+# snake_case for every identifier, which is the convention the language's own style
+# guide states.
+rule "terraform_naming_convention" {
+  enabled = true
+}
+
+# `required_version` and `required_providers` must both be present. This is the rule
+# that catches a new root module added without a versions.tf, which would otherwise
+# resolve whatever provider is newest at the time.
+rule "terraform_required_version" {
+  enabled = true
+}
+
+rule "terraform_required_providers" {
+  enabled = true
+}

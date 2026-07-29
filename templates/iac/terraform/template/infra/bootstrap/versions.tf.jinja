@@ -1,0 +1,22 @@
+{#-
+  infra/bootstrap/versions.tf -- no backend block, deliberately.
+-#}
+terraform {
+  required_version = ">= {{ opentofu_version }}"
+
+  # No `backend` block: bootstrap creates the state bucket, so it cannot keep its
+  # own state in it. State stays local and gitignored. Every resource here is
+  # `prevent_destroy`, so a lost state file is recovered by `tofu import` rather
+  # than by recreating a bucket that already exists.
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "{{ aws_provider_version }}"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+}

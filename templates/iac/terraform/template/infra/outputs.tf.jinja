@@ -1,0 +1,13 @@
+{#-
+  infra/outputs.tf -- what the root module exposes. The tofu test asserts against
+  these, so a starter output gives the test something real to check.
+-#}
+output "name_prefix" {
+  description = "Prefix every resource name in this environment carries."
+  value       = module.naming.prefix
+}
+
+output "environment" {
+  description = "Environment this state belongs to, echoed back to confirm the tfvars that were used."
+  value       = var.environment
+}

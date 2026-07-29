@@ -1,0 +1,42 @@
+{#-
+  infra/tests/naming.tftest.hcl -- the worked example of the test contract.
+-#}
+# `tofu test` reads tests/ under the root module by default, so this runs from
+# infra/ with no flag. It resolves `module.source` from the root module too, which
+# is why main.tf uses `./modules/<name>`.
+#
+# Every run is `command = plan`: it never reaches a provider API, so the suite needs
+# no credentials and no state. An apply-mode test would create real infrastructure.
+#
+# The provider is mocked rather than configured. Without this block the aws provider
+# still resolves a region and credentials during plan, so the suite fails on a
+# machine with no AWS profile -- including CI, before it has assumed a role.
+mock_provider "aws" {}
+
+variables {
+  project_name = "test"
+  environment  = "{{ first_environment }}"
+  aws_region   = "{{ aws_region }}"
+}
+
+run "prefix_is_environment_scoped" {
+  command = plan
+
+  assert {
+    condition     = output.name_prefix == "test-{{ first_environment }}"
+    error_message = "name_prefix must be <project>-<environment>, got ${output.name_prefix}"
+  }
+}
+
+# The validation block in variables.tf is the guard against planning with a bogus
+# environment. `expect_failures` asserts the guard fires, so removing the validation
+# fails this test rather than silently widening what is accepted.
+run "an_unknown_environment_is_rejected" {
+  command = plan
+
+  variables {
+    environment = "not-an-environment"
+  }
+
+  expect_failures = [var.environment]
+}

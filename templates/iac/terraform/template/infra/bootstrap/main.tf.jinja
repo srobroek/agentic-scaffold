@@ -1,0 +1,130 @@
+{#-
+  infra/bootstrap/main.tf -- creates the S3 bucket the main root module stores its
+  state in, plus the GitHub OIDC provider and the role CI assumes.
+-#}
+# bootstrap -- run once per account, before the main root module can init.
+#
+# It is a separate root module with LOCAL state, and that is the whole point: it
+# creates the bucket that holds everyone else's state, so it cannot store its own
+# state there. Its terraform.tfstate is gitignored; the resources are all
+# `prevent_destroy`, so a lost local state file is recoverable by importing rather
+# than by recreating.
+#
+# No DynamoDB lock table. The S3 backend's `use_lockfile` covers locking from 1.10,
+# and a table would be a second thing to create, pay for, and keep in step.
+
+resource "aws_s3_bucket" "state" {
+  bucket = var.state_bucket
+
+  lifecycle {
+    # State is the record of what exists. Losing it means the infrastructure is
+    # still running with nothing tracking it.
+    prevent_destroy = true
+  }
+}
+
+# Every prior version of state is a recovery point, and `use_lockfile` relies on the
+# bucket accepting the lock object. Versioning is what makes a corrupt or truncated
+# state recoverable at all.
+resource "aws_s3_bucket_versioning" "state" {
+  bucket = aws_s3_bucket.state.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
+  bucket = aws_s3_bucket.state.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+    # One key decrypt per request rather than per object, which matters because
+    # every plan reads the whole state file.
+    bucket_key_enabled = true
+  }
+}
+
+# State holds every attribute of every resource, including values a provider marked
+# sensitive. A public state bucket is a credential leak.
+resource "aws_s3_bucket_public_access_block" "state" {
+  bucket = aws_s3_bucket.state.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Old versions accumulate: every plan and apply writes one. This expires them
+# without touching the current object.
+resource "aws_s3_bucket_lifecycle_configuration" "state" {
+  bucket = aws_s3_bucket.state.id
+
+  rule {
+    id     = "expire-noncurrent-state"
+    status = "Enabled"
+
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.state_retention_days
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
+# --- CI authentication -------------------------------------------------------
+#
+# OIDC rather than a stored access key: the role is assumed with a short-lived token
+# minted per run, so there is no long-lived secret in the repository to rotate or
+# leak. The thumbprint list is deliberately absent -- AWS maintains the trust for
+# this well-known provider, and a hard-coded thumbprint is a thing that expires.
+
+resource "aws_iam_openid_connect_provider" "github" {
+  count = var.github_repository == "" ? 0 : 1
+
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+}
+
+data "aws_iam_policy_document" "ci_trust" {
+  count = var.github_repository == "" ? 0 : 1
+
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github[0].arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    # Scoped to one repository and one ref pattern. A `sub` of `repo:owner/*` would
+    # let any repository in the account assume this role, and a wildcard ref would
+    # let a pull request branch from a fork apply.
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = [for ref in var.github_allowed_refs : "repo:${var.github_repository}:${ref}"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ci" {
+  count = var.github_repository == "" ? 0 : 1
+
+  name               = "${var.project_name}-ci-deploy"
+  assume_role_policy = data.aws_iam_policy_document.ci_trust[0].json
+}

@@ -24,6 +24,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `docs/site` | 9 | 9 |
 | `host/github` | 6 | 12 |
 | `host/gitlab` | 7 | 10 |
+| `iac/terraform` | 11 | 23 |
 | `lang/go` | 3 | 11 |
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
@@ -328,6 +329,54 @@ CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 SECURITY.md
 scripts/gen_gitlab_stages.py
+```
+
+## `iac/terraform`
+
+OpenTofu infrastructure under infra/: one root module, a per-environment .tfbackend and .tfvars pair, a starter child module, tofu tests, .tflint.hcl, and the CI, hook, mise, just, and gitignore fragments the aggregating layers fold in.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `project_name` | str |  |
+| `environments` | yaml | `['dev', 'prod']` |
+| `aws_region` | str | `eu-west-1` |
+| `state_bucket` | str |  |
+| `opentofu_version` | str | `1.12.5` |
+| `tflint_version` | str | `0.64.0` |
+| `aws_provider_version` | str | `~> 6.0` |
+| `pre_commit_terraform_rev` | str | `v1.108.1` |
+| `default_branch` | str | `main` |
+| `job_timeout_minutes` | int | `15` |
+| `first_environment` | str | `{{ environments[0] if environments else 'dev' }}` |
+
+Writes:
+
+```
+.github/security.d/terraform.yml
+.github/workflows/tofu-apply.yml
+.github/workflows/wc-lint-tofu.yml
+.github/workflows/wc-plan-tofu.yml
+.gitignore.d/terraform
+.gitlab/ci/terraform.yml
+.just.d/terraform.just
+.mise/conf.d/terraform.toml
+.pre-commit.d/terraform.yaml
+.tflint.hcl
+infra/bootstrap/main.tf
+infra/bootstrap/outputs.tf
+infra/bootstrap/variables.tf
+infra/bootstrap/versions.tf
+infra/envs/{% yield env from environments %}{{ env }}{% endyield %}.tfbackend
+infra/envs/{% yield env from environments %}{{ env }}{% endyield %}.tfvars
+infra/main.tf
+infra/modules/naming/main.tf
+infra/outputs.tf
+infra/tests/naming.tftest.hcl
+infra/variables.tf
+infra/versions.tf
+scripts/tofu_lock.sh
 ```
 
 ## `lang/go`

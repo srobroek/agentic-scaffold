@@ -1,0 +1,148 @@
+{#-
+  .just.d/terraform.just -- imported by the root justfile.
+
+  Rendered as .jinja because the two `:=` defaults below interpolate answers. Every
+  recipe body is inside `{% raw %}`: just shares jinja's `{{ }}` for its own
+  parameters, so without it `{{ env }}` would be substituted at render time with an
+  undefined variable and every recipe would lose its argument.
+-#}
+# OpenTofu recipes, contributed by iac/terraform and imported by the root justfile.
+#
+# Every recipe runs in infra/, the single root module. Environments differ only by
+# which envs/<env>.tfbackend and envs/<env>.tfvars pair is passed, so there is one
+# copy of the configuration rather than one per environment.
+
+tofu_dir := "infra"
+tofu_default_env := "{{ first_environment }}"
+{% raw %}
+# `init` is separate from `plan` because -backend-config belongs to init alone, and
+# re-running init with a different environment is what switches which state is read.
+# -reconfigure rather than -migrate-state: migrating would COPY one environment's
+# state over another's.
+
+# Initialise against one environment's backend
+[group('tofu')]
+tf-init env=tofu_default_env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    backend="envs/{{ env }}.tfbackend"
+    if [ ! -f "{{ tofu_dir }}/$backend" ]; then
+      echo "no such environment: {{ env }} (expected {{ tofu_dir }}/$backend)" >&2
+      exit 1
+    fi
+    cd {{ tofu_dir }}
+    tofu init -input=false -reconfigure -backend-config="$backend"
+
+# Plan against one environment
+[group('tofu')]
+tf-plan env=tofu_default_env: (tf-init env)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd {{ tofu_dir }}
+    tofu plan -input=false -var-file="envs/{{ env }}.tfvars" -out="{{ env }}.tfplan"
+
+# The saved plan file is applied rather than a fresh one: applying without it
+# re-plans, and can then apply something nobody reviewed. The plan carries the
+# variables it was built with, so no -var-file belongs here.
+
+# Apply the plan produced for one environment
+[group('tofu')]
+tf-apply env=tofu_default_env:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd {{ tofu_dir }}
+    if [ ! -f "{{ env }}.tfplan" ]; then
+      echo "no plan for {{ env }}; run 'just tf-plan {{ env }}' first" >&2
+      exit 1
+    fi
+    tofu apply -input=false "{{ env }}.tfplan"
+    rm -f "{{ env }}.tfplan"
+
+# Format every file, including the .tftest.hcl suite
+[group('tofu')]
+tf-fmt:
+    cd {{ tofu_dir }} && tofu fmt -recursive
+
+# Fail on an unformatted file
+[group('tofu')]
+tf-fmt-check:
+    cd {{ tofu_dir }} && tofu fmt -recursive -check -diff
+
+# -backend=false so validation needs neither credentials nor -backend-config, which
+# is what makes this runnable on a fresh clone.
+
+# Validate every root module
+[group('tofu')]
+tf-validate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for root in {{ tofu_dir }} {{ tofu_dir }}/bootstrap; do
+      [ -d "$root" ] || continue
+      ls "$root"/*.tf >/dev/null 2>&1 || continue
+      echo "==> $root"
+      (cd "$root" && tofu init -backend=false -input=false >/dev/null && tofu validate)
+    done
+
+# --config with an ABSOLUTE path is mandatory. tflint reads only the config in its
+# working directory and never one in a parent, and --recursive visits infra/,
+# infra/modules/*, and infra/bootstrap each as its own working directory, so without
+# it every one of them runs with the default rules rather than .tflint.hcl. Verified
+# against tflint 0.64.0, where the misconfigured form reported findings the config
+# had disabled.
+#
+# --minimum-failure-severity=warning because most of the rules in .tflint.hcl report
+# at warning level, while tflint's default failure threshold is error: the run would
+# otherwise exit 0 having printed real findings.
+
+# `--init` downloads the aws ruleset from the GitHub API, which rate-limits
+# unauthenticated requests: verified as a 403 "API rate limit exceeded" that made
+# every subsequent directory fail with "Plugin not found". GITHUB_TOKEN is passed
+# from `gh auth token` when it is not already set, so a laptop needs no extra setup
+# and CI passes its own.
+
+# Lint every module against .tflint.hcl
+[group('tofu')]
+tf-lint:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    config="$PWD/.tflint.hcl"
+    if [ -z "${GITHUB_TOKEN:-}" ] && command -v gh >/dev/null 2>&1; then
+      GITHUB_TOKEN="$(gh auth token 2>/dev/null || true)"
+      export GITHUB_TOKEN
+    fi
+    tflint --init --config="$config" >/dev/null
+    tflint --recursive --config="$config" --minimum-failure-severity=warning
+
+# Runs from infra/ with no -test-directory flag: `tofu test` reads tests/ under the
+# root module by default. Every run is `command = plan` against a mocked provider, so
+# this needs no credentials and creates nothing.
+
+# Run the tofu test suite
+[group('tofu')]
+tf-test:
+    cd {{ tofu_dir }} && tofu init -backend=false -input=false >/dev/null && tofu test
+
+# Regenerate the lock files for every platform CI and the team run
+[group('tofu')]
+tf-lock:
+    ./scripts/tofu_lock.sh
+
+# Format, lint, validate, and test
+[group('tofu')]
+tf: tf-fmt tf-lint tf-validate tf-test
+
+# Bootstrap keeps LOCAL state: it creates the bucket the main root module stores its
+# state in, so it cannot store its own there. Run once per account.
+
+# Create the state bucket and the CI role
+[group('tofu')]
+tf-bootstrap:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd {{ tofu_dir }}/bootstrap
+    tofu init -input=false
+    tofu apply -input=false
+    echo
+    echo "Set 'bucket' in {{ tofu_dir }}/envs/*.tfbackend to:"
+    tofu output -raw state_bucket
+{% endraw %}

@@ -1,0 +1,103 @@
+_subdirectory: template
+_answers_file: .copier-answers.terraform.yml
+
+_scaffold:
+  summary: >-
+    OpenTofu infrastructure under infra/: one root module, a per-environment
+    .tfbackend and .tfvars pair, a starter child module, tofu tests, .tflint.hcl,
+    and the CI, hook, mise, just, and gitignore fragments the aggregating layers
+    fold in.
+  requires_bin: [git]
+  # quality/hooks folds .pre-commit.d/* into the root config, so it has to follow
+  # this layer or the terraform fragment is left out.
+  after: [base/repo, host/github, host/gitlab]
+
+# Every one of these is edited into the project's real infrastructure. A re-render
+# must not throw away resource, variable, or backend definitions.
+_skip_if_exists:
+  - infra/main.tf
+  - infra/variables.tf
+  - infra/outputs.tf
+  - infra/versions.tf
+  - infra/bootstrap/main.tf
+  - infra/bootstrap/variables.tf
+  - infra/bootstrap/outputs.tf
+  - infra/bootstrap/versions.tf
+  - .tflint.hcl
+
+project_name:
+  type: str
+  help: >-
+    Used for the state key prefix and the resource name prefix. Empty renders
+    `project`, which tofu accepts and a person then notices.
+  default: ""
+
+environments:
+  type: yaml
+  help: >-
+    One .tfbackend and .tfvars pair per entry, and one plan job per entry in CI.
+    Order is kept, so the first is what a bare `just plan` uses.
+  default: [dev, prod]
+
+aws_region:
+  type: str
+  help: Region the provider and the backend both default to.
+  default: eu-west-1
+
+state_bucket:
+  type: str
+  help: >-
+    S3 bucket holding state, which `infra/bootstrap` creates. Empty renders
+    `<project_name>-tofu-state`.
+  default: ""
+
+opentofu_version:
+  type: str
+  help: >-
+    Minimum version, pinned in required_version and the mise fragment. 1.10 or
+    later is required: `use_lockfile` on the S3 backend does not exist before it,
+    and the layer configures no DynamoDB lock table.
+  default: "1.12.5"
+
+tflint_version:
+  type: str
+  help: tflint version the mise fragment pins, so CI and a commit hook agree.
+  default: "0.64.0"
+
+aws_provider_version:
+  type: str
+  help: >-
+    Constraint for the AWS provider, written into required_providers. A real
+    constraint is required or `tofu init` resolves whatever is newest.
+  default: "~> 6.0"
+
+# pre-commit-terraform needs a rev per repo. The default is a real tag, resolved
+# rather than remembered, so the fragment is valid the moment it renders.
+pre_commit_terraform_rev:
+  type: str
+  help: Tag for antonbabenko/pre-commit-terraform in the hook fragment.
+  default: v1.108.1
+
+# Threaded by the agent from host/github rather than read through _external_data.
+# The apply workflow refuses to run from any other ref, so a wrong value here means
+# apply can never run rather than running from the wrong branch.
+default_branch:
+  type: str
+  help: Branch the apply workflow will run from, and nowhere else.
+  default: main
+
+# Only used for the two workflow templates' timeout. Kept as a question rather than
+# hard-coded so it matches whatever host/github was given.
+job_timeout_minutes:
+  type: int
+  help: >-
+    Per-job timeout for the lint and plan jobs. GitHub defaults to 360, so a hung job
+    burns six runner hours before it is killed.
+  default: 15
+
+# Derived. A conditional filename holding a quote breaks jinja compilation: the name
+# is embedded in the generated Python and the quote ends its string literal.
+first_environment:
+  type: str
+  default: "{{ environments[0] if environments else 'dev' }}"
+  when: false

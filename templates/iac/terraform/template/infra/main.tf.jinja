@@ -1,0 +1,17 @@
+{#-
+  infra/main.tf -- the root module. Real resources go here, or in a child module
+  under modules/ that this file calls.
+-#}
+# The root module. Add resources here, or write a child module under modules/ and
+# call it from here.
+#
+# A child module's source is relative to THIS directory, not to the caller: `tofu
+# test` resolves it from the root module, so `./modules/<name>` works from both a
+# plan and a test, while `../modules/<name>` works from neither.
+
+module "naming" {
+  source = "./modules/naming"
+
+  project_name = var.project_name
+  environment  = var.environment
+}

@@ -199,8 +199,15 @@ and ships 860K of client JavaScript against starlight's 564K.
 
 ## Infrastructure
 
-OpenTofu 1.10 or later. Directory per environment: `infra/bootstrap`,
-`infra/modules/<name>`, `infra/envs/<env>`, `infra/tests/*.tftest.hcl`.
+OpenTofu 1.10 or later. One root module at `infra/`, with `infra/modules/<name>`,
+`infra/tests/*.tftest.hcl`, and a `<env>.tfbackend` and `<env>.tfvars` pair per
+environment under `infra/envs/`. `infra/bootstrap` is a second root module,
+keeping local state because it creates the state bucket.
+
+A file per environment rather than a directory per environment. The phrase
+"directory per environment" here once read as a root module each, which is
+incompatible with both of the decisions below: partial configuration configures a
+single backend block, and `tofu test` reads `tests/` under the root module.
 
 S3 backend with `use_lockfile = true` and no DynamoDB lock table. Partial
 backend configuration through `-backend-config=envs/<env>.tfbackend`, wrapped

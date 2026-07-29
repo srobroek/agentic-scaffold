@@ -1,0 +1,17 @@
+# A job fragment the host layer's wc-security.yml folds into its matrix.
+#
+# CodeQL has no extractor for HCL, so `supported: false` is a positive statement
+# rather than an omission. OSV reads lockfiles for package ecosystems and does not
+# model .terraform.lock.hcl, so no lockfile is listed.
+#
+# trivy is the one that matters here: `misconfig` is the scanner that reads HCL and
+# reports a public bucket or an unencrypted volume. The language layers ask for
+# `vuln` and `secret` instead, and the discovery step unions whatever any fragment
+# requests.
+codeql:
+  supported: false
+osv:
+  lockfiles: []
+trivy:
+  mode: fs
+  scanners: ["misconfig", "secret"]

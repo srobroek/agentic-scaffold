@@ -1,0 +1,126 @@
+name: Plan OpenTofu
+
+# Contributed by iac/terraform. The caller wires this as `plan-tofu`.
+#
+# One job per environment, through the matrix below. Plan runs on every pull request;
+# apply is a separate workflow that runs only on the default branch as a manual job,
+# because that is what stops two people applying at once -- a local wrapper cannot.
+
+on:
+  workflow_call:
+    inputs:
+      role-to-assume:
+        description: >-
+          ARN of the role CI assumes, from `tofu output ci_role_arn` in bootstrap.
+          Empty skips the plan: without credentials it cannot read state, and a job
+          that fails for want of a secret is worse than one that says why it skipped.
+        required: false
+        type: string
+        default: ""
+      aws-region:
+        required: false
+        type: string
+        default: "{{ aws_region }}"
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan (${{ '{{' }} matrix.environment }})
+    runs-on: ubuntu-latest
+    timeout-minutes: {{ job_timeout_minutes | default(15, true) }}
+    permissions:
+      contents: read
+      # Minting the OIDC token the role is assumed with. Without this the token
+      # request fails rather than the credential step.
+      id-token: write
+      # The plan is posted as a comment, so a reviewer reads the diff in the pull
+      # request rather than opening the run log.
+      pull-requests: write
+    strategy:
+      # Every environment is planned even when one fails. A failure in dev says
+      # nothing about whether prod's plan is clean.
+      fail-fast: false
+      matrix:
+        environment: [{% for env in environments %}{{ env }}{% if not loop.last %}, {% endif %}{% endfor %}]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install tools
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          cache: true
+
+      - name: Authenticate to AWS
+        if: inputs.role-to-assume != ''
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ '{{' }} inputs.role-to-assume }}
+          aws-region: ${{ '{{' }} inputs.aws-region }}
+          # Names the run in CloudTrail, so an API call traces back to a workflow run
+          # rather than to an anonymous assumed role.
+          role-session-name: gha-plan-${{ '{{' }} matrix.environment }}
+
+      - name: No credentials, no plan
+        if: inputs.role-to-assume == ''
+        run: |
+          echo "::warning::role-to-assume is empty, so the plan for ${{ '{{' }} matrix.environment }} was skipped."
+          echo "Run 'just tf-bootstrap' and pass its ci_role_arn output to this workflow."
+
+      - name: Plan
+        if: inputs.role-to-assume != ''
+        id: plan
+        run: |
+          set -euo pipefail
+          # The recipe runs init with the environment's -backend-config and plan with
+          # its -var-file, so CI and a laptop plan the same way.
+          just tf-plan '${{ '{{' }} matrix.environment }}'
+
+      # Read from the saved plan rather than the step's stdout: the human-readable
+      # output is coloured and truncated, while `show -no-color` is the plan itself.
+      - name: Render the plan
+        if: inputs.role-to-assume != '' && github.event_name == 'pull_request'
+        id: render
+        run: |
+          set -euo pipefail
+          cd infra
+          tofu show -no-color '${{ '{{' }} matrix.environment }}.tfplan' > plan.txt
+          # A comment body caps at 65536 characters, so a large plan is truncated
+          # here rather than failing the API call.
+          head -c 60000 plan.txt > plan.trunc.txt
+          if [ "$(wc -c < plan.txt)" -gt 60000 ]; then
+            echo "" >> plan.trunc.txt
+            echo "... truncated. Read the full plan in the run log." >> plan.trunc.txt
+          fi
+
+      # Writes the body through a file rather than interpolating it into a script. A
+      # plan can contain any characters, and interpolating untrusted content into a
+      # run block through an expression is the injection zizmor reports.
+      - name: Comment the plan
+        if: inputs.role-to-assume != '' && github.event_name == 'pull_request'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          ENVIRONMENT: ${{ '{{' }} matrix.environment }}
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/plan.trunc.txt', 'utf8');
+            const environment = process.env.ENVIRONMENT;
+            const marker = `<!-- tofu-plan:${environment} -->`;
+            const body = `${marker}\n### OpenTofu plan — \`${environment}\`\n\n<details><summary>Show plan</summary>\n\n\`\`\`terraform\n${plan}\n\`\`\`\n\n</details>`;
+
+            // One comment per environment, updated in place. Appending on every push
+            // would bury the current plan under every earlier one.
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              ...context.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+            }

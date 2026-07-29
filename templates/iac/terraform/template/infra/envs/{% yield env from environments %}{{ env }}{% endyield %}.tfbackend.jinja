@@ -1,0 +1,17 @@
+{#-
+  infra/envs/<env>.tfbackend -- the backend values for one environment, passed in
+  with `tofu init -backend-config=envs/<env>.tfbackend`.
+
+  This is the file that makes one root module serve every environment. It is not a
+  tfvars file and tofu will not read it as one: it holds backend settings only, and
+  `just plan <env>` passes it to init while passing the .tfvars to plan.
+-#}
+bucket = "{{ state_bucket | default(project_name | default('project', true) ~ '-tofu-state', true) }}"
+key    = "{{ env }}/tofu.tfstate"
+region = "{{ aws_region }}"
+
+# Native S3 locking, 1.10 and later. It writes a lock object beside the state
+# rather than needing a DynamoDB table, which is why bootstrap creates no table.
+use_lockfile = true
+
+encrypt = true

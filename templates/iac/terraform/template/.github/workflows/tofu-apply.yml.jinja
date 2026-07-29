@@ -1,0 +1,87 @@
+name: Apply OpenTofu
+
+# NOT a reusable workflow, and deliberately not part of the gate. Apply is a manual
+# action on the default branch, so it is triggered rather than called: a workflow_call
+# from the CI caller would tie applying to whatever made the gate run.
+#
+# `workflow_dispatch` only. There is no push trigger: an apply that runs on merge
+# applies whatever was merged, and the plan a reviewer approved may no longer be what
+# the configuration produces.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Which environment to apply.
+        required: true
+        type: choice
+        options:
+{% for env in environments %}
+          - {{ env }}
+{% endfor %}
+      confirm:
+        description: Type the environment name again to confirm.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# One apply at a time, and never cancelled. Two concurrent applies against one state
+# is what the S3 lock exists to refuse, and a cancelled apply leaves state describing
+# resources that were half-created.
+concurrency:
+  group: tofu-apply-${{ '{{' }} inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply (${{ '{{' }} inputs.environment }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Refuses to run from anywhere but the default branch. workflow_dispatch accepts a
+    # ref, so without this an apply could be triggered from an unreviewed branch.
+    if: github.ref == 'refs/heads/{{ default_branch | default('main', true) }}'
+    permissions:
+      contents: read
+      id-token: write
+    # The GitHub environment, not the tofu one. This is where a required reviewer and
+    # the role ARN secret are configured, and it is the gate that makes apply need a
+    # second person.
+    environment: ${{ '{{' }} inputs.environment }}
+    steps:
+      # Compared before anything else runs, so a mistyped environment costs nothing.
+      - name: Confirm the environment
+        env:
+          TARGET: ${{ '{{' }} inputs.environment }}
+          TYPED: ${{ '{{' }} inputs.confirm }}
+        run: |
+          if [ "$TARGET" != "$TYPED" ]; then
+            echo "::error::confirmation '$TYPED' does not match '$TARGET'"
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install tools
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          cache: true
+
+      - name: Authenticate to AWS
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ '{{' }} secrets.TOFU_ROLE_ARN }}
+          aws-region: {{ aws_region }}
+          role-session-name: gha-apply-${{ '{{' }} inputs.environment }}
+
+      # Plans and applies in one job, from the plan file just written. Passing a plan
+      # between jobs would mean uploading it as an artifact, and a plan holds every
+      # variable value in cleartext.
+      - name: Plan
+        run: just tf-plan '${{ '{{' }} inputs.environment }}'
+
+      - name: Apply
+        run: just tf-apply '${{ '{{' }} inputs.environment }}'

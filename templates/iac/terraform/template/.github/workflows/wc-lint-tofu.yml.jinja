@@ -1,0 +1,65 @@
+name: Lint OpenTofu
+
+# Contributed by iac/terraform. The caller wires this as `lint-tofu`, in parallel
+# with the language lint jobs and with no dependency on them.
+#
+# Everything here runs with -backend=false and a mocked provider, so the job needs no
+# cloud credentials at all. Only plan-tofu assumes a role.
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    # GitHub defaults to 360 minutes, so a hung job burns six runner hours.
+    timeout-minutes: {{ job_timeout_minutes | default(15, true) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # The default leaves GITHUB_TOKEN in .git/config, where any later step can
+          # read it. zizmor reports the default as a finding.
+          persist-credentials: false
+
+      - name: Install tools
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          # .mise/conf.d/terraform.toml pins tofu, tflint, and trivy, so CI runs the
+          # versions the commit hooks run.
+          cache: true
+
+      - name: Format
+        run: just tf-fmt-check
+
+      - name: Validate
+        run: just tf-validate
+
+      # `just tf-lint` passes --config with an absolute path and
+      # --minimum-failure-severity=warning. Both are load-bearing: tflint reads no
+      # parent directory's config, and its default failure threshold is error, so the
+      # recipe rather than a bare `tflint` call is what makes this gate.
+      #
+      # GITHUB_TOKEN is required, not an optimisation: `tflint --init` fetches the aws
+      # ruleset from the GitHub API, and an unauthenticated runner gets a 403 rate
+      # limit that leaves every directory reporting "Plugin not found".
+      - name: Lint
+        env:
+          GITHUB_TOKEN: ${{ '{{' }} github.token }}
+        run: just tf-lint
+
+      - name: Test
+        run: just tf-test
+
+      # The lock file has to carry linux_amd64 or `tofu init` fails on this runner.
+      # Regenerating and diffing is what catches a lock committed from a Mac only.
+      - name: Lock file covers every platform
+        run: |
+          just tf-lock
+          if ! git diff --exit-code -- '**/.terraform.lock.hcl'; then
+            echo "::error::.terraform.lock.hcl is missing a platform; run 'just tf-lock' and commit the result"
+            exit 1
+          fi

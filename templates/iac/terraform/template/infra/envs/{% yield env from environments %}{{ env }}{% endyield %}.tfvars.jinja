@@ -1,0 +1,11 @@
+{#-
+  infra/envs/<env>.tfvars -- the variable values for one environment, passed with
+  `tofu plan -var-file=envs/<env>.tfvars`.
+
+  Committed, and therefore never a place for a secret. A secret belongs in SSM or
+  Secrets Manager and is read through a data source; `tofu plan` writes every
+  variable it was given into the plan file and the state.
+-#}
+project_name = "{{ project_name | default('project', true) }}"
+environment  = "{{ env }}"
+aws_region   = "{{ aws_region }}"

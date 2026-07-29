@@ -1,0 +1,38 @@
+{#-
+  infra/versions.tf -- the version floor and the backend declaration.
+-#}
+terraform {
+  # 1.10 is the floor for `use_lockfile` on the S3 backend. Below it, locking needs
+  # a DynamoDB table, which this layer deliberately does not create.
+  required_version = ">= {{ opentofu_version }}"
+
+  # Empty on purpose: this is partial backend configuration. Every value arrives
+  # from `-backend-config=envs/<env>.tfbackend`, so one root module serves every
+  # environment and the provider and backend blocks are written once.
+  #
+  # `tofu init` with no -backend-config leaves the backend unconfigured rather than
+  # falling back to local state, which is what stops a plan from running against
+  # the wrong environment by default.
+  backend "s3" {}
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "{{ aws_provider_version }}"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+
+  # Applied to every resource that supports tagging, so an environment is
+  # attributable without each resource repeating itself.
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "opentofu"
+    }
+  }
+}

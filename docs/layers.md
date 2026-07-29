@@ -552,10 +552,47 @@ is therefore not used.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `iac/terraform` | `infra/{bootstrap,modules,envs/<env>,tests}`, `.tflint.hcl`, `.pre-commit.d/terraform.yaml` | `environments`, `aws_region`, `state_bucket` |
+| `iac/terraform` | `infra/{bootstrap,modules,envs,tests}`, `.tflint.hcl`, `.pre-commit.d/terraform.yaml` | `environments`, `aws_region`, `state_bucket` |
 | `iac/cdk` | `.projenrc.ts` with `runner: tsx()` and `github: false` | `cdk_language` |
 
 `environments` defaults to `[dev, prod]`.
+
+### One root module, not one per environment
+
+`infra/` is a single root module. An environment is a pair of files under
+`infra/envs/`, `<env>.tfbackend` and `<env>.tfvars`, rather than a directory of its
+own.
+
+This follows from the two decisions `architecture.md` fixes. Partial backend
+configuration through `-backend-config=envs/<env>.tfbackend` configures one
+`backend "s3" {}` block, which presupposes one root module, and `tofu test` reads
+`tests/` under the root module, so `infra/tests/` is found only from there. An
+earlier version of the row above said `envs/<env>`, which contradicted both: that
+shape needs `-test-directory` on every test run, and it repeats the provider and
+backend blocks per environment, which is the repetition partial configuration
+removes.
+
+The corollary is that a child module's source is `./modules/<name>`. `tofu test`
+resolves a module source from the root module rather than from the test file, so
+the `../` form fails under plan and test alike.
+
+`bootstrap` is the exception, a second root module keeping local state, because it
+creates the bucket the first one stores its state in.
+
+### What the tools require, measured
+
+| Constraint | Consequence if ignored |
+|---|---|
+| tflint reads no parent directory's config | every directory lints with the default rules, reporting findings `.tflint.hcl` disabled |
+| tflint's failure threshold is error | a run exits 0 having printed real warnings |
+| `tflint --init` needs a GitHub token | 403 rate limit, then "Plugin not found" per directory |
+| `terraform_required_version` covers child modules | the lint gate fails on `modules/*` |
+| pre-commit-terraform prefers `terraform` over `tofu` | the hooks run terraform against an OpenTofu repository |
+| the hook ids are `terraform_*`, and tflint's is `terraform_tflint` | prek rejects the fragment on an unknown id |
+| just shares jinja's `{{ }}` | an unwrapped fragment loses every recipe parameter |
+
+Each was found by rendering the layer and running the tool, not by reading the
+template.
 
 ## Render order
 
