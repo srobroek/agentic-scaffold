@@ -83,3 +83,14 @@ and a detached re-exec, is solving a problem that is not there.
 
 repomix does not cache. Running it twice with identical arguments took 1.83s then
 1.35s for the same token count, so a second pack costs the same as the first.
+
+`repomix --skill-generate` writes accurate `references/*.md` and a `SKILL.md`
+whose usage examples are invented. On a repository holding only `src/lib.ts`,
+`package.json`, and `README.md`, the generated `SKILL.md` told the reader to look
+at `src/index.ts (42 lines)`, `src/utils/helpers.ts (128 lines)`, and
+`function calculateTotal`. None of them existed. What carries real values is the
+frontmatter name, the description, and the H1. Review or replace `SKILL.md`
+rather than trusting it.
+
+`--skill-generate` also prompts for an output path. Pass `--skill-output <path>`
+and `-f` together or a hook hangs waiting on the prompt.
