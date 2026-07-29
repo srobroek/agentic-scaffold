@@ -114,17 +114,30 @@ rest accurate, and every row in the index table names a file that exists.
 ### Keeping tools out of AGENTS.md
 
 ```sh
-bd init --prefix <p> --non-interactive --skip-hooks --skip-agents
-ln -s AGENTS.md CLAUDE.md
+bd init --prefix <p> --non-interactive --skip-hooks
+rm CLAUDE.md && ln -s AGENTS.md CLAUDE.md
+# then replace the AGENTS.md body with the layer's, keeping .codex/ untouched
 ```
 
-`--skip-agents` is required. Without it `bd init` writes a 127-line `AGENTS.md`
-carrying three overlapping beads blocks, and its `minimal` profile is not
-minimal.
+`--skip-agents` is NOT used, because it also skips the codex lifecycle hooks that
+keep beads context alive. `bd init` writes four of them to `.codex/hooks.json`
+alongside `[features] hooks = true` in `.codex/config.toml`:
 
-When a tool genuinely needs a block, `bd setup <recipe>` appends exactly one and
-is idempotent on re-run; `bd setup -o <path>` writes it elsewhere; and
-`bd init --agents-template <file>` supplies the body from the layer.
+| Event | Matcher | Command |
+|---|---|---|
+| `SessionStart` | `startup\|resume\|clear` | `bd codex-hook SessionStart` |
+| `UserPromptSubmit` | none | `bd codex-hook UserPromptSubmit` |
+| `PreCompact` | `manual\|auto` | `bd codex-hook PreCompact` |
+| `PostCompact` | `manual\|auto` | `bd codex-hook PostCompact` |
+
+Those hooks are what make dropping the `AGENTS.md` block safe: they reload
+context after compaction without prose. Keeping them and replacing the prose is
+therefore the order, not skipping both.
+
+The generated `AGENTS.md` is 127 lines carrying three overlapping beads blocks,
+and the `minimal` profile is not minimal, so the layer overwrites the body.
+`bd init --agents-template <file>` supplies it instead when the layer prefers
+that. `bd setup <recipe>` appends exactly one block and is idempotent on re-run.
 
 `--skip-hooks` is equally required. Without it `bd init` copies the ambient hook
 binaries from the configured `core.hooksPath` into `.beads/hooks`, repoints

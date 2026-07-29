@@ -179,19 +179,31 @@ The agent then reads the rendered layer set and recommends packages against it:
 shell, `steering-infrastructure` for terraform, `speckit` when SpecKit is in use.
 That match is judgement, so it belongs to the agent rather than a template.
 
-`agentic/apm` seeds three marketplaces of your own: `srobroek/agentic-packages`,
-`srobroek/slopvac`, and `srobroek/vibe-hero`. Third-party marketplaces are
-offered rather than defaulted.
+`agentic/apm` seeds three marketplaces: `srobroek/agentic-packages`,
+`srobroek/slopvac`, and `srobroek/vibe-hero`.
+
+The repomix and worktrunk marketplaces are not seeded. Both are already wrapped
+as apm packages that carry more: `mcp-repomix` adds a snapshot-refresh hook the
+three-plugin marketplace lacks, and `worktrunk-writer` with `hooks-worktrunk`
+adds writer lifecycle, branch leases, and cross-runtime enforcement over the
+single-plugin marketplace. Seeding them would give two sources for one tool.
 
 Choosing SpecKit pulls `speckit`, `speckit-beads`, and `steering-speckit`
 together. `speckit-beads` is what connects SpecKit to `bd`.
 
-`agentic/beads` runs `bd init --skip-hooks`, then `quality/hooks` reproduces bd's
-five hooks as local prek entries. bd writes five 1.3KB shims that each run
+`agentic/beads` runs `bd init --skip-hooks` and keeps everything else bd writes.
+
+bd installs two separate sets. Its git hooks are five 1.3KB shims running
 `bd hooks run <event>` for `pre-commit`, `post-merge`, `post-checkout`,
-`pre-push`, and `prepare-commit-msg`; prek supports every one of those stages.
-What made `--skip-hooks` necessary was the ambient hook binaries copied in
-alongside, not those shims.
+`pre-push`, and `prepare-commit-msg`; `quality/hooks` reproduces those as local
+prek entries, since prek supports all five stages. What made `--skip-hooks`
+necessary was the ambient hook binaries copied in alongside them.
+
+Its agent hooks are four codex lifecycle entries in `.codex/hooks.json` running
+`bd codex-hook` on `SessionStart`, `UserPromptSubmit`, `PreCompact`, and
+`PostCompact`. Those stay as bd writes them, because they reload beads context
+after compaction, which is what makes `AGENTS.md` carrying no beads prose safe.
+`--skip-agents` would remove them and is therefore not used.
 
 ## iac
 
