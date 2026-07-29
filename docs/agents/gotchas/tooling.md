@@ -51,3 +51,32 @@ the working directory.
 
 A `mise.toml` key holding a colon, such as `pipx:structkit`, must be quoted or
 every `mise install` fails.
+
+### repomix
+
+`--compress` cut 21 percent on a 4,107-file Rust and TypeScript repository, not
+the 70 percent its documentation claims. Tree-sitter only compresses languages it
+has a grammar for, and markdown plus JSON were 59 percent of the bytes and passed
+through untouched.
+
+| Extension | Change under `--compress` |
+|---|---|
+| `.md`, `.json` | 0 percent |
+| `.rs` | -26 percent |
+| `.ts` | -42 percent |
+| `.tsx` | -65 percent |
+| `.py` | -68 percent |
+| `.mjs` | -80 percent |
+
+197 of those 4,107 files came out **larger**. One 672-line Rust file grew from
+24,523 to 28,548 characters, because doc comments are duplicated around the
+`⋮----` elision markers and signatures are emitted more than once: 38 `pub fn`
+occurrences compressed against 27 uncompressed. Comment-dense Rust is hit
+hardest.
+
+`--include` is the better lever. Packing code alone gave 2,009,042 tokens against
+10,365,446 for the whole tree, an 81 percent reduction, with no duplication.
+
+A pack is also cheap: 1.4s for 1,269 files, 3.6s for 4,107. Anything built on the
+assumption that a pack is expensive, such as gating it behind a clean-tree check
+and a detached re-exec, is solving a problem that is not there.

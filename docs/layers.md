@@ -186,10 +186,11 @@ The worktrunk marketplace is not seeded, because `worktrunk-writer` and
 `hooks-worktrunk` already wrap it with writer lifecycle, branch leases, and
 cross-runtime enforcement that the single-plugin marketplace does not carry.
 
-The repomix marketplace is not seeded either, and the reason is that its MCP
-server earns nothing over the CLI. `mcp-repomix`'s own refresh hook shells out to
-`repomix --style xml --output <path> <root>`, so the CLI plus a hook is what does
-the work.
+The repomix marketplace is not seeded either, because its MCP server earns
+nothing over the CLI. `mcp-repomix`'s own refresh hook shells out to
+`repomix --style xml --output <path> <root>`, and a pack costs 1.4s for 1,269
+files or 3.6s for 4,107. No snapshot is stored: `docs/agents/index.md` names the
+tool and the invocation, scoped with `--include`.
 
 Choosing SpecKit pulls `speckit`, `speckit-beads`, and `steering-speckit`
 together. `speckit-beads` is what connects SpecKit to `bd`.
