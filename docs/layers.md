@@ -157,6 +157,18 @@ carries the root config and the repository-wide hygiene hooks alone.
 gate CI does and cannot land what CI would reject. A project-defined command is
 approved once and re-prompts when edited, so that line changing is visible.
 
+Of the ten hooks worktrunk offers, the layer sets two. `pre-commit` is left to
+prek, which owns the git-level hooks already. `post-commit`, `post-merge`, and
+`pre-switch` describe work that belongs to CI or to the source worktree.
+`pre-remove` would fire on every `wt merge`, since the user config sets
+`remove = true`.
+
+A dev server runs under `wt step tether`, whose teardown is automatic and needs no
+`pre-remove` hook: the process group is signalled when the worktree goes. Its port
+comes from `branch | hash_port`, which maps to 10000-19999 and is stable per
+branch, so two worktrees never contend. `sanitize_db` does the same for a
+per-branch database name.
+
 `.worktreeinclude` names what a new worktree copies from the primary checkout. It
 narrows rather than adds: a path is copied only when it is both gitignored and
 listed. An exclude beats an include, and project excludes combine with the user's,

@@ -119,3 +119,8 @@ worth copying, so naming them in `.worktreeinclude` achieves nothing.
 `--require-include` makes the whole step a no-op without a `.worktreeinclude`, and
 the user config passes it. A repository with no such file starts every worktree
 cold.
+
+Only a gitignored path is copied, judged from the destination worktree's own
+`.gitignore`. A branch created before an ignore rule was committed does not see it, so
+the copy silently skips the file. Symptom: a dry-run reports one entry where three
+were expected. Commit the ignore rules before branching.

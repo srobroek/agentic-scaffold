@@ -25,6 +25,19 @@ forge_hostname:
     API host for a self-hosted forge. Leave empty for github.com or gitlab.com.
   default: ""
 
+dev_server:
+  type: bool
+  help: >-
+    Whether this project runs a dev server. Adds a hash_port-derived port to the
+    wt list URL column and a post-start hook, both branch-stable.
+  default: false
+
+dev_command:
+  type: str
+  help: Command that starts the dev server, given a PORT environment variable.
+  default: "just dev"
+  when: "{{ dev_server }}"
+
 worktree_includes:
   type: yaml
   help: >-

@@ -15,6 +15,14 @@
 # Local environment, which cannot be regenerated.
 .env
 .env.local
+
+# Caches: copying beats rebuilding, and both are valid at the HEAD a new worktree
+# branches from. The repomix snapshot in particular reads as fresh to the
+# staleness check, so the agent starts with context rather than a warning.
+repomix.xml
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 {% for pattern in worktree_includes %}
 {{ pattern }}
 {%- endfor %}

@@ -15,7 +15,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/repo` | 3 | 5 |
 | `docs/agents` | 1 | 9 |
 | `lang/rust` | 3 | 14 |
-| `workspace/worktrunk` | 3 | 2 |
+| `workspace/worktrunk` | 5 | 2 |
 
 ## `base/gitignore`
 
@@ -126,6 +126,8 @@ Requires `git` on `PATH`.
 |---|---|---|
 | `forge_platform` | `github` | `gitlab` | `gitea` | `azure-devops` | `github` |
 | `forge_hostname` | str |  |
+| `dev_server` | bool | `False` |
+| `dev_command` | str | `just dev` |
 | `worktree_includes` | yaml | `[]` |
 
 Writes:

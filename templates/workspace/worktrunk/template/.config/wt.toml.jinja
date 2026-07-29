@@ -27,14 +27,25 @@ template-append = """
 
 [step.copy-ignored]
 # Combined with the user config's excludes, and an exclude beats an include:
-# verified by listing `target/` in both, where nothing copied. So anything a
-# worktree should carry over must be absent from every exclude layer, including
-# the user's.
+# verified by listing `target/` in both, where nothing copied. So a path listed
+# here can never be recovered by a `.worktreeinclude`, in this repository or
+# anyone's.
 #
-# Only paths no `.worktreeinclude` would ever name belong here.
+# Caches belong in `.worktreeinclude`, not here: copying one is the whole point.
+# What stays out is state that must not be forked.
 exclude = [
+  # A Dolt database with its own sync protocol on refs/dolt/data. A copy would
+  # diverge from the branch it was taken from rather than share it.
   ".beads/dolt/",
-  "repomix.xml",
-  ".pytest_cache/",
-  ".ruff_cache/",
 ]
+{% if dev_server %}
+[list]
+# hash_port maps a branch to 10000-19999, stable for a given branch, so two
+# worktrees never contend for one port. Dimmed in `wt list` when nothing listens.
+url = "http://localhost:{{ '{{' }} branch | hash_port }}"
+
+[post-start]
+# Tethered, so the process tree dies with the worktree rather than holding the
+# port after `wt merge` removes it.
+dev = "wt step tether -- env PORT={{ '{{' }} branch | hash_port }} {{ dev_command }}"
+{% endif %}
