@@ -1,0 +1,33 @@
+# Security policy
+
+## Supported versions
+
+Security fixes go to the latest release.
+
+## Reporting a vulnerability
+
+{% if security_contact -%}
+Report a vulnerability to {{ security_contact }}. Do not open a public issue: an
+issue is visible to everyone the moment it is filed, including before a fix
+exists.
+{%- else -%}
+Use GitHub's private vulnerability reporting on this repository: open the Security
+tab and choose **Report a vulnerability**. Do not open a public issue, which is
+visible to everyone the moment it is filed.
+
+Private reporting needs enabling once, under Settings, Code security. Without it
+the Security tab offers no reporting form, and this paragraph tells a reporter to
+use something that is not there.
+{%- endif %}
+
+Expect an acknowledgement within a few days. If a report goes unanswered for two
+weeks, escalate by opening a public issue asking only for a maintainer's
+attention, with no detail about the vulnerability.
+
+## What to include
+
+- What an attacker can do, and what they need in order to do it.
+- The affected version or commit.
+- Steps that reproduce it.
+
+A proof of concept helps and is not required.

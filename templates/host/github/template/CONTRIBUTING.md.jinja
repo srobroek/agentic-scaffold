@@ -1,0 +1,49 @@
+# Contributing
+
+## Setup
+
+```sh
+git clone {{ ('https://github.com/' ~ org ~ '/' ~ project_name) if org and project_name else '<repo-url>' }}
+cd {{ project_name | default('<repo>', true) }}
+just setup
+```
+
+`just setup` points `core.hooksPath` at this checkout, installs the pinned
+toolchain from `.mise/conf.d/`, and installs the hook shims. The versions you
+build with are then the versions CI builds with.
+
+The hooks run on every commit, checking formatting, lint, secrets, and the commit
+message, so a push that passed locally rarely fails CI on style. They are
+advisory: `--no-verify` defeats them, and CI runs the whole set again with
+`prek run --all-files`.
+
+## Making a change
+
+1. Branch off `{{ default_branch }}`.
+2. Make the change, with a test that fails without it.
+3. Run `just check`.
+4. Commit with a Conventional Commits subject.
+5. Open a pull request.
+
+## Commit messages
+
+The commit-msg hook enforces Conventional Commits:
+
+```
+<type>[(<scope>)][!]: <description>
+```
+
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`,
+`chore`, `revert`. A `!` marks a breaking change.
+
+The release tooling reads these to compute the next version and write the
+changelog, so the type decides whether a change ships as a patch, a minor, or a
+major.
+
+## Pull requests
+
+The CI gate has to pass. It is one required check depending on every job, so a
+failure names which job failed.
+
+Keep a pull request to one concern. Two unrelated changes in one branch means a
+reviewer cannot approve half of it.

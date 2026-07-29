@@ -116,12 +116,32 @@ The rest cannot live here:
 | OSV | keys off which lockfiles exist |
 
 Each language layer therefore drops `.github/quality.d/<lang>.yml` and
-`.github/security.d/<lang>.yml`, and the shared workflow carries a matrix the
-agent fills from those fragments.
+`.github/security.d/<lang>.yml`, and the shared workflow builds its matrix by
+reading that directory at run time.
+
+A `discover` job parses the fragments and emits the matrix as JSON, so a new
+`lang/*` layer contributes its jobs without the host layer or a caller changing.
+`discover` also emits a count per matrix, because a matrix of zero entries is a
+workflow error rather than a skip, and a docs-only repository renders no language
+layer at all. A fragment states `codeql.supported: false` positively rather than
+omitting the key, which is how `lang/rust` records that CodeQL has no Rust
+extractor.
 
 | Layer | Writes | Variables |
 |---|---|---|
 | `host/github` | `workflows/{wc-changes,wc-gate,wc-quality,wc-security}.yml`, `actions/ci-gate/`, `CODEOWNERS`, issue and pull-request templates, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` | `security_contact`, `coc_contact`, `default_branch`, `job_timeout_minutes` |
+
+`host/github` also takes `project_name` and `org`, threaded from `base/repo` for
+the clone line and `CODEOWNERS`. An empty `org` writes a commented-out rule rather
+than `*  @`, which GitHub reports as a parse error on every pull request.
+
+The pull-request template goes to `.github/PULL_REQUEST_TEMPLATE.md`. A single
+template inside a `PULL_REQUEST_TEMPLATE/` directory applies only through a query
+parameter, so it silently never loads.
+
+`SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and `CODEOWNERS` carry
+`_skip_if_exists`: each holds a contact address or a project-specific rule edited
+after rendering.
 | `host/gitlab` | `.gitlab-ci.yml` with the glob include and stages list, `.gitlab/ci/{quality,security}.yml`, `CODEOWNERS` | `gitlab_host`, `security_contact` |
 
 ## quality

@@ -12,6 +12,20 @@
 | a cross-repo docs publish stops deploying | replacing the target repository's content removed its workflow. Preserve `.git` and `.github` |
 | concurrent pull requests cancel each other | a global `concurrency` group. Scope it per ref |
 | `/_astro/` returns 404 | GitHub Pages applies Jekyll. Add `.nojekyll` |
+| a matrix job fails with no entries | a matrix built from a discovered list errors on an empty array rather than skipping. Gate the job on a count output |
+| a single pull-request template never loads | one file inside `.github/PULL_REQUEST_TEMPLATE/` applies only through a query parameter. Use `.github/PULL_REQUEST_TEMPLATE.md` |
+| `lizard -l <name>` reports nothing | an unknown language name exits 0 having analysed nothing |
+
+A bare `on` key parses as boolean `true` under YAML 1.1, so a test reading a
+workflow with `yaml.safe_load` finds `True` rather than `"on"`. This costs nothing
+in CI, where GitHub does its own parsing, and breaks any check written against the
+rendered file.
+
+`lizard` accepts a language it does not know without complaint: `-l notalanguage`
+prints no warning and exits 0, so a typo silently removes that language's
+complexity gate. `-w` does exit 1 on a real threshold breach, so the gate works
+once the name is right. `tests/test_host_layers.py` checks each fragment's name
+against lizard's own list.
 
 ### GitLab CI
 

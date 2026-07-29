@@ -1,0 +1,9 @@
+# CODEOWNERS -- one owner per path pattern, space-separated. Later patterns win.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+{% if org -%}
+*  @{{ org }}
+{%- else -%}
+# No owner was set when this rendered. Until a line here names one, a pull request
+# requests no review automatically.
+# *  @your-handle
+{%- endif %}

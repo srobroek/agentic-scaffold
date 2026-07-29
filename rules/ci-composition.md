@@ -25,7 +25,19 @@ Rules:
 - `gate` lists every other job in `needs:` and passes `toJSON(needs)` to
   `wc-gate.yml`. `gate` is the only required status check.
 - One `lint-<lang>` and one `test-<lang>` pair per rendered `lang/*` layer.
-- `quality` and `security` always run.
+- `quality` and `security` always run, and take no language input. Each is one
+  reusable workflow that reads `.github/quality.d/` or `.github/security.d/` and
+  builds its own matrix, so the caller passes nothing about languages.
+
+`quality` and `security` need no path filter. Both already skip their
+language-dependent jobs when no fragment supplies one, and their language-blind
+jobs (the secret scan, the workflow audit, the prose and YAML checks) apply to any
+change.
+
+`security` needs `security-events: write` to upload SARIF. The jobs that upload
+declare it, but a called workflow cannot hold more than its caller granted, so the
+caller must grant it too. Without it the run fails at the upload rather than at the
+scan.
 
 Job-level path filtering goes in the caller, never in `on.push.paths`. A
 workflow gated at the `on:` level does not run for an unrelated change, and a

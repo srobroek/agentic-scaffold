@@ -1,0 +1,418 @@
+"""host/* layers: language-blind CI and the governance surface."""
+
+from __future__ import annotations
+
+import json
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+import yaml
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+RENDER = REPO_ROOT / "scripts" / "render.py"
+LANG_TEMPLATES = REPO_ROOT / "templates" / "lang"
+
+ANSWERS = """\
+project_name: demo
+org: srobroek
+default_branch: main
+job_timeout_minutes: 15
+security_contact: ""
+coc_contact: ""
+"""
+
+
+def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
+    answers_file = dest.parent / f"{dest.name}-answers.yml"
+    answers_file.write_text(answers)
+    return subprocess.run(
+        [sys.executable, str(RENDER), layer, str(dest), "--answers", str(answers_file)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+@pytest.fixture
+def rendered(tmp_path: Path) -> Path:
+    dest = tmp_path / "d"
+    dest.mkdir()
+    result = render("host/github", dest, ANSWERS)
+    assert result.returncode == 0, result.stderr
+    return dest
+
+
+def workflow(dest: Path, name: str) -> dict:
+    spec = yaml.safe_load((dest / ".github" / "workflows" / f"{name}.yml").read_text())
+    # YAML 1.1 reads a bare `on` as boolean true, so the trigger key arrives as
+    # True rather than the string. Normalising here keeps every assertion readable.
+    if True in spec:
+        spec["on"] = spec.pop(True)
+    return spec
+
+
+# --- the CI inversion ------------------------------------------------------
+
+
+def test_the_host_layer_runs_no_language_tooling(rendered: Path) -> None:
+    """The inversion's whole point: the host layer knows nothing about languages.
+
+    Language tooling here means a step belonging in a lang/* layer leaked in, and
+    the repository then runs CI for a language it may not have.
+
+    This checks the tools rather than the language names. A bare name appears
+    legitimately: `python3` is the scripting interpreter the discovery steps use,
+    and the comments explain why CodeQL and lizard cannot live here at all.
+    """
+    # Each entry is a tool that only makes sense for one language. Matched on word
+    # boundaries: `ruff` is a substring of `trufflehog`, and `go` of `google`.
+    tooling = [
+        "cargo",
+        "clippy",
+        "rustfmt",
+        "nextest",
+        "ruff",
+        "pytest",
+        "uv sync",
+        "biome",
+        "oxlint",
+        "tsc",
+        "bun",
+        "golangci-lint",
+        "gofmt",
+        "govulncheck",
+    ]
+
+    offenders = []
+    for path in sorted((rendered / ".github").rglob("*")):
+        if not path.is_file():
+            continue
+        for lineno, line in enumerate(path.read_text().splitlines(), 1):
+            # Rationale is prose, and the design reasons name the tools they exclude.
+            if line.lstrip().startswith("#"):
+                continue
+            for tool in tooling:
+                if re.search(rf"(?<![\w-]){re.escape(tool)}(?![\w-])", line, re.IGNORECASE):
+                    offenders.append(f"{path.relative_to(rendered)}:{lineno} runs {tool!r}")
+    assert not offenders, "language tooling in the host layer: " + "; ".join(offenders)
+
+
+def test_every_language_fragment_kind_is_consumed(rendered: Path) -> None:
+    """The contribution points only work if the host layer actually reads them.
+
+    A lang/* layer dropping a fragment nothing folds in produces CI that silently
+    omits that language's scans.
+    """
+    languages = sorted(p.name for p in LANG_TEMPLATES.iterdir() if p.is_dir())
+    assert languages, "no lang/* layers found, so this test proves nothing"
+
+    quality = yaml.dump(workflow(rendered, "wc-quality"))
+    security = yaml.dump(workflow(rendered, "wc-security"))
+    assert ".github/quality.d" in quality
+    assert ".github/security.d" in security
+
+    # Every key a rendered fragment sets has to be read by the workflow that folds
+    # that directory in, or the fragment is inert.
+    for language in languages:
+        for kind, body in (("quality", quality), ("security", security)):
+            fragment = LANG_TEMPLATES / language / "template" / ".github" / f"{kind}.d" / f"{language}.yml"
+            if not fragment.is_file():
+                continue
+            for key in yaml.safe_load(fragment.read_text()) or {}:
+                assert key in body, f"{kind}.d/{language}.yml sets {key!r}, which nothing reads"
+
+
+def test_the_gate_is_the_only_required_check(rendered: Path) -> None:
+    """One required check that depends on every job.
+
+    A second required check means adding a job needs a branch-protection change,
+    and a required check that never runs leaves a pull request unmergeable.
+    """
+    gate = workflow(rendered, "wc-gate")
+    assert list(gate["jobs"]) == ["gate"]
+    # The gate judges the caller's needs context rather than re-running anything.
+    assert "needs" in gate["on"]["workflow_call"]["inputs"]
+    assert "./.github/actions/ci-gate" in yaml.dump(gate)
+
+
+def test_no_workflow_filters_at_the_on_level(rendered: Path) -> None:
+    """Path filtering belongs in the caller at job level.
+
+    A workflow gated at `on:` does not run for an unrelated change, and a required
+    check that never runs leaves the pull request unmergeable forever.
+    """
+    for name in ("wc-changes", "wc-gate", "wc-quality", "wc-security"):
+        spec = workflow(rendered, name)
+        # workflow_call takes no paths key at all, so a reusable workflow cannot
+        # gate itself even by accident. The filter spec travels as an input instead.
+        assert list(spec["on"]) == ["workflow_call"], f"{name} triggers on more than a call"
+        for trigger, config in spec["on"].items():
+            if isinstance(config, dict):
+                assert "paths" not in config, f"{name} filters paths under {trigger}"
+                assert "paths-ignore" not in config
+
+
+def test_the_aggregating_jobs_discover_their_matrix(rendered: Path) -> None:
+    """The matrix is read from the fragment directories, not written in by hand.
+
+    This is what lets a new lang/* layer contribute its own jobs without editing
+    the host layer.
+    """
+    quality = workflow(rendered, "wc-quality")
+    assert ".github/quality.d" in yaml.dump(quality)
+    assert quality["jobs"]["complexity"]["needs"] == "discover"
+
+    security = workflow(rendered, "wc-security")
+    assert ".github/security.d" in yaml.dump(security)
+    for job in ("codeql", "osv", "trivy"):
+        assert security["jobs"][job]["needs"] == "discover"
+
+
+def test_every_lizard_language_is_one_lizard_knows() -> None:
+    """A name lizard does not know exits 0 having analysed nothing.
+
+    Verified against lizard 1.17: `-l notalanguage` prints no warning and exits 0,
+    so a typo in a fragment silently removes that language's complexity gate rather
+    than failing the run. Nothing downstream would report it.
+    """
+    known = {
+        "c", "cpp", "java", "csharp", "javascript", "js", "python", "objectivec",
+        "objective-c", "objc", "ttcn", "ttcn3", "ruby", "php", "swift", "scala",
+        "GDScript", "go", "lua", "rust", "typescript", "ts", "fortran", "kotlin",
+        "solidity", "erlang", "zig", "tsx", "jsx", "vue", "vuejs", "perl", "st",
+        "r", "R", "plsql", "pl/sql",
+    }
+    for fragment in sorted(LANG_TEMPLATES.glob("*/template/.github/quality.d/*.yml")):
+        lizard = (yaml.safe_load(fragment.read_text()) or {}).get("lizard") or {}
+        language = lizard.get("language")
+        if language is None:
+            continue
+        assert language in known, (
+            f"{fragment.relative_to(LANG_TEMPLATES)} names {language!r}, "
+            "which lizard would silently ignore"
+        )
+
+
+def test_a_discovered_matrix_job_is_guarded_by_a_count(rendered: Path) -> None:
+    """A matrix of zero entries is a workflow error rather than a skip.
+
+    A docs-only repository renders no lang/* layer, so every fragment directory is
+    empty and each of these jobs must skip instead of failing the run.
+    """
+    quality = workflow(rendered, "wc-quality")
+    assert quality["jobs"]["complexity"]["if"] == "needs.discover.outputs.any == 'true'"
+
+    security = workflow(rendered, "wc-security")
+    for job, flag in (("codeql", "any_codeql"), ("osv", "any_osv"), ("trivy", "any_trivy")):
+        assert security["jobs"][job]["if"] == f"needs.discover.outputs.{flag} == 'true'"
+
+
+def test_the_secret_scan_always_runs(rendered: Path) -> None:
+    """It needs no language knowledge, so no fragment gates it."""
+    secrets = workflow(rendered, "wc-security")["jobs"]["secrets"]
+    assert "if" not in secrets
+    # A secret is usually in an older commit, which a shallow clone never fetches.
+    assert secrets["steps"][0]["with"]["fetch-depth"] == 0
+
+
+@pytest.mark.parametrize(
+    ("needs", "blocked"),
+    [
+        ({"quality": "success", "security": "success"}, False),
+        # The case the whole design exists for: a language job skipped by a path
+        # filter must not block a docs-only pull request.
+        ({"lint-rust": "skipped", "quality": "success"}, False),
+        ({"quality": "failure", "security": "success"}, True),
+        ({"test-rust": "cancelled"}, True),
+    ],
+)
+def test_the_gate_blocks_on_failure_and_not_on_a_skip(
+    needs: dict, blocked: bool, rendered: Path, tmp_path: Path
+) -> None:
+    """The gate's verdict is what branch protection acts on.
+
+    Extracted from the composite action so the real script runs rather than a copy
+    of it: a reimplementation here could pass while the action was wrong.
+    """
+    action = yaml.safe_load(
+        (rendered / ".github" / "actions" / "ci-gate" / "action.yml").read_text()
+    )
+    script = action["runs"]["steps"][0]["run"]
+
+    result = subprocess.run(
+        ["bash", "-c", script],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={
+            "PATH": "/usr/bin:/bin:/usr/local/bin",
+            "NEEDS": json.dumps({k: {"result": v} for k, v in needs.items()}),
+        },
+    )
+
+    assert (result.returncode != 0) is blocked, result.stdout + result.stderr
+    if blocked:
+        # A failure has to name the job, or the only signal is a red gate.
+        assert any(job in result.stdout for job in needs)
+
+
+# --- hardening ------------------------------------------------------------
+
+
+def test_checkout_never_persists_credentials(rendered: Path) -> None:
+    """zizmor reports the default, which leaves GITHUB_TOKEN in .git/config."""
+    for name in ("wc-changes", "wc-gate", "wc-quality", "wc-security"):
+        spec = workflow(rendered, name)
+        for job_name, job in spec["jobs"].items():
+            for step in job["steps"]:
+                if "actions/checkout" in str(step.get("uses", "")):
+                    assert step["with"]["persist-credentials"] is False, (
+                        f"{name}:{job_name} persists credentials"
+                    )
+
+
+def test_every_job_carries_a_timeout(rendered: Path) -> None:
+    """GitHub defaults to 360 minutes, so a hung job burns six runner hours."""
+    for name in ("wc-changes", "wc-gate", "wc-quality", "wc-security"):
+        for job_name, job in workflow(rendered, name)["jobs"].items():
+            assert "timeout-minutes" in job, f"{name}:{job_name} has no timeout"
+
+
+def test_the_timeout_is_threaded_from_the_answer(tmp_path: Path) -> None:
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("host/github", dest, ANSWERS.replace("job_timeout_minutes: 15", "job_timeout_minutes: 7"))
+    assert workflow(dest, "wc-gate")["jobs"]["gate"]["timeout-minutes"] == 7
+
+
+def test_every_action_is_pinned_to_a_sha(rendered: Path) -> None:
+    """A tag is mutable, so a moved tag would change what CI runs."""
+    for name in ("wc-changes", "wc-gate", "wc-quality", "wc-security"):
+        for job in workflow(rendered, name)["jobs"].values():
+            for step in job["steps"]:
+                uses = str(step.get("uses", ""))
+                if not uses or uses.startswith("./"):
+                    continue
+                ref = uses.split("@")[-1]
+                assert len(ref) == 40 and all(c in "0123456789abcdef" for c in ref), (
+                    f"{uses} is not pinned to a full SHA"
+                )
+
+
+@pytest.mark.parametrize("tool", ["actionlint", "zizmor"])
+def test_the_rendered_workflows_pass_their_own_linters(tool: str, rendered: Path) -> None:
+    """The generated CI has to survive the checks it tells a project to run.
+
+    Skipped rather than failed when the tool is absent: the tools are installed
+    through mise in CI, and a missing binary locally is not a defect in the layer.
+    """
+    if shutil.which(tool) is None:
+        pytest.skip(f"{tool} absent from PATH")
+
+    workflows = rendered / ".github" / "workflows"
+    argv = {
+        "actionlint": [tool, *sorted(str(p) for p in workflows.glob("*.yml"))],
+        # zizmor audits for the credential and injection patterns actionlint does
+        # not model. Its network audits need a token and skip without one.
+        "zizmor": [tool, "--min-severity", "medium", str(workflows)],
+    }[tool]
+
+    result = subprocess.run(argv, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+# --- governance -----------------------------------------------------------
+
+
+def test_the_governance_surface_renders(rendered: Path) -> None:
+    for expected in (
+        "SECURITY.md",
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
+        ".github/CODEOWNERS",
+        ".github/PULL_REQUEST_TEMPLATE.md",
+        ".github/ISSUE_TEMPLATE/bug_report.md",
+        ".github/ISSUE_TEMPLATE/feature_request.md",
+    ):
+        assert (rendered / expected).is_file(), f"missing {expected}"
+
+
+def test_an_empty_contact_names_the_fallback_that_exists(rendered: Path) -> None:
+    """An unset contact must not leave prose pointing at nothing.
+
+    GitHub's private reporting form needs enabling once, so SECURITY.md says so
+    rather than assuming it is there.
+    """
+    security = (rendered / "SECURITY.md").read_text()
+    assert "private vulnerability reporting" in security
+    assert "Settings, Code security" in security
+
+    # A code of conduct with no reporting channel asks people to trust a process
+    # that does not exist, so the placeholder has to be loud.
+    coc = (rendered / "CODE_OF_CONDUCT.md").read_text()
+    assert "Fill in a contact address" in coc
+
+
+def test_a_contact_replaces_the_fallback(tmp_path: Path) -> None:
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render(
+        "host/github",
+        dest,
+        ANSWERS.replace('security_contact: ""', "security_contact: s@example.com").replace(
+            'coc_contact: ""', "coc_contact: c@example.com"
+        ),
+    )
+    assert "s@example.com" in (dest / "SECURITY.md").read_text()
+    assert "c@example.com" in (dest / "CODE_OF_CONDUCT.md").read_text()
+    assert "Fill in a contact address" not in (dest / "CODE_OF_CONDUCT.md").read_text()
+
+
+def test_a_pull_request_template_sits_where_github_reads_one(rendered: Path) -> None:
+    """A single template inside PULL_REQUEST_TEMPLATE/ never loads by default.
+
+    That directory form applies only per-template through a query parameter, so one
+    file there is silently inert.
+    """
+    assert (rendered / ".github" / "PULL_REQUEST_TEMPLATE.md").is_file()
+    assert not (rendered / ".github" / "PULL_REQUEST_TEMPLATE").is_dir()
+
+
+def test_an_absent_owner_writes_no_wildcard_rule(tmp_path: Path) -> None:
+    """`*  @` is a parse error GitHub reports on every pull request."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("host/github", dest, ANSWERS.replace("org: srobroek", 'org: ""'))
+    body = (dest / ".github" / "CODEOWNERS").read_text()
+    assert "*  @\n" not in body
+    for line in body.splitlines():
+        assert line.startswith("#") or not line.strip()
+
+
+def test_hand_edited_governance_survives_a_second_render(tmp_path: Path) -> None:
+    """A contact address and a project rule are edited after rendering."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("host/github", dest, ANSWERS)
+
+    contributing = dest / "CONTRIBUTING.md"
+    contributing.write_text("# Mine\n\nDo not lose this.\n")
+    owners = dest / ".github" / "CODEOWNERS"
+    owners.write_text("*  @someone-else\n")
+
+    result = render("host/github", dest, ANSWERS)
+
+    assert result.returncode == 0, result.stderr
+    assert "Do not lose this." in contributing.read_text()
+    assert "@someone-else" in owners.read_text()
+
+
+def test_contributing_names_the_real_commands(rendered: Path) -> None:
+    """CONTRIBUTING drifts into fiction as soon as it names a command that is gone."""
+    body = (rendered / "CONTRIBUTING.md").read_text()
+    assert "just setup" in body
+    assert "just check" in body

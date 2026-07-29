@@ -1,0 +1,57 @@
+_subdirectory: template
+_answers_file: .copier-answers.github.yml
+
+_scaffold:
+  summary: >-
+    GitHub CI and governance: the changes, quality, security, and gate reusable
+    workflows, the ci-gate action, CODEOWNERS, issue and pull-request templates,
+    and the three community-health files.
+  requires_bin: [git]
+  after: [base/repo, lang/*]
+
+# All four are edited after the fact -- a contact address, a project-specific
+# rule, an owner line -- so a re-render must not overwrite them.
+_skip_if_exists:
+  - SECURITY.md
+  - CONTRIBUTING.md
+  - CODE_OF_CONDUCT.md
+  - .github/CODEOWNERS
+
+default_branch:
+  type: str
+  help: Branch the gate treats as protected.
+  default: main
+
+job_timeout_minutes:
+  type: int
+  help: >-
+    Per-job timeout. GitHub defaults to 360, so a hung job burns six runner hours
+    before it is killed.
+  default: 15
+
+security_contact:
+  type: str
+  help: >-
+    Where to report a vulnerability privately. Empty points at GitHub's private
+    reporting form, which has to be enabled once under Settings, Code security.
+  default: ""
+
+coc_contact:
+  type: str
+  help: >-
+    Where to report a code-of-conduct violation. Empty renders a placeholder that
+    says it must be filled in before the repository goes public.
+  default: ""
+
+# Threaded by the agent from base/repo rather than read through _external_data.
+# Only lang/rust and docs/deploy-* read a sibling layer; every other shared value
+# arrives in this layer's answers file.
+project_name:
+  type: str
+  help: Repository name, used in CONTRIBUTING.md's clone line.
+  default: ""
+
+org:
+  type: str
+  help: Owning person or organisation, written into .github/CODEOWNERS.
+  default: ""

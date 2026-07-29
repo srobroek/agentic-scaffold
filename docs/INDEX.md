@@ -15,6 +15,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
 | `docs/agents` | 1 | 9 |
+| `host/github` | 6 | 12 |
 | `lang/go` | 3 | 11 |
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
@@ -108,6 +109,38 @@ docs/agents/index.md
 docs/agents/quality/index.md
 docs/agents/release/index.md
 docs/agents/testing/index.md
+```
+
+## `host/github`
+
+GitHub CI and governance: the changes, quality, security, and gate reusable workflows, the ci-gate action, CODEOWNERS, issue and pull-request templates, and the three community-health files.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `default_branch` | str | `main` |
+| `job_timeout_minutes` | int | `15` |
+| `security_contact` | str |  |
+| `coc_contact` | str |  |
+| `project_name` | str |  |
+| `org` | str |  |
+
+Writes:
+
+```
+.github/CODEOWNERS
+.github/ISSUE_TEMPLATE/bug_report.md
+.github/ISSUE_TEMPLATE/feature_request.md
+.github/PULL_REQUEST_TEMPLATE.md
+.github/actions/ci-gate/action.yml
+.github/workflows/wc-changes.yml
+.github/workflows/wc-gate.yml
+.github/workflows/wc-quality.yml
+.github/workflows/wc-security.yml
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+SECURITY.md
 ```
 
 ## `lang/go`

@@ -1,0 +1,203 @@
+name: Security
+
+# Four jobs. The secret scan is language-blind and always runs; CodeQL, OSV, and
+# trivy read `.github/security.d/*.yml`, one fragment per rendered lang/* layer.
+#
+# None of the three can live in this layer as a fixed step. CodeQL takes a language
+# list whose names are not ours (`javascript-typescript`, not `ts`) and has no Rust
+# extractor at all; OSV keys off which lockfiles exist; trivy's mode differs
+# between dependencies and IaC. Each layer therefore states its own entry, and the
+# matrices below are discovered at runtime so adding a language adds its scan.
+
+on:
+  workflow_call:
+    inputs:
+      severity:
+        description: Trivy severities that fail the job.
+        required: false
+        type: string
+        default: "CRITICAL,HIGH"
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    # GitHub defaults to 360 minutes, so a hung job burns six runner hours.
+    timeout-minutes: {{ job_timeout_minutes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # The full history: a secret is usually in an older commit, and the
+          # default shallow clone would not fetch it. This is what catches a
+          # secret pushed with --no-verify or committed before the hook existed.
+          fetch-depth: 0
+          persist-credentials: false
+
+      # trufflehog verifies a candidate against the issuing API, so it reports
+      # live credentials the regex scanners rate too low-entropy to flag.
+      - name: Verified credentials
+        uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # v3.96.0
+        with:
+          extra_args: --results=verified --fail
+
+  discover:
+    name: Discover scan targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      codeql: ${{ '{{' }} steps.scan.outputs.codeql }}
+      any_codeql: ${{ '{{' }} steps.scan.outputs.any_codeql }}
+      any_osv: ${{ '{{' }} steps.scan.outputs.any_osv }}
+      any_trivy: ${{ '{{' }} steps.scan.outputs.any_trivy }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Read security.d fragments
+        id: scan
+        run: |
+          set -euo pipefail
+          # The runner image carries PyYAML, but an image change should not turn a
+          # discovery failure into an empty matrix that silently skips a scan.
+          python3 -c 'import yaml' 2>/dev/null || pip install --quiet pyyaml
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, pathlib
+          import yaml
+
+          codeql, osv, trivy = [], False, False
+          for path in sorted(pathlib.Path(".github/security.d").glob("*.yml")):
+              fragment = yaml.safe_load(path.read_text()) or {}
+
+              # `supported: false` is a positive statement, not an omission: rust
+              # says so because CodeQL has no extractor for it.
+              entry = fragment.get("codeql")
+              if isinstance(entry, dict) and entry.get("supported"):
+                  codeql.append(entry.get("language", path.stem))
+
+              entry = fragment.get("osv")
+              if isinstance(entry, dict) and entry.get("lockfiles"):
+                  osv = True
+
+              entry = fragment.get("trivy")
+              if isinstance(entry, dict) and entry.get("mode"):
+                  trivy = True
+
+          print(f"codeql={json.dumps(codeql)}")
+          print(f"any_codeql={str(bool(codeql)).lower()}")
+          print(f"any_osv={str(osv).lower()}")
+          print(f"any_trivy={str(trivy).lower()}")
+          PY
+
+  codeql:
+    name: CodeQL (${{ '{{' }} matrix.language }})
+    needs: discover
+    # A matrix of zero entries is a workflow error rather than a skip, so the
+    # guard is required for a docs-only repository.
+    if: needs.discover.outputs.any_codeql == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: {{ job_timeout_minutes }}
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ '{{' }} fromJSON(needs.discover.outputs.codeql) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          languages: ${{ '{{' }} matrix.language }}
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          category: "/language:${{ '{{' }} matrix.language }}"
+
+  osv:
+    name: OSV scan
+    needs: discover
+    if: needs.discover.outputs.any_osv == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: {{ job_timeout_minutes }}
+    permissions:
+      contents: read
+      # The scan uploads SARIF, so it needs the code-scanning scope.
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # One binary reading every ecosystem's lockfile. `--recursive` finds a
+      # monorepo member's lockfile without this layer knowing where members sit.
+      - name: Scan lockfiles
+        uses: google/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
+        with:
+          scan-args: |-
+            --recursive
+            --format=sarif
+            --output=osv-results.sarif
+            .
+        # A finding is a non-zero exit, and the upload below still has to run so
+        # the alerts reach the security tab.
+        continue-on-error: true
+
+      - name: Upload results
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          sarif_file: osv-results.sarif
+        if: always()
+
+  trivy:
+    name: Trivy
+    needs: discover
+    if: needs.discover.outputs.any_trivy == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: {{ job_timeout_minutes }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Scan filesystem
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy-results.sarif
+          severity: ${{ '{{' }} inputs.severity }}
+          exit-code: "0"
+
+      - name: Upload results
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+
+      # The scan above reports without failing so the SARIF always uploads; this
+      # is the step that fails the job.
+      - name: Fail on findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          format: table
+          severity: ${{ '{{' }} inputs.severity }}
+          exit-code: "1"
