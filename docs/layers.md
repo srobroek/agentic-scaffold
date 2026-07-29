@@ -21,11 +21,16 @@ sibling layer.
 | `base/repo` | `README.md`, `.editorconfig`, `.gitattributes`, `docs/{adr,architecture}/`, `scripts/`, `tests/` | `project_name`, `description`, `org` |
 | `base/gitignore` | `.gitignore`, through `gitnr create <templates> file:.gitignore.d/* -s` | none |
 
-`license` takes any SPDX identifier. `Apache-2.0`, `MPL-2.0`, and
-`AGPL-3.0-only` are vendored, so the policy cases need no network; anything else
-is fetched from the SPDX licence list at render time, and an unknown identifier
-fails naming what is available offline. Matching is case-insensitive, since an
-SPDX id is case-sensitive and a typed answer is not. `none` writes no file.
+`license` takes any licence identifier and fetches the body through
+`gh api /licenses/<key>`. No text is vendored here, since a copy would drift from
+the source.
+
+GitHub keys are lowercase and do not always match the SPDX identifier:
+`AGPL-3.0-only` is `agpl-3.0` there, so the layer normalises `-only` and
+`-or-later` before the call. `gh api /licenses/<key>` also serves identifiers
+absent from the `/licenses` list, `EUPL-1.2` among them. Anything it refuses falls
+back to the SPDX licence list, and an identifier neither carries fails while
+listing what GitHub has. `none` writes no file.
 
 The gitnr template list follows from which language layers rendered.
 

@@ -10,7 +10,6 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RENDER = REPO_ROOT / "scripts" / "render.py"
-VENDORED = REPO_ROOT / "templates" / "base" / "license" / "licenses"
 
 
 def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
@@ -32,19 +31,29 @@ def git_init(path: Path) -> None:
 
 
 @pytest.mark.parametrize("spdx", ["Apache-2.0", "MPL-2.0", "AGPL-3.0-only"])
-def test_the_policy_licences_need_no_network(spdx: str, tmp_path: Path) -> None:
+def test_the_policy_licences_resolve(spdx: str, tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
     result = render(
         "base/license", dest, f'license: {spdx}\ncopyright_name: X\ncopyright_year: "2026"\n'
     )
     assert result.returncode == 0, result.stderr
-    assert "(vendored)" in result.stdout
     assert (dest / "LICENSE").is_file()
 
 
+def test_agpl_only_maps_to_the_github_key(tmp_path: Path) -> None:
+    """SPDX separates -only from -or-later; GitHub carries one key for both."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    result = render(
+        "base/license", dest, 'license: AGPL-3.0-only\ncopyright_name: X\ncopyright_year: "2026"\n'
+    )
+    assert result.returncode == 0, result.stderr
+    assert "AFFERO" in (dest / "LICENSE").read_text().upper()
+
+
 def test_licence_id_matching_is_case_insensitive(tmp_path: Path) -> None:
-    """An SPDX id is case-sensitive; an answer typed by hand is not."""
+    """GitHub keys are lowercase; an answer typed by hand may not be."""
     dest = tmp_path / "d"
     dest.mkdir()
     result = render(
@@ -52,6 +61,18 @@ def test_licence_id_matching_is_case_insensitive(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "Mozilla Public License" in (dest / "LICENSE").read_text()
+
+
+def test_the_holder_and_year_are_substituted(tmp_path: Path) -> None:
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render(
+        "base/license", dest, 'license: MIT\ncopyright_name: Acme Ltd\ncopyright_year: "2031"\n'
+    )
+    body = (dest / "LICENSE").read_text()
+    assert "Acme Ltd" in body
+    assert "2031" in body
+    assert "[fullname]" not in body
 
 
 def test_an_unknown_identifier_fails_without_writing(tmp_path: Path) -> None:
@@ -62,7 +83,7 @@ def test_an_unknown_identifier_fails_without_writing(tmp_path: Path) -> None:
     )
     assert result.returncode == 4
     assert not (dest / "LICENSE").exists()
-    # The message must name what is available offline.
+    # The message must list what GitHub carries.
     assert "Apache-2.0" in result.stdout + result.stderr
 
 
@@ -76,12 +97,10 @@ def test_licence_none_writes_nothing(tmp_path: Path) -> None:
     assert not (dest / "LICENSE").exists()
 
 
-def test_the_vendored_set_matches_the_documented_policy() -> None:
-    assert {p.stem for p in VENDORED.glob("*.txt")} == {
-        "Apache-2.0",
-        "MPL-2.0",
-        "AGPL-3.0-only",
-    }
+def test_no_licence_text_is_vendored() -> None:
+    """gh api is the source; a copy in the repository would drift from it."""
+    layer = REPO_ROOT / "templates" / "base" / "license"
+    assert not (layer / "licenses").exists()
 
 
 # --- base/repo -------------------------------------------------------------

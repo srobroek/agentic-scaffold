@@ -2,14 +2,15 @@ _subdirectory: template
 
 _scaffold:
   summary: LICENSE, and the SPDX identifier other layers read.
-  requires_bin: [git]
+  requires_bin: [git, gh]
 
 license:
   type: str
   help: >-
-    SPDX identifier. Policy defaults: a niche library is MPL-2.0, an application
-    is AGPL-3.0-only, dev tooling or a template is Apache-2.0. Any other SPDX id
-    works and is fetched at render time.
+    Licence identifier, fetched through `gh api /licenses`. Policy defaults: a
+    niche library is MPL-2.0, an application is AGPL-3.0-only, dev tooling or a
+    template is Apache-2.0. Anything GitHub does not carry falls back to the SPDX
+    licence list.
   default: Apache-2.0
 
 copyright_name:

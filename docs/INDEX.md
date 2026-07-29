@@ -30,7 +30,7 @@ Requires `gitnr` on `PATH`.
 
 LICENSE, and the SPDX identifier other layers read.
 
-Requires `git` on `PATH`.
+Requires `git`, `gh` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
