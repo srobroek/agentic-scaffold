@@ -11,12 +11,12 @@ _scaffold:
   # base/gitignore and agentic/marketplace follow it.
   after: [lang/*, quality/hooks, agentic/index]
 
-# The justfile is regenerated rather than skip-guarded, because a new layer's
-# fragment has to reach the import block. Project-specific recipes belong in a
-# fragment of their own, which `just-add` creates and no render touches.
+# Every render rebuilds the justfile, so a new layer's fragment reaches the import
+# block. Project-specific recipes belong in a fragment of their own, which
+# `just-add` creates and no render touches.
 #
-# The layer declares no variables: which recipes exist follows from which fragments
-# are present, and each import is optional so a fragment that never rendered costs
+# Which recipes exist follows from which fragments are present, so the layer needs
+# no variables. Each import is optional, and a fragment that never rendered costs
 # nothing.
 #
 # The import block is written by the copy in the generated project, so `just-sync`

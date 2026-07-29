@@ -265,14 +265,25 @@ Selecting `docs/api-refs` forces `docs/deploy-split`.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `agentic/apm` | `apm.yml` | `apm_packages`, `apm_target` |
-| `agentic/beads` | `.beads/` through `bd init --skip-agents --skip-hooks`, plus `hooks/` in `.beads/.gitignore` | `bd_prefix` |
+| `agentic/apm` | `apm.yml`, `.just.d/apm.just`, `.gitignore.d/apm` | `apm_packages`, `apm_target`, `apm_cli_version` |
+| `agentic/beads` | `.beads/` through `bd init --skip-hooks`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_dolt_sync`, `bd_auto_export` |
 | `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_full_pack`, `index_extra_ignores` |
 | `agentic/marketplace` | nothing; it reports recommended installs | none |
 
 No per-harness configuration file. `agentic/marketplace` runs last.
 
-`agentic/apm` seeds the marketplaces, `srobroek/agentic-packages` among them.
+`agentic/apm` writes the manifest but runs no install. `apm install` reaches the
+network and needs uvx, so it would fail a render that had otherwise succeeded;
+`just apm-install` performs it instead, against a pinned `apm_cli_version`.
+
+Marketplace registration is machine-global, not per-project: `apm marketplace add`
+writes to `~/.claude/plugins/`, so no template can seed it. `just apm-marketplaces`
+is a one-time step per machine. A dependency locator carries its own source inline,
+so a package resolves whether or not its marketplace was registered.
+
+An empty `apm_packages` is valid. bailiff refused it with a validator, which made the
+layer unusable until someone had chosen packages.
+
 The agent then reads the rendered layer set and recommends packages against it:
 `language-rust` and `rust-quality` for a rust layer, `mcp-tauri` for a Tauri
 shell, `steering-infrastructure` for terraform, `speckit` when SpecKit is in use.
@@ -327,6 +338,19 @@ Choosing SpecKit pulls `speckit`, `speckit-beads`, and `steering-speckit`
 together. `speckit-beads` is what connects SpecKit to `bd`.
 
 `agentic/beads` runs `bd init --skip-hooks` and keeps everything else bd writes.
+Neither flag is an answer: `--skip-hooks` is always passed and `--skip-agents` never
+is, so no answer can turn the compaction hooks off. bailiff's version passed
+`--skip-agents` unconditionally.
+
+It renders after `docs/agents`, because bd appends a marked
+`BEGIN BEADS INTEGRATION` block to an existing `AGENTS.md` and leaves the `CLAUDE.md`
+symlink alone. With neither present it writes its own beads-only file instead, which
+would then be what the repository's agents read first.
+
+bd also appends four ignore patterns to the root `.gitignore` under a header with no
+end marker. `base/gitignore` rebuilds that file from `.gitignore.d/`, so the task
+moves those lines into a fragment; left in place they survive until the next render
+and then vanish.
 
 bd installs two separate sets. Its git hooks are five 1.3KB shims running
 `bd hooks run <event>` for `pre-commit`, `post-merge`, `post-checkout`,
@@ -376,6 +400,10 @@ existing manifest rather than creating one.
 
 `workspace/monorepo` precedes `lang/*` so the manifest exists before members
 render.
+
+`agentic/beads` follows `docs/*` because bd appends to an existing `AGENTS.md` and
+writes its own beads-only one when none exists. The order is what decides which file
+a repository's agents read first.
 
 `quality/hooks` follows `iac/*` because it folds `.pre-commit.d/*` into the root
 config, and `iac/terraform` contributes a fragment. Rendering it earlier would

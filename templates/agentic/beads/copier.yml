@@ -1,0 +1,52 @@
+_subdirectory: template
+_answers_file: .copier-answers.beads.yml
+
+_scaffold:
+  summary: >-
+    Beads issue tracking through `bd init --skip-hooks`, plus the .gitignore.d and
+    .just.d fragments the aggregating layers fold in.
+  requires_bin: [git, bd]
+  # docs/agents first: bd appends a marked block to an existing AGENTS.md and keeps
+  # the CLAUDE.md symlink, but writes its own beads-only file when neither exists.
+  after: [base/repo, docs/agents]
+  precheck: precheck.py
+
+bd_prefix:
+  type: str
+  help: >-
+    Issue id prefix. Empty uses the destination directory name. Every id carries it,
+    so keep it short.
+  default: ""
+
+bd_dolt_sync:
+  type: str
+  choices: [git-origin, local-only]
+  help: >-
+    git-origin wires a Dolt remote from the repo's git origin, which is what makes
+    the database survive a reclone. local-only keeps it on this machine.
+  default: git-origin
+
+bd_auto_export:
+  type: bool
+  help: >-
+    Export .beads/issues.jsonl after writes. A viewer such as bv needs it; the Dolt
+    database stays the source of truth either way.
+  default: false
+
+# `--skip-hooks` is not an answer. bd's five git hooks are reproduced as prek
+# entries by quality/hooks, and letting bd install its own repoints
+# core.hooksPath at .beads/hooks. That copy also picks up whatever hook binaries
+# are ambient, which is how a 347MB git-defender copy with an unusable arm64 slice
+# ended up blocking every commit.
+#
+# `--skip-agents` is not offered either, and is never passed. It would remove the
+# four codex lifecycle hooks and the Claude SessionStart entry, which reload beads
+# context after compaction. Those hooks are what make an AGENTS.md carrying no beads
+# prose safe. bailiff's version passed it unconditionally.
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/bd_init.py"
+    "{{ _copier_conf.dst_path }}"
+    --prefix "{{ bd_prefix }}"
+    --dolt-sync "{{ bd_dolt_sync }}"
+    {% if bd_auto_export %}--auto-export{% endif %}

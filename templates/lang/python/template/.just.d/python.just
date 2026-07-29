@@ -14,8 +14,10 @@ python-fmt:
 python-lint:
     uv run ruff check .
 
-# Docstring presence, advisory. ruff has no per-rule severity, so D cannot sit in
-# the config without gating a bare `ruff check`
+# ruff has no per-rule severity, so `D` cannot sit in the config without gating a
+# bare `ruff check`. `--exit-zero` keeps this one advisory.
+
+# Docstring presence, advisory
 [group('python')]
 python-docs:
     uv run ruff check --select D --exit-zero .

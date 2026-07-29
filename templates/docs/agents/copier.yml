@@ -8,6 +8,14 @@ project_name:
   help: The project name, used in the generated index.
 _scaffold:
   summary: Steering directories under docs/agents, with generated blocks the steering
-    skill rewrites.
+    skill rewrites, plus AGENTS.md and the CLAUDE.md symlink.
   after:
   - base/repo
+
+# AGENTS.md is a copy of the body rather than a symlink to it: agentic/beads appends
+# a marked block to AGENTS.md, and a symlink would write that block into the body.
+# CLAUDE.md is a relative symlink, so one file serves both harnesses.
+_tasks:
+- >-
+  python3 "{{ _copier_conf.src_path }}/tasks/install_agents_index.py"
+  "{{ _copier_conf.dst_path }}"

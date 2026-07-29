@@ -6,10 +6,10 @@ map:
     repomix
 
 {% if index_full_pack %}
-# Rebuild the contents pack. A grep target only: a Read hook refuses it whole
-#
-# Its own config, because repomix has --no-files but no --files, so the map's
-# `files: false` cannot be overridden from the command line.
+# Its own config file, because repomix has `--no-files` but no `--files`, so the
+# map's `files: false` cannot be overridden from the command line.
+
+# Rebuild the contents pack, a grep target the Read hook refuses whole
 [group('index')]
 map-full:
     repomix -c repomix-full.config.json

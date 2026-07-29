@@ -10,11 +10,13 @@ Design lives in `layers.md`; this file is the inventory.
 
 | Layer | Questions | Files |
 |---|---|---|
+| `agentic/apm` | 5 | 3 |
+| `agentic/beads` | 3 | 1 |
 | `agentic/index` | 3 | 4 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
-| `docs/agents` | 1 | 9 |
+| `docs/agents` | 1 | 10 |
 | `host/github` | 6 | 12 |
 | `lang/go` | 3 | 11 |
 | `lang/python` | 3 | 12 |
@@ -23,6 +25,46 @@ Design lives in `layers.md`; this file is the inventory.
 | `quality/hooks` | 3 | 5 |
 | `workspace/just` | 0 | 3 |
 | `workspace/worktrunk` | 6 | 2 |
+
+## `agentic/apm`
+
+apm.yml naming the marketplaces and the package set, plus the .just.d and .gitignore.d fragments the aggregating layers fold in.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `project_name` | str |  |
+| `description` | str |  |
+| `apm_packages` | yaml | `[]` |
+| `apm_target` | str | `claude,codex` |
+| `apm_cli_version` | str | `0.25.0` |
+
+Writes:
+
+```
+.gitignore.d/apm
+.just.d/apm.just
+apm.yml
+```
+
+## `agentic/beads`
+
+Beads issue tracking through `bd init --skip-hooks`, plus the .gitignore.d and .just.d fragments the aggregating layers fold in.
+
+Requires `git`, `bd` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `bd_prefix` | str |  |
+| `bd_dolt_sync` | `git-origin` | `local-only` | `git-origin` |
+| `bd_auto_export` | bool | `False` |
+
+Writes:
+
+```
+.just.d/beads.just
+```
 
 ## `agentic/index`
 
@@ -93,7 +135,7 @@ scripts/.gitkeep
 
 ## `docs/agents`
 
-Steering directories under docs/agents, with generated blocks the steering skill rewrites.
+Steering directories under docs/agents, with generated blocks the steering skill rewrites, plus AGENTS.md and the CLAUDE.md symlink.
 
 | Question | Type | Default |
 |---|---|---|
@@ -102,6 +144,7 @@ Steering directories under docs/agents, with generated blocks the steering skill
 Writes:
 
 ```
+docs/agents/AGENTS.body.md
 docs/agents/ci/index.md
 docs/agents/conventions.md
 docs/agents/docs/index.md

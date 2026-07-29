@@ -9,8 +9,10 @@ ts: ts-fmt ts-lint ts-types ts-test
 ts-fmt:
     bunx biome check --write .
 
-# Lint. oxlint owns this half: 59 of typescript-eslint's 61 type-aware rules
-# against biome's 4 outside nursery
+# oxlint owns this half of the split: 59 of typescript-eslint's 61 type-aware rules
+# against biome's 4 outside nursery.
+
+# Lint
 [group('ts')]
 ts-lint:
     bunx oxlint

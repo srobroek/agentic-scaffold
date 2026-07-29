@@ -142,3 +142,30 @@ Only a gitignored path is copied, judged from the destination worktree's own
 `.gitignore`. A branch created before an ignore rule was committed does not see it, so
 the copy silently skips the file. Symptom: a dry-run reports one entry where three
 were expected. Commit the ignore rules before branching.
+
+### just takes the comment directly above a recipe as its description
+
+A rationale block ending just above a `[group(...)]` attribute becomes the recipe's
+`just --list` description, so a sentence fragment shows up where a summary belongs.
+`python-docs` read "the config without gating a bare `ruff check`", `ts-lint` read
+"against biome's 4 outside nursery", and `map-full` read the tail of a repomix note.
+
+Put the rationale first, then a blank line, then the one-line description.
+`tests/test_agentic_layers.py` rejects a description that ends in a full stop or
+opens lowercase.
+
+### bd init appends rather than overwrites, and that decides the render order
+
+`bd init` writes `AGENTS.md`, `CLAUDE.md`, and the root `.gitignore`. All three are
+owned by another layer, and bd is well behaved about it: an existing `AGENTS.md` gains
+a marked `BEGIN BEADS INTEGRATION` block, and a `CLAUDE.md` symlink survives. With
+neither present bd writes its own beads-only file, so `agentic/beads` renders after
+`docs/agents`.
+
+The root `.gitignore` is the exception. bd appends four patterns under a header with
+no end marker, and `base/gitignore` rebuilds that file from `.gitignore.d/`. The lines
+therefore work until the next render and then disappear, which is why the task moves
+them into a fragment.
+
+`apm marketplace add` writes to `~/.claude/plugins/`, so marketplace registration is
+machine-global. No template can seed it, and a locator resolves without it.

@@ -1,0 +1,34 @@
+# APM recipes, imported by the root justfile.
+#
+# The CLI runs through `uvx --from apm-cli==<version>`, pinned so a re-render and a
+# later install agree on which CLI wrote apm_modules/.
+
+apm := "uvx --from apm-cli=={{ apm_cli_version }} apm"
+
+# Install the package set from apm.yml into apm_modules/
+[group('apm')]
+apm-install:
+    {% raw %}{{ apm }}{% endraw %} install
+
+# Weave the installed packages' context into AGENTS.md
+[group('apm')]
+apm-compile:
+    {% raw %}{{ apm }}{% endraw %} compile
+
+# List what apm.yml resolves to
+[group('apm')]
+apm-list:
+    {% raw %}{{ apm }}{% endraw %} list
+
+# `apm marketplace add` writes to ~/.claude/plugins/, so registration is
+# machine-global rather than per-project. That makes it a one-time setup step per
+# machine, and not something a render can do.
+#
+# The comment directly above a recipe becomes its `--list` description, so the
+# rationale goes here and the description stays on the last line.
+
+# Register the marketplaces this project's packages come from
+[group('apm')]
+apm-marketplaces:
+    {% raw %}{{ apm }}{% endraw %} marketplace add srobroek/agentic-packages
+    {% raw %}{{ apm }}{% endraw %} marketplace add srobroek/slopvac
