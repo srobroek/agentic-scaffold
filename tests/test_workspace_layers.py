@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -533,6 +534,99 @@ def test_a_member_gets_a_real_hook_config(tmp_path: Path) -> None:
     config = dest / "crates" / "api" / ".pre-commit-config.yaml"
     assert config.is_file(), "the member has no config for prek to union"
     assert "cargo-fmt" in config.read_text()
+
+
+def add_member(dest: Path, name: str, lang: str = "rust") -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(dest / "scripts" / "add_member.py"), name, lang],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+RP_ANSWERS = """\
+release_type: rust
+initial_version: 0.1.0
+default_branch: main
+release_packages: []
+"""
+
+
+@needs_just
+def test_add_registers_the_member_with_release_please(tmp_path: Path) -> None:
+    """release-please has no glob support.
+
+    `packages` takes a literal path per package, and its workspace plugins only build a
+    dependency graph over what is already configured, so a member absent from the config
+    is never versioned, tagged, or written into the changelog. `just add` is the moment
+    the member exists, so it registers there rather than through a reconciling script.
+    """
+    dest = workspace(tmp_path, "rust")
+    render("release/release-please", dest, RP_ANSWERS)
+
+    result = add_member(dest, "api")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    config = json.loads((dest / "release-please-config.json").read_text())
+    assert "crates/api" in config["packages"]
+    assert config["packages"]["crates/api"]["component"] == "api"
+    assert config["packages"]["crates/api"]["release-type"] == "rust"
+    # Per-package tags, or every member's tag collides on one version number.
+    assert config["include-component-in-tag"] is True
+
+    # The root is no longer the thing being released, and its tag would collide.
+    assert "." not in config["packages"]
+
+
+@needs_just
+def test_add_keeps_the_versions_release_please_recorded(tmp_path: Path) -> None:
+    """Resetting a released package would make release-please re-release it."""
+    dest = workspace(tmp_path, "rust")
+    render("release/release-please", dest, RP_ANSWERS)
+    assert add_member(dest, "api").returncode == 0
+
+    path = dest / ".release-please-manifest.json"
+    path.write_text(json.dumps({"crates/api": "2.3.1"}, indent=2) + "\n")
+
+    assert add_member(dest, "core").returncode == 0
+
+    recorded = json.loads(path.read_text())
+    assert recorded["crates/api"] == "2.3.1"
+    # A new member joins where the others are, so a repo releasing 2.x ships no 0.1.0.
+    assert recorded["crates/core"] == "2.3.1"
+
+
+@needs_just
+def test_add_starts_a_new_member_at_the_initial_version_when_versions_disagree(
+    tmp_path: Path,
+) -> None:
+    dest = workspace(tmp_path, "rust")
+    render("release/release-please", dest, RP_ANSWERS)
+    assert add_member(dest, "api").returncode == 0
+    assert add_member(dest, "core").returncode == 0
+
+    path = dest / ".release-please-manifest.json"
+    path.write_text(
+        json.dumps({"crates/api": "2.3.1", "crates/core": "1.0.0"}, indent=2) + "\n"
+    )
+
+    assert add_member(dest, "util").returncode == 0
+
+    assert json.loads(path.read_text())["crates/util"] == "0.1.0"
+
+
+@needs_just
+def test_add_works_without_the_release_layer(tmp_path: Path) -> None:
+    """A repository may not release at all, and adding a member still has to work."""
+    dest = workspace(tmp_path, "rust")
+
+    result = add_member(dest, "api")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (dest / "crates" / "api").is_dir()
+    assert not (dest / "release-please-config.json").exists()
 
 
 @needs_just

@@ -1,33 +1,9 @@
 # Release recipes, contributed by release/release-please.
 
-# release-please owns the manifest after the first release, so this rewrites the
-# packages list alone and leaves every recorded version alone.
-
-# Rebuild the packages list from the workspace manifest
-[group('release')]
-release-sync:
-    @python3 scripts/sync_release_packages.py .
-
-# Fail when the packages list omits a workspace member
-[group('release')]
-release-check:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    scratch=$(mktemp -d)
-    trap 'rm -rf "$scratch"' EXIT
-    cp release-please-config.json .release-please-manifest.json "$scratch/"
-    for f in Cargo.toml pyproject.toml package.json go.mod; do
-      [ -f "$f" ] && cp "$f" "$scratch/"
-    done
-    for d in crates packages cmd libs apps; do
-      [ -d "$d" ] && cp -R "$d" "$scratch/"
-    done
-    python3 scripts/sync_release_packages.py "$scratch" >/dev/null
-    if ! diff -q release-please-config.json "$scratch/release-please-config.json" >/dev/null; then
-      echo "release-please packages are stale; run 'just release-sync'" >&2
-      diff release-please-config.json "$scratch/release-please-config.json" || true
-      exit 1
-    fi
+# release-please has no glob support: `packages` takes a literal path per package, and
+# its workspace plugins only build a dependency graph over what is already configured.
+# `just add` registers a new member at the moment it creates one, so nothing has to
+# reconcile the list afterwards.
 
 # What the next release would contain, from the commits since the last tag
 [group('release')]
@@ -42,3 +18,8 @@ release-preview:
       echo "commits since $last:"
       git log --oneline --no-merges "$last..HEAD"
     fi
+
+# Which packages release-please tracks
+[group('release')]
+release-packages:
+    @python3 -c "import json; print('\n'.join(json.load(open('release-please-config.json'))['packages']))"

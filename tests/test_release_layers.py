@@ -138,88 +138,10 @@ def test_the_release_workflow_does_not_ride_the_gate(release_please: Path) -> No
     assert "timeout-minutes" in job
 
 
-@needs_cargo
-def test_sync_adds_workspace_members(tmp_path: Path) -> None:
-    """`just add` creates a member, and release-please never discovers it.
-
-    A package absent from the config is never versioned, tagged, or written into the
-    changelog, and nothing reports the omission.
-    """
-    dest = git_repo(tmp_path / "ws")
-    render("workspace/monorepo", dest, MONOREPO_ANSWERS)
-    render("release/release-please", dest, RP_ANSWERS)
-
-    for name in ("api", "core"):
-        subprocess.run(
-            ["cargo", "init", "-q", "--lib", "--name", name, "--vcs", "none", f"crates/{name}"],
-            cwd=dest,
-            check=True,
-            capture_output=True,
-        )
-
-    result = subprocess.run(
-        [sys.executable, str(dest / "scripts" / "sync_release_packages.py"), str(dest)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert set(config(dest)["packages"]) == {"crates/api", "crates/core"}
 
 
-@needs_cargo
-def test_sync_keeps_the_versions_release_please_recorded(tmp_path: Path) -> None:
-    """Resetting a released package to 0.1.0 would re-release a shipped version."""
-    dest = git_repo(tmp_path / "ws")
-    render("workspace/monorepo", dest, MONOREPO_ANSWERS)
-    render("release/release-please", dest, RP_ANSWERS)
-    script = dest / "scripts" / "sync_release_packages.py"
-
-    for name in ("api", "core"):
-        subprocess.run(
-            ["cargo", "init", "-q", "--lib", "--name", name, "--vcs", "none", f"crates/{name}"],
-            cwd=dest,
-            check=True,
-            capture_output=True,
-        )
-    subprocess.run([sys.executable, str(script), str(dest)], check=True, capture_output=True)
-
-    # What release-please would have written after two releases.
-    (dest / ".release-please-manifest.json").write_text(
-        json.dumps({"crates/api": "2.3.1", "crates/core": "1.0.0"}, indent=2) + "\n"
-    )
-    subprocess.run(
-        ["cargo", "init", "-q", "--lib", "--name", "util", "--vcs", "none", "crates/util"],
-        cwd=dest,
-        check=True,
-        capture_output=True,
-    )
-
-    subprocess.run([sys.executable, str(script), str(dest)], check=True, capture_output=True)
-
-    recorded = manifest(dest)
-    assert recorded["crates/api"] == "2.3.1"
-    assert recorded["crates/core"] == "1.0.0"
-    # A new member joins at 0.1.0 when the others disagree on a version.
-    assert recorded["crates/util"] == "0.1.0"
 
 
-def test_sync_leaves_a_single_package_repo_alone(release_please: Path) -> None:
-    """No workspace manifest means no members, and `"."` is already right."""
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(release_please / "scripts" / "sync_release_packages.py"),
-            str(release_please),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert config(release_please)["packages"] == {".": {}}
 
 
 # --- release/cocogitto -----------------------------------------------------

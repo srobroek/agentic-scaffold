@@ -26,7 +26,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `quality/hooks` | 3 | 5 |
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
-| `release/release-please` | 4 | 5 |
+| `release/release-please` | 4 | 4 |
 | `workspace/just` | 0 | 3 |
 | `workspace/monorepo` | 12 | 6 |
 | `workspace/worktrunk` | 6 | 2 |
@@ -420,7 +420,6 @@ Writes:
 .just.d/release.just
 .release-please-manifest.json
 release-please-config.json
-scripts/sync_release_packages.py
 ```
 
 ## `workspace/just`

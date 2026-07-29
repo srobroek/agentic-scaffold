@@ -115,6 +115,10 @@ invisible until the cache is rescanned. `add_member.py` runs `prek list --refres
 once, which is enough: verified against prek 0.4.11, where `prek list` showed only
 root hooks beforehand and kept listing `packages/svc:ruff-format` after.
 
+The same script registers the member with release-please when that layer rendered, for
+the same reason: `just add` is where the path becomes known, and release-please resolves
+no globs.
+
 CI stays inside the language layer rather than in a layer of its own. A separate
 CI layer would have to know which languages sit at which paths; inside the
 language layer, a monorepo gets the right jobs by construction, and the reusable
@@ -267,7 +271,7 @@ the developer has.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow, `scripts/sync_release_packages.py`, `.just.d/release.just` | `release_type`, `initial_version`, `default_branch`, `release_packages` |
+| `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow, `.just.d/release.just` | `release_type`, `initial_version`, `default_branch`, `release_packages` |
 | `release/cocogitto` | `cog.toml`, `.just.d/cog.just` | `initial_version`, `release_scopes` |
 | `release/dep-updates` | `renovate.json`, `.github/dependabot.yml`, and the auto-merge workflow | `default_branch`, `auto_merge`, `renovate_timezone` |
 
@@ -293,12 +297,21 @@ for no benefit here. A major update always waits for a person.
 tags from a developer's working copy, release-please through a pull request CI merges,
 and a repository selecting both would tag twice. A profile picks one.
 
-release-please does not discover a workspace member. A package absent from its config is
-never versioned, tagged, or written into the changelog, so `just release-sync` rebuilds
-the packages list from the workspace manifest and `just release-check` fails a stale one
-inside the quality job. The recorded versions are release-please's own after the first
-release, so a member already listed keeps its version and only a new one starts at
-`initial_version`.
+release-please has no glob support. `packages` takes a literal path per package, and the
+`node-workspace` and `cargo-workspace` plugins only build a dependency graph over what is
+already configured, so a member absent from the config is never versioned, tagged, or
+written into the changelog.
+
+`just add` registers the member as part of creating it, which is the moment the path is
+known. Nothing reconciles the list afterwards. Adding an entry drops the `"."` package,
+because a workspace releases its members rather than its root and the two tags would
+collide, and turns on `include-component-in-tag`, without which every member's tag
+collides on one version number.
+
+The recorded versions are release-please's own after the first release, so an entry
+already present keeps its version. A new member joins at the version the others share, or
+at `initial_version` when they disagree, so a repository releasing 2.x ships no 0.1.0
+package.
 
 ## docs
 

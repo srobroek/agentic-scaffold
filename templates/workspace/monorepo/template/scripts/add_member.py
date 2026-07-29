@@ -19,6 +19,7 @@ manifest cannot disagree about where members live.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -72,8 +73,6 @@ def member_glob(repo: Path) -> str:
 
     package = repo / "package.json"
     if package.is_file():
-        import json
-
         members = json.loads(package.read_text()).get("workspaces") or []
         if members:
             return members[0]
@@ -107,6 +106,50 @@ def install_member_hooks(member: Path) -> bool:
         "# hooks travel with it.\n"
     )
     target.write_text(header + "".join(f.read_text() for f in fragments))
+    return True
+
+
+def register_release(repo: Path, member: str, release_type: str) -> bool:
+    """Add the member to release-please's config and manifest.
+
+    release-please has no glob support: `packages` takes a literal path per package, and
+    its workspace plugins only build a dependency graph over what is already configured.
+    A member absent from the config is never versioned, tagged, or written into the
+    changelog, and nothing reports the omission.
+
+    The recorded versions are release-please's own after the first release, so an entry
+    already present is left alone and only the new member is added. It joins at the
+    version the others share, or 0.1.0 when they disagree, so a repository releasing 2.x
+    does not ship a 0.1.0 package.
+    """
+    config_path = repo / "release-please-config.json"
+    manifest_path = repo / ".release-please-manifest.json"
+    if not config_path.is_file() or not manifest_path.is_file():
+        return False
+
+    config = json.loads(config_path.read_text())
+    manifest = json.loads(manifest_path.read_text())
+    if member in config.get("packages", {}):
+        return False
+
+    packages = config.setdefault("packages", {})
+    # A single-package repository releases ".". Once a member exists, the root is no
+    # longer the thing being released, and its tag would collide with the member's.
+    packages.pop(".", None)
+    manifest.pop(".", None)
+
+    packages[member] = {"component": member.rsplit("/", 1)[-1]}
+    if release_type:
+        packages[member]["release-type"] = release_type
+    # Per-package tags, or every member's tag collides on one version number.
+    config["include-component-in-tag"] = True
+    config.setdefault("separate-pull-requests", False)
+
+    versions = sorted(set(manifest.values()))
+    manifest[member] = versions[-1] if len(versions) == 1 else "0.1.0"
+
+    config_path.write_text(json.dumps(config, indent=2) + "\n")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     return True
 
 
@@ -205,6 +248,12 @@ def main() -> int:
         for path in move_repo_wide(member, repo):
             print(f"add-member: {path}")
         refresh_prek(repo)
+
+    # Independent of the layer render: a member is releasable whether or not the
+    # language layer's own files were written.
+    release_types = {"rust": "rust", "python": "python", "go": "go", "ts": "node"}
+    if register_release(repo, str(member.relative_to(repo)), release_types[args.lang]):
+        print("add-member: registered with release-please")
 
     print(f"add-member: {args.name} at {member.relative_to(repo)}")
     print("Run `just hooks-merge` and `just just-sync` to fold in what it contributed.")
