@@ -94,3 +94,13 @@ rather than trusting it.
 
 `--skill-generate` also prompts for an output path. Pass `--skill-output <path>`
 and `-f` together or a hook hangs waiting on the prompt.
+
+### bash on macOS
+
+macOS ships bash 3.2, where `mapfile` and `readarray` do not exist. A script using
+either prints `mapfile: command not found` and then, under `set -u`, dies on the
+unbound array it never filled. With `set -uo pipefail` but no `-e` the script
+still exits 0, so a wrapper looked like it passed while linting nothing.
+
+Use `while IFS= read -r line; do ... done < <(...)` instead, and give any wrapper
+a test asserting its exit code rather than trusting its output.
