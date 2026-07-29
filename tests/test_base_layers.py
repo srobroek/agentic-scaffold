@@ -150,6 +150,47 @@ def test_gitignore_always_ignores_generated_output(tmp_path: Path) -> None:
     assert ".claude/skills/repomix-*/" in body
 
 
+@pytest.mark.parametrize(
+    ("artifact", "written_by"),
+    [
+        (".DS_Store", "Finder, into any directory it displays"),
+        ("._*", "macOS, as a resource fork"),
+        ("Thumbs.db", "the Windows thumbnail cache"),
+        ("*~", "a Linux editor, as a backup file"),
+    ],
+)
+def test_gitignore_covers_the_os_artifacts_with_no_language_layer(
+    artifact: str, written_by: str, tmp_path: Path
+) -> None:
+    """The OS writes these whatever the project is, so no derived list gates them.
+
+    A docs-only repository renders no language layer at all, and one of these files
+    still reached a template directory in this repository. They come from gitnr's
+    three Global templates rather than a hand-rolled list here.
+    """
+    dest = tmp_path / "d"
+    dest.mkdir()
+    result = render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    assert result.returncode == 0, result.stderr
+    assert artifact in (dest / ".gitignore").read_text(), (
+        f"{artifact} is unignored, though it is written by {written_by}"
+    )
+
+
+def test_gitignore_leaves_editor_directories_to_the_developer(tmp_path: Path) -> None:
+    """`.vscode/` and `.idea/` follow the developer, not the project.
+
+    They belong in a global `core.excludesFile`; ignoring them here would impose one
+    editor's layout on every repository this scaffolds.
+    """
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    body = (dest / ".gitignore").read_text()
+    assert ".vscode/" not in body
+    assert ".idea/" not in body
+
+
 def test_gitignore_folds_the_fragments(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()

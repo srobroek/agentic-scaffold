@@ -32,7 +32,14 @@ absent from the `/licenses` list, `EUPL-1.2` among them. Anything it refuses fal
 back to the SPDX licence list, and an identifier neither carries fails while
 listing what GitHub has. `none` writes no file.
 
-The gitnr template list follows from which language layers rendered.
+The gitnr template list follows from which language layers rendered, plus
+`Global/{macOS,Windows,Linux}` on every render. The operating system writes
+`.DS_Store`, `._*`, `Thumbs.db`, and `*~` whatever the project is, and a docs-only
+repository renders no language layer to derive them from.
+
+Editor directories are left out. `.vscode/` and `.idea/` follow the developer
+rather than the project, so they belong in a global `core.excludesFile` rather than
+in every repository this scaffolds.
 
 `base/repo` creates `docs/` and nothing inside it. `docs/agents` and `docs/adr`
 own their own subtrees.

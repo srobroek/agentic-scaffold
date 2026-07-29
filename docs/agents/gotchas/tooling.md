@@ -26,6 +26,10 @@ rendered project. Finder writes one into any directory it displays.
 repeats all eight defaults alongside `.DS_Store` and `._*`.
 `tests/test_render_excludes.py` plants an artifact and asserts it does not render.
 
+This is separate from what `base/gitignore` ignores. The exclude keeps an artifact
+out of a rendered project; the gitignore keeps one out of the project's history
+afterwards. Both are needed, and gitnr's Global templates supply the second.
+
 ### projen
 
 `projen new` produces a project that cannot synthesise. It pins
