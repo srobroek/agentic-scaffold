@@ -85,6 +85,23 @@ workflows already take a `working-directory` input.
 
 Language-blind. Each language layer supplies its own jobs and setup action.
 
+The shared quality and security jobs split across both. The host layer carries
+actionlint, zizmor, cspell, lychee, taplo, yamllint, markdownlint, and the secret
+scan, which need no language knowledge.
+
+The rest cannot live here:
+
+| Step | Why it is language-dependent |
+|---|---|
+| lizard | complexity thresholds differ per language |
+| CodeQL | takes a language list, and its names differ from ours (`javascript-typescript`, not `ts`) |
+| trivy | filesystem mode against dependencies, configuration mode against IaC |
+| OSV | keys off which lockfiles exist |
+
+Each language layer therefore drops `.github/quality.d/<lang>.yml` and
+`.github/security.d/<lang>.yml`, and the shared workflow carries a matrix the
+agent fills from those fragments.
+
 | Layer | Writes | Variables |
 |---|---|---|
 | `host/github` | `workflows/{wc-changes,wc-gate,wc-quality,wc-security}.yml`, `actions/ci-gate/`, `CODEOWNERS`, issue and pull-request templates, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` | `security_contact`, `coc_contact`, `default_branch`, `job_timeout_minutes` |
@@ -162,9 +179,19 @@ The agent then reads the rendered layer set and recommends packages against it:
 shell, `steering-infrastructure` for terraform, `speckit` when SpecKit is in use.
 That match is judgement, so it belongs to the agent rather than a template.
 
-`agentic/beads` runs `bd init --skip-hooks`, which leaves bd's own git hooks
-uninstalled and its export-on-commit unwired. `psc` carries an item to run `bd`
-from a prek hook instead.
+`agentic/apm` seeds three marketplaces of your own: `srobroek/agentic-packages`,
+`srobroek/slopvac`, and `srobroek/vibe-hero`. Third-party marketplaces are
+offered rather than defaulted.
+
+Choosing SpecKit pulls `speckit`, `speckit-beads`, and `steering-speckit`
+together. `speckit-beads` is what connects SpecKit to `bd`.
+
+`agentic/beads` runs `bd init --skip-hooks`, then `quality/hooks` reproduces bd's
+five hooks as local prek entries. bd writes five 1.3KB shims that each run
+`bd hooks run <event>` for `pre-commit`, `post-merge`, `post-checkout`,
+`pre-push`, and `prepare-commit-msg`; prek supports every one of those stages.
+What made `--skip-hooks` necessary was the ambient hook binaries copied in
+alongside, not those shims.
 
 ## iac
 
@@ -215,6 +242,7 @@ dependency solver.
 | Contributed as | Combined by |
 |---|---|
 | `.gitignore.d/<name>` | `gitnr create` in `base/gitignore` |
+| `.github/{quality,security}.d/<name>.yml` | a matrix in the host layer's shared workflow |
 | `.pre-commit.d/<name>.yaml` | see below |
 | `.mise/conf.d/<name>.toml` | mise reads the directory |
 | `.just.d/<name>.just` | `import` lines in `workspace/just` |
