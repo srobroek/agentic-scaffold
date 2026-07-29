@@ -1,25 +1,28 @@
-"""The prose gate wrapper runs on the shell this machine has, and it fails loudly.
+"""The prose gate wrapper fails loudly.
 
-Written after `mapfile` made the wrapper exit 0 on macOS while printing errors,
-so `just check` reported ok against docs that had never been linted.
+Written after a shell version of this wrapper used `mapfile`, which bash 3.2 on
+macOS does not have. It printed errors and exited 0, so `just check` reported ok
+against docs that had never been linted. Rewriting it in Python removed the shell
+portability question; these tests keep the exit-code contract.
 """
 
 from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-WRAPPER = REPO_ROOT / "scripts" / "lint-prose.sh"
+WRAPPER = REPO_ROOT / "scripts" / "lint_prose.py"
 GATE = Path.home() / ".claude" / "skills" / "review-docs" / "scripts" / "slop-lint.sh"
 
 
-def run() -> subprocess.CompletedProcess[str]:
+def run(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["bash", str(WRAPPER)],
+        [sys.executable, str(WRAPPER), *args],
         capture_output=True,
         text=True,
         check=False,
@@ -27,16 +30,11 @@ def run() -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_wrapper_uses_no_bash_4_builtins() -> None:
-    """macOS ships bash 3.2, where `mapfile` and `readarray` do not exist."""
-    code = [
-        line
-        for line in WRAPPER.read_text().splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
-    for builtin in ("mapfile", "readarray", "declare -A"):
-        offenders = [line for line in code if builtin in line]
-        assert not offenders, f"{builtin} needs bash 4: {offenders}"
+def test_generated_files_are_not_linted() -> None:
+    """docs/INDEX.md is generated, so gate findings against it are not actionable."""
+    result = run("docs/INDEX.md")
+    assert result.returncode == 0
+    assert "INDEX.md" not in result.stdout
 
 
 def test_wrapper_runs_clean_and_prints_nothing_on_stderr() -> None:

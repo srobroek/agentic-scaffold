@@ -34,7 +34,7 @@ index-check:
 lint:
     {{ py }} ruff check scripts
     {{ py }} ruff format --check scripts
-    bash {{ justfile_directory() }}/scripts/lint-prose.sh
+    {{ py }} scripts/lint_prose.py
 
 # Fix what lint can fix
 fix:
