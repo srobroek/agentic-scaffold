@@ -84,31 +84,40 @@ pointers into `docs/agents/` and runs `apm compile` last.
 Directory structure is not documented. gitnexus and repomix answer structural
 questions, and `index.md` names which of the two this repository has.
 
-### Each block stands alone
+### One statement per fact
 
-Every tool appending to `AGENTS.md` owns one block, and each block is complete
-on its own. Removing any one of them leaves the rest accurate, because no block
-depends on another for context. A row in the index table names a file that
-exists; a reader who drops the beads block still finds every document.
+A fact is stated in one place. A tool that surfaces itself through a global rule,
+an installed skill, or a native hook does not also get a block in `AGENTS.md`.
+
+Beads is the worked example. `~/.claude/rules/40-beads.md` is scoped to `**/*`
+and fires in every repository, `~/.agents/skills/beads/` is installed globally,
+and `.codex/hooks.json` runs `bd codex-hook` on compaction. A repository running
+apm gets a fourth pointer from `apm compile`. `bd`'s own block restates the same
+five commands, so `AGENTS.md` carries one line naming the prefix instead.
+
+Measured on this repository: the block was 54 of 90 lines.
 
 `AGENTS.md` is the only agent index. `CLAUDE.md` is a symlink to it, tracked by
 git as mode `120000`, so a tool appending to `AGENTS.md` is visible through both
 names and neither can drift from the other.
 
-The layer supplies the `AGENTS.md` body, then each tool appends its own block:
+A block that survives this test is complete on its own. Removing one leaves the
+rest accurate, and every row in the index table names a file that exists.
+
+### Keeping tools out of AGENTS.md
 
 ```sh
 bd init --prefix <p> --non-interactive --skip-hooks --skip-agents
 ln -s AGENTS.md CLAUDE.md
-bd setup codex                      # appends one managed block to AGENTS.md
 ```
 
 `--skip-agents` is required. Without it `bd init` writes a 127-line `AGENTS.md`
 carrying three overlapping beads blocks, and its `minimal` profile is not
-minimal. `bd setup <recipe>` appends exactly one block and is idempotent on
-re-run. `bd setup -o <path>` writes the block elsewhere, and
-`bd init --agents-template <file>` supplies the body instead of a hand-written
-file, whichever suits the layer.
+minimal.
+
+When a tool genuinely needs a block, `bd setup <recipe>` appends exactly one and
+is idempotent on re-run; `bd setup -o <path>` writes it elsewhere; and
+`bd init --agents-template <file>` supplies the body from the layer.
 
 `--skip-hooks` is equally required. Without it `bd init` copies the ambient hook
 binaries from the configured `core.hooksPath` into `.beads/hooks`, repoints

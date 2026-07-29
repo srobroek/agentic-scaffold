@@ -27,3 +27,8 @@ Record a failure found by running something in `docs/agents/gotchas/`, with the
 cause.
 
 `docs/agents/env/index.md` names variables and never holds values.
+
+## Work
+
+<!-- BEGIN GENERATED: work -->
+<!-- END GENERATED: work -->
