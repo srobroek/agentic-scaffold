@@ -10,7 +10,56 @@ Design lives in `layers.md`; this file is the inventory.
 
 | Layer | Questions | Files |
 |---|---|---|
+| `base/gitignore` | 1 | 0 |
+| `base/license` | 3 | 0 |
+| `base/repo` | 3 | 5 |
 | `docs/agents` | 1 | 9 |
+
+## `base/gitignore`
+
+Concatenates gitnr templates and every .gitignore.d fragment into .gitignore. Renders after every layer that contributes one.
+
+Requires `gitnr` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `gitnr_templates` | str |  |
+
+
+## `base/license`
+
+LICENSE, and the SPDX identifier other layers read.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `license` | str | `Apache-2.0` |
+| `copyright_name` | str |  |
+| `copyright_year` | str | `2026` |
+
+
+## `base/repo`
+
+README, editorconfig, gitattributes, and the docs and scripts directories.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `project_name` | str |  |
+| `description` | str |  |
+| `org` | str |  |
+
+Writes:
+
+```
+.editorconfig
+.gitattributes
+README.md
+docs/.gitkeep
+scripts/.gitkeep
+```
 
 ## `docs/agents`
 

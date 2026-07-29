@@ -17,19 +17,29 @@ sibling layer.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `base/license` | `LICENSE` | `license`, `copyright_name` |
+| `base/license` | `LICENSE` | `license`, `copyright_name`, `copyright_year` |
 | `base/repo` | `README.md`, `.editorconfig`, `.gitattributes`, `docs/{adr,architecture}/`, `scripts/`, `tests/` | `project_name`, `description`, `org` |
 | `base/gitignore` | `.gitignore`, through `gitnr create <templates> file:.gitignore.d/* -s` | none |
 
-`license` is one of `apache-2.0`, `mpl-2.0`, `agpl-3.0-only`. The gitnr template
-list follows from which language layers rendered.
+`license` takes any SPDX identifier. `Apache-2.0`, `MPL-2.0`, and
+`AGPL-3.0-only` are vendored, so the policy cases need no network; anything else
+is fetched from the SPDX licence list at render time, and an unknown identifier
+fails naming what is available offline. Matching is case-insensitive, since an
+SPDX id is case-sensitive and a typed answer is not. `none` writes no file.
+
+The gitnr template list follows from which language layers rendered.
 
 `base/repo` creates `docs/` and nothing inside it. `docs/agents` and `docs/adr`
 own their own subtrees.
 
-`base/repo` carries the only `precheck.py`. It verifies `copier`, `just`,
-`gitnr`, `mise`, and `git`, plus the generator the chosen profile needs, and
-exits non-zero before any file is written.
+`base/repo` carries the only `precheck.py`. It requires `git`, `just`, and
+`gitnr`, notes `mise` and `prek` when absent, and refuses a destination with
+uncommitted changes, because copier overwrites and leaves no diff to review.
+
+`base/gitignore` always ignores what a tool in the repository writes: the repomix
+pack and any generated skill directory. A fragment opening with its own comment
+keeps it rather than gaining a second one, and the whole file is rebuilt from its
+sources each run, so two runs produce the same bytes.
 
 ## lang
 

@@ -1,0 +1,24 @@
+_subdirectory: template
+
+_scaffold:
+  summary: >-
+    Concatenates gitnr templates and every .gitignore.d fragment into .gitignore.
+    Renders after every layer that contributes one.
+  requires_bin: [gitnr]
+  after:
+    - base/repo
+    - agentic/apm
+    - agentic/beads
+
+gitnr_templates:
+  type: str
+  help: >-
+    Space-separated gitnr sources, derived from the language layers that
+    rendered. Example: "gh:Rust gh:Node".
+  default: ""
+
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/fold_gitignore.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ gitnr_templates }}"
