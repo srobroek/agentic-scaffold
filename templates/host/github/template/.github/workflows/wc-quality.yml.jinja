@@ -34,6 +34,21 @@ jobs:
           # hooks run rather than whatever is newest.
           cache: true
 
+      # The layer that actually enforces. A local hook is advisory: --no-verify
+      # defeats it, and a fresh clone has no shims until someone runs `just setup`.
+      # Running the whole set here is what makes the checks hold.
+      #
+      # Skipped when no config exists, since quality/hooks may not have rendered.
+      # `--all-files` rather than a diff range: a hook that was bypassed when the
+      # file was committed would otherwise stay bypassed forever.
+      - name: Hooks
+        run: |
+          if [ -f .pre-commit-config.yaml ]; then
+            prek run --all-files --show-diff-on-failure
+          else
+            echo "no .pre-commit-config.yaml, skipping"
+          fi
+
       # Enforces the SHA-pinning policy every rendered workflow follows. It
       # resolves each tag through the GitHub API, which makes it too slow and too
       # network-dependent for a commit hook.

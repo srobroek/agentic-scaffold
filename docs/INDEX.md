@@ -20,6 +20,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
 | `lang/ts` | 2 | 13 |
+| `quality/hooks` | 3 | 5 |
 | `workspace/worktrunk` | 6 | 2 |
 
 ## `agentic/index`
@@ -258,6 +259,28 @@ Writes:
 .pre-commit.d/ts.yaml
 biome.json
 tsconfig.json
+```
+
+## `quality/hooks`
+
+The root .pre-commit-config.yaml, the repo-wide hygiene and commit-message hooks, the binaries they call, and the recipe that folds every .pre-commit.d fragment into the root config.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `hook_exclude_patterns` | yaml | `[]` |
+| `max_file_kb` | int | `500` |
+| `commit_scopes` | yaml | `[]` |
+
+Writes:
+
+```
+.just.d/hooks.just
+.mise/conf.d/hooks.toml
+.pre-commit.d/beads.yaml
+.pre-commit.d/hygiene.yaml
+scripts/merge_hooks.py
 ```
 
 ## `workspace/worktrunk`

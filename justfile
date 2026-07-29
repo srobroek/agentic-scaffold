@@ -43,16 +43,19 @@ index:
 index-check:
     {{ py }} scripts/index.py --check
 
+# templates/ carries python too: copier tasks and the scripts a layer ships into
+# the generated project. Linting scripts/ alone let an unformatted one through.
+
 # Lint the scripts and the prose
 lint:
-    {{ py }} ruff check scripts
-    {{ py }} ruff format --check scripts
+    {{ py }} ruff check scripts templates
+    {{ py }} ruff format --check scripts templates
     {{ py }} scripts/lint_prose.py
 
 # Fix what lint can fix
 fix:
-    {{ py }} ruff check --fix scripts
-    {{ py }} ruff format scripts
+    {{ py }} ruff check --fix scripts templates
+    {{ py }} ruff format scripts templates
 
 # Run the tests
 test:

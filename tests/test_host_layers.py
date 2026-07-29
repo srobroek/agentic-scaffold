@@ -211,6 +211,20 @@ def test_a_discovered_matrix_job_is_guarded_by_a_count(rendered: Path) -> None:
         assert security["jobs"][job]["if"] == f"needs.discover.outputs.{flag} == 'true'"
 
 
+def test_the_quality_job_runs_the_whole_hook_set(rendered: Path) -> None:
+    """The only layer that actually enforces the hooks.
+
+    A local hook is advisory: `--no-verify` defeats it, and a fresh clone has no
+    shims until someone runs `just setup`. `--all-files` rather than a diff range,
+    or a hook bypassed when the file was committed stays bypassed forever.
+    """
+    steps = yaml.dump(workflow(rendered, "wc-quality")["jobs"]["quality"]["steps"])
+    assert "prek run --all-files" in steps
+    # quality/hooks may not have rendered, so the step tolerates a missing config
+    # rather than failing a repository that has no hooks.
+    assert ".pre-commit-config.yaml" in steps
+
+
 def test_the_secret_scan_always_runs(rendered: Path) -> None:
     """It needs no language knowledge, so no fragment gates it."""
     secrets = workflow(rendered, "wc-security")["jobs"]["secrets"]

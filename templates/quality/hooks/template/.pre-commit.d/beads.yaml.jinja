@@ -1,0 +1,62 @@
+# .pre-commit.d/beads.yaml -- bd's five git hooks as prek entries.
+#
+# `bd init` writes five ~1.3KB shims to .beads/hooks and repoints core.hooksPath
+# at them. That copy also picks up whatever hook binaries are ambient, which is
+# how a 347MB git-defender copy with an unusable arm64 slice ended up blocking
+# every commit. `agentic/beads` therefore runs `bd init --skip-hooks`, and these
+# five entries reproduce the behaviour with no hooksPath hijack.
+#
+# Each shim did the same thing apart from the event name: `bd hooks run <event>`,
+# guarded by `command -v bd`. Verified against prek 0.4.11: all five stages are
+# supported, and `prek install` writes a shim per stage.
+#
+# The guard matters. Without it a clone by someone who has no bd fails every
+# commit, and beads is optional tooling rather than a build dependency.
+#
+# `bd hooks run` is the documented shim entry point: hook logic tracks the
+# installed bd version, so upgrading bd changes behaviour with no re-render here.
+repos:
+  - repo: local
+    hooks:
+      - id: bd-pre-commit
+        name: bd (pre-commit)
+        entry: bash -c 'command -v bd >/dev/null || exit 0; bd hooks run pre-commit "$@"' --
+        language: system
+        stages: [pre-commit]
+        pass_filenames: false
+        groups: [beads]
+
+      - id: bd-prepare-commit-msg
+        name: bd (agent identity trailers)
+        entry: bash -c 'command -v bd >/dev/null || exit 0; bd hooks run prepare-commit-msg "$@"' --
+        language: system
+        stages: [prepare-commit-msg]
+        pass_filenames: false
+        groups: [beads]
+
+      - id: bd-post-checkout
+        name: bd (post-checkout)
+        entry: bash -c 'command -v bd >/dev/null || exit 0; bd hooks run post-checkout "$@"' --
+        language: system
+        stages: [post-checkout]
+        pass_filenames: false
+        always_run: true
+        groups: [beads]
+
+      - id: bd-post-merge
+        name: bd (post-merge)
+        entry: bash -c 'command -v bd >/dev/null || exit 0; bd hooks run post-merge "$@"' --
+        language: system
+        stages: [post-merge]
+        pass_filenames: false
+        always_run: true
+        groups: [beads]
+
+      - id: bd-pre-push
+        name: bd (pre-push)
+        entry: bash -c 'command -v bd >/dev/null || exit 0; bd hooks run pre-push "$@"' --
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+        groups: [beads]

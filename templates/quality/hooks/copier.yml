@@ -1,0 +1,46 @@
+_subdirectory: template
+_answers_file: .copier-answers.hooks.yml
+
+_scaffold:
+  summary: >-
+    The root .pre-commit-config.yaml, the repo-wide hygiene and commit-message
+    hooks, the binaries they call, and the recipe that folds every
+    .pre-commit.d fragment into the root config.
+  requires_bin: [git]
+  after: [base/repo, lang/*]
+
+# The root config is generated from .pre-commit.d/, so it is not skip-guarded:
+# re-rendering has to rebuild it. A direct edit is lost work, and the header
+# written into the file says so.
+
+hook_exclude_patterns:
+  type: yaml
+  help: >-
+    Regex patterns joined into the config's top-level exclude. A generated or
+    vendored directory belongs here rather than in each hook's own exclude.
+  default: []
+
+max_file_kb:
+  type: int
+  help: >-
+    Reject a staged file larger than this, in kilobytes. Guards against a
+    committed binary or a captured log.
+  default: 500
+
+commit_scopes:
+  type: yaml
+  help: >-
+    Allowed Conventional Commits scopes. Empty allows any scope and drops
+    `--force-scope`, since an allowlist permitting everything only misleads.
+  default: []
+
+# The merge runs from the copy in the generated project, not a second copy here, so
+# the recipe and the render cannot fold fragments differently.
+#
+# It runs last, after every other layer has contributed its fragment. Re-rendering
+# a language layer needs the merge again, and `just hooks-install` and
+# `just hooks-all` both run it first.
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.dst_path }}/scripts/merge_hooks.py"
+    "{{ _copier_conf.dst_path }}"

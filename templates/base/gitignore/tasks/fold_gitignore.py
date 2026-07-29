@@ -109,7 +109,9 @@ def main() -> int:
 
     (dest / ".gitignore").write_text("\n".join(part.rstrip() + "\n" for part in parts if part))
 
-    counted = len(list((dest / ".gitignore.d").iterdir())) if (dest / ".gitignore.d").is_dir() else 0
+    counted = (
+        len(list((dest / ".gitignore.d").iterdir())) if (dest / ".gitignore.d").is_dir() else 0
+    )
     print(f".gitignore written from {len(sources)} gitnr source(s) and {counted} fragment(s)")
     return 0
 

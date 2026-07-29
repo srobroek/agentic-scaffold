@@ -246,6 +246,11 @@ prek installs into `.git/hooks` once `core.hooksPath` is set repo-locally, and
 its `pre-push` shim fires from there even where another tool owns the global
 hooks path.
 
+`prek install` writes one shim per entry in `default_install_hook_types`, so that
+list has to name every stage the hooks declare. A stage missing from it is a hook
+that never fires and reports nothing, so `quality/hooks` computes the list from the
+folded fragments.
+
 ## Steering
 
 `docs/agents` holds one directory per concern. Each concern has an index and

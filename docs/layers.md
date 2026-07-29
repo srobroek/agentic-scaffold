@@ -155,14 +155,28 @@ after rendering.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `quality/hooks` | root `.pre-commit-config.yaml` with `default_install_hook_types`, `.mise/conf.d/hooks.toml` | `hook_exclude_patterns`, `max_file_kb`, `commit_scopes` |
+| `quality/hooks` | `.pre-commit.d/{hygiene,beads}.yaml`, the generated root `.pre-commit-config.yaml`, `.mise/conf.d/hooks.toml`, `.just.d/hooks.just`, `scripts/merge_hooks.py` | `hook_exclude_patterns`, `max_file_kb`, `commit_scopes` |
 
 Every hygiene check is on. prek is the manager.
+
+`default_install_hook_types` is computed from the stages the folded hooks declare
+rather than fixed. `prek install` writes one shim per entry, so a stage missing
+from that list is a hook that never fires and reports nothing. A language layer
+contributing a `pre-push` hook is what makes this necessary.
+
+The merge runs from `scripts/merge_hooks.py` in the generated project, and the
+copier task calls that same copy. A second copy in the layer would let the recipe
+and the render fold fragments differently.
 
 Conventional-commit checking uses `compilerla/conventional-pre-commit`, which
 takes `--strict` to disallow `fixup!` and merge commits, `--force-scope`,
 `--scopes <list>`, and positional custom types. It replaces a hand-written
-74-line script.
+74-line script. An empty `commit_scopes` drops `--force-scope`, which without an
+allowlist demands a scope while accepting any spelling of it.
+
+`.mise/conf.d/hooks.toml` pins betterleaks to 1.7.1 rather than the 1.7.2 that
+GitHub lists. mise hides a release younger than its `minimum_release_age`, and
+pinning the hidden one fails to install.
 
 In a monorepo the language layer owns each member's `.pre-commit-config.yaml`
 and prek unions them, so hooks travel with the language. `quality/hooks` then
@@ -334,9 +348,9 @@ base/repo
 workspace/monorepo
 lang/*
 host/{github,gitlab}
-quality/hooks
 release/*  iac/*  docs/*
 agentic/{apm,beads}
+quality/hooks
 workspace/just
 base/gitignore
 agentic/marketplace
@@ -348,6 +362,15 @@ existing manifest rather than creating one.
 
 `workspace/monorepo` precedes `lang/*` so the manifest exists before members
 render.
+
+`quality/hooks` follows `iac/*` because it folds `.pre-commit.d/*` into the root
+config, and `iac/terraform` contributes a fragment. Rendering it earlier would
+leave that fragment out, with nothing to report the omission: prek reads the merged
+file and never sees the fragment directory.
+
+Re-rendering any fragment-contributing layer therefore needs the merge again.
+`just hooks-install` and `just hooks-all` both run it first, so the config cannot
+lag the fragments.
 
 `workspace/just` and `base/gitignore` aggregate what earlier layers contributed,
 so they follow every contributor including `agentic/*`: apm and beads add
@@ -378,7 +401,7 @@ workspace mode unions them with hooks namespaced `<dir>:<hook-id>`. Nothing
 merges.
 
 In a single directory two language layers cannot both own the root config, so
-`just hooks:merge` concatenates `.pre-commit.d/*.yaml`. prek skips dot-prefixed
+`just hooks-merge` concatenates `.pre-commit.d/*.yaml`. prek skips dot-prefixed
 directories during discovery, so the fragment directory is invisible to it until
 that recipe runs.
 

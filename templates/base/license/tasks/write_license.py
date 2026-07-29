@@ -21,7 +21,9 @@ import urllib.request
 from pathlib import Path
 
 TIMEOUT_SECONDS = 20
-SPDX_DETAILS = "https://raw.githubusercontent.com/spdx/license-list-data/main/json/details/{id}.json"
+SPDX_DETAILS = (
+    "https://raw.githubusercontent.com/spdx/license-list-data/main/json/details/{id}.json"
+)
 
 # SPDX distinguishes -only from -or-later; GitHub carries one key for both.
 SPDX_TO_GH_KEY = {
@@ -63,7 +65,7 @@ def from_gh(licence_id: str) -> tuple[str, str] | None:
 def from_spdx(licence_id: str) -> tuple[str, str] | None:
     """Fall back to the SPDX list, which carries every identifier GitHub omits."""
     try:
-        with urllib.request.urlopen(  # noqa: S310
+        with urllib.request.urlopen(
             SPDX_DETAILS.format(id=licence_id), timeout=TIMEOUT_SECONDS
         ) as response:
             payload = json.loads(response.read())
