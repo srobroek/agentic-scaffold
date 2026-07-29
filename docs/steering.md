@@ -91,14 +91,26 @@ on its own. Removing any one of them leaves the rest accurate, because no block
 depends on another for context. A row in the index table names a file that
 exists; a reader who drops the beads block still finds every document.
 
-The layer supplies its own `AGENTS.md` body and lets each tool append below it:
+`AGENTS.md` is the only agent index. `CLAUDE.md` is a symlink to it, tracked by
+git as mode `120000`, so a tool appending to `AGENTS.md` is visible through both
+names and neither can drift from the other.
+
+The layer supplies the `AGENTS.md` body, then each tool appends its own block:
 
 ```sh
-bd init --prefix <p> --non-interactive --skip-hooks \
-  --agents-template templates/agentic/beads/agents-template.md
+bd init --prefix <p> --non-interactive --skip-hooks --skip-agents
+ln -s AGENTS.md CLAUDE.md
+bd setup codex                      # appends one managed block to AGENTS.md
 ```
 
-`--skip-hooks` is required. Without it `bd init` copies the ambient hook
+`--skip-agents` is required. Without it `bd init` writes a 127-line `AGENTS.md`
+carrying three overlapping beads blocks, and its `minimal` profile is not
+minimal. `bd setup <recipe>` appends exactly one block and is idempotent on
+re-run. `bd setup -o <path>` writes the block elsewhere, and
+`bd init --agents-template <file>` supplies the body instead of a hand-written
+file, whichever suits the layer.
+
+`--skip-hooks` is equally required. Without it `bd init` copies the ambient hook
 binaries from the configured `core.hooksPath` into `.beads/hooks`, repoints
 `core.hooksPath` at the copy, and stages the result. Observed on macOS with a
 hooks path owned by another tool: the copied `pre-commit` was 24MB with an

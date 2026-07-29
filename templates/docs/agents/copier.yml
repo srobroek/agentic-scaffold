@@ -1,0 +1,9 @@
+_subdirectory: template
+
+_skip_if_exists:
+  - docs/agents/conventions.md
+  - docs/agents/gotchas/*.md
+
+project_name:
+  type: str
+  help: The project name, used in the generated index.
