@@ -16,10 +16,10 @@
 .env
 .env.local
 
-# Agent index artefacts. Copying beats rebuilding on both: the map is 82KB against
-# a 1.3 to 3.2 second rebuild, the graph 9.9MB against 6.9 seconds, and neither
-# holds an absolute path, so a copy is valid in any checkout.
-repomix-map.xml
+# Agent index artefacts. Copying beats rebuilding on both: the pack is 1.3 to 3.2
+# seconds to rebuild, the graph 6.9 seconds and 9.9MB, and neither holds an absolute
+# path, so a copy is valid in any checkout.
+repomix-full.xml
 graphify-out/
 
 # Caches, valid at the HEAD a new worktree branches from.

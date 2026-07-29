@@ -20,10 +20,11 @@ toolchain = "mise install --yes"
 # Blocking, so `--execute` and post-start see a usable tree. A copied cache from
 # copy-ignored makes this fast; without one it is a cold install.
 #
-# `just setup` also repairs core.hooksPath, which has to be absolute: a linked
-# worktree's .git is a file, so a relative path resolves to <worktree>/.git/hooks
-# and the hooks silently never fire there. Running it per worktree start means a
-# clone that never ran setup by hand still gets hooked.
+# `just setup` installs the hook shims with `prek install --git-dir`, resolved per
+# checkout. A linked worktree's $GIT_DIR is `.git/worktrees/<name>/`, which is where git
+# looks for its hooks, so shims in the primary would never fire here. Running setup per
+# worktree start means each one hooks itself, and a clone that never ran setup by hand
+# still gets hooked.
 deps = "{{ setup_command }}"
 
 [forge]
@@ -55,10 +56,10 @@ exclude = [
 ]
 
 [post-start]
-# copy-ignored already warmed the map; this refreshes it for the new branch.
+# copy-ignored already warmed the pack; this refreshes it for the new branch.
 # No staleness gate: a pack is 1.3 to 3.2 seconds, repomix has no cache, and
 # post-start runs once per worktree, so deferring amortises nothing.
-repomix-map = "repomix"
+repomix = "repomix"
 {% if dev_server %}
 # Tethered, so the process tree dies with the worktree rather than holding the
 # port after `wt merge` removes it.

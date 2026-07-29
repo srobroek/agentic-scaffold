@@ -221,7 +221,7 @@ carries the root config and the repository-wide hygiene hooks alone.
 | Layer | Writes | Variables |
 |---|---|---|
 | `workspace/monorepo` | the workspace manifest (`[workspace] members`, uv workspace, bun workspaces, or one go module), `scripts/add_member.py`, `.just.d/monorepo.just` | `layout`, `members`, `project_name` |
-| `workspace/just` | `justfile` carrying one `import?` per `.just.d/*.just`, `scripts/gen_justfile.py`, `.mise/conf.d/just.toml` | none |
+| `workspace/just` | `justfile` carrying `setup`, the aggregates, and one `import?` per `.just.d/*.just`, plus `scripts/gen_justfile.py` and `.mise/conf.d/just.toml` | none |
 | `workspace/moon` | `.moon/workspace.yml` | `members` |
 | `workspace/devcontainer` | `.devcontainer/devcontainer.json` | none |
 | `workspace/worktrunk` | `.config/wt.toml`, `.worktreeinclude` | `forge_platform`, `forge_hostname`, `worktree_includes` |
@@ -241,6 +241,22 @@ The aggregate recipes probe rather than depend. `check` and `each <phase>` ask
 `just --show <name>` which per-language recipes exist, so one language renders and
 one runs. A `needs:`-style dependency on a recipe no fragment provided is a parse
 error, which is why `check` probes `hooks-all` rather than depending on it.
+
+`setup` is the one entry point, and probes the same way: the toolchain through mise, then
+each language's `deps`, then `hooks-install`, `rtk-setup`, and `apm-install`. Ordered by
+what the next step needs, since mise supplies the interpreters the rest call.
+
+It is also what `wt`'s blocking pre-start runs per worktree, which `setup_command`
+defaults to. `hooks-install` passes `prek install --git-dir "$(git rev-parse
+--absolute-git-dir)"`, resolved per checkout, so a linked worktree installs into its own
+hooks directory. A worktree's `$GIT_DIR` is `.git/worktrees/<name>/`, which is where git
+looks for its hooks, so shims in the primary would never fire there.
+
+`--git-dir` replaced a `core.hooksPath` override. prek declines to install while an
+ambient global hooksPath is set, which a machine-wide hook manager leaves behind, and it
+writes no shim while printing only a note: a fresh clone silently had no hooks. Verified
+on a machine with `git-defender`'s global path set, where the flag installed all six
+shims and a bad commit message was blocked.
 
 `workspace/worktrunk` sets `pre-merge = "just check"`, so a merge runs the same
 gate CI does and cannot land what CI would reject. A project-defined command is
@@ -335,7 +351,8 @@ Selecting `docs/api-refs` forces `docs/deploy-split`.
 |---|---|---|
 | `agentic/apm` | `apm.yml`, `.just.d/apm.just`, `.gitignore.d/apm` | `apm_packages`, `apm_target`, `apm_cli_version` |
 | `agentic/beads` | `.beads/` through `bd init --skip-hooks`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_dolt_sync`, `bd_sync_remote`, `bd_auto_export`, `bd_dolt_auto_commit`, `bd_push_command` |
-| `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_full_pack`, `index_extra_ignores` |
+| `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_extra_ignores` |
+| `agentic/rtk` | `.rtk/filters.toml`, `.just.d/rtk.just` | none |
 | `agentic/marketplace` | nothing; it reports recommended installs | none |
 
 No per-harness configuration file. `agentic/marketplace` runs last.
@@ -369,10 +386,16 @@ against the 70 its documentation claims, and grows comment-dense files;
 `--remove-empty-lines`, `--no-file-summary`, and `--truncate-base64` take nothing;
 `--style json` and `--parsable-style` make the output 10 percent larger.
 
-Two artefacts, and they differ by 311 times. `repomix-map.xml` carries no file
-contents and is 20 thousand tokens: read it. `repomix-full.xml` carries every
-body, roughly six context windows, and is a grep target. Grepping one file beats
-walking the live tree, measured at 0.018s against 0.126s.
+One artefact, searched rather than read. A pack of a 4,107-file repository is 6.3
+million tokens, roughly six context windows, so reading it cannot succeed; `rg` over it
+lists every path in 0.009s and finds one in 0.010s, against 0.126s for the equivalent
+walk of the live tree.
+
+A separate metadata-only map was tried and dropped. It answered nothing the pack could
+not, and keeping one artefact removes repomix's `--no-files` trap: there is no `--files`,
+so a config carrying `files: false` cannot be overridden from the command line, and a
+recipe pointing at such a config produces a metadata-only pack while calling itself
+full.
 
 Guarding the read belongs to the `token-savings` package, which already denies a
 whole-file read of `repomix-full.xml` on both `Read` and `Bash`, so `cat pack` is

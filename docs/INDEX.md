@@ -11,8 +11,9 @@ Design lives in `layers.md`; this file is the inventory.
 | Layer | Questions | Files |
 |---|---|---|
 | `agentic/apm` | 5 | 3 |
-| `agentic/beads` | 7 | 1 |
-| `agentic/index` | 3 | 4 |
+| `agentic/beads` | 7 | 2 |
+| `agentic/index` | 2 | 3 |
+| `agentic/rtk` | 0 | 2 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
@@ -23,7 +24,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
 | `lang/ts` | 2 | 13 |
-| `quality/hooks` | 3 | 6 |
+| `quality/hooks` | 3 | 5 |
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
 | `release/release-please` | 4 | 4 |
@@ -73,18 +74,18 @@ Writes:
 
 ```
 .just.d/beads.just
+scripts/bd-dolt-push.sh
 ```
 
 ## `agentic/index`
 
-repomix.config.json, so the directory map and the full pack are reproducible from committed patterns rather than from a wrapper script's arguments.
+repomix.config.json, so the pack is reproducible from committed patterns rather than from a wrapper script's arguments.
 
 Requires `git` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
 | `index_languages` | yaml | `['**/*.md', '**/*.toml', '**/*.yaml', '**/*.yml', '**/*.sh']` |
-| `index_full_pack` | bool | `True` |
 | `index_extra_ignores` | yaml | `[]` |
 
 Writes:
@@ -93,7 +94,19 @@ Writes:
 .gitignore.d/index
 .just.d/index.just
 repomix.config.json
-{% if index_full_pack %}repomix-full.config.json{% endif %}
+```
+
+## `agentic/rtk`
+
+`.rtk/filters.toml`, which compacts the output of tools rtk ships no filter for, plus the recipes that trust it and turn telemetry off.
+
+Requires `git` on `PATH`.
+
+Writes:
+
+```
+.just.d/rtk.just
+.rtk/filters.toml
 ```
 
 ## `base/gitignore`
@@ -363,7 +376,6 @@ Writes:
 .mise/conf.d/hooks.toml
 .pre-commit.d/beads.yaml
 .pre-commit.d/hygiene.yaml
-scripts/bd-dolt-push.sh
 scripts/merge_hooks.py
 ```
 

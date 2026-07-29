@@ -630,6 +630,34 @@ def test_add_works_without_the_release_layer(tmp_path: Path) -> None:
 
 
 @needs_just
+def test_setup_is_the_one_entry_point(rendered: Path) -> None:
+    """`wt`'s blocking pre-start runs `just setup` per worktree, and its default answer
+    names this recipe, so it has to exist even with no other layer rendered."""
+    assert just(rendered, "--show", "setup").returncode == 0
+
+    body = (rendered / "justfile").read_text()
+    # mise first: it supplies the interpreters and binaries the later steps call.
+    assert "mise install" in body
+    for recipe in ("hooks-install", "rtk-setup", "apm-install"):
+        assert recipe in body, f"setup never reaches {recipe}"
+
+
+@needs_just
+def test_setup_probes_rather_than_depends(rendered: Path) -> None:
+    """Which recipes exist follows from which layers rendered.
+
+    A dependency on one that never rendered is a parse error that breaks every recipe in
+    the file, so setup asks `just --show` instead. Here nothing else rendered, so it must
+    still run cleanly.
+    """
+    result = just(rendered, "setup")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    # And it says what it skipped rather than failing silently.
+    assert "setup" not in result.stderr or "not on PATH" in result.stderr
+
+
+@needs_just
 def test_the_shell_setting_avoids_bash_3_2_traps(rendered: Path) -> None:
     """macOS ships bash 3.2, where `mapfile` reports success while doing nothing."""
     body = (rendered / "justfile").read_text()

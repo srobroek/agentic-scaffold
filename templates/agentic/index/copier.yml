@@ -3,8 +3,8 @@ _answers_file: .copier-answers.index.yml
 
 _scaffold:
   summary: >-
-    repomix.config.json, so the directory map and the full pack are reproducible
-    from committed patterns rather than from a wrapper script's arguments.
+    repomix.config.json, so the pack is reproducible from committed patterns rather
+    than from a wrapper script's arguments.
   requires_bin: [git]
   after: [base/repo]
 
@@ -20,16 +20,6 @@ index_languages:
     - "**/*.yaml"
     - "**/*.yml"
     - "**/*.sh"
-
-index_full_pack:
-  type: bool
-  help: >-
-    Whether to configure a second, contents-bearing pack. It is a grep target
-    only, at 6.3 million tokens against the map's 20 thousand. Grepping one file
-    is faster than the live tree, measured at 0.018s against 0.126s. The
-    token-savings package already guards a whole-file Read of it, so this layer
-    ships no hook of its own.
-  default: true
 
 index_extra_ignores:
   type: yaml

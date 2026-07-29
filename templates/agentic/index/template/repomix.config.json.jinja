@@ -1,10 +1,8 @@
 {
   "$schema": "https://repomix.com/schemas/latest/schema.json",
   "output": {
-    "filePath": "repomix-map.xml",
-    "style": "xml",
-    "files": false,
-    "fileSummary": false
+    "filePath": "repomix-full.xml",
+    "style": "xml"
   },
   "include": [
 {%- for pattern in index_languages %}
@@ -41,6 +39,7 @@
       "**/graphify-out/**",
       "**/.serena/**",
       "**/repomix*.xml",
+      "**/local-*.txt",
       "**/*.min.js",
       "**/*.min.css",
       "**/*.map"{{ "," if index_extra_ignores }}

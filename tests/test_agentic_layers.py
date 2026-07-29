@@ -369,12 +369,7 @@ def test_the_database_push_hook_never_blocks_a_git_push() -> None:
     offline commit-and-push impossible.
     """
     script = (
-        TEMPLATES
-        / "quality"
-        / "hooks"
-        / "template"
-        / "scripts"
-        / "bd-dolt-push.sh"
+        TEMPLATES / "agentic" / "beads" / "template" / "scripts" / "bd-dolt-push.sh"
     ).read_text()
 
     # Every exit is 0, and the failure branch reports rather than propagating.
@@ -390,7 +385,7 @@ def test_the_database_push_reads_the_configured_push_command() -> None:
     assuming `bd`.
     """
     script = (
-        TEMPLATES / "quality" / "hooks" / "template" / "scripts" / "bd-dolt-push.sh"
+        TEMPLATES / "agentic" / "beads" / "template" / "scripts" / "bd-dolt-push.sh"
     ).read_text()
 
     assert "custom.bd-push-command" in script

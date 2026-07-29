@@ -261,9 +261,11 @@ def test_a_bd_entry_is_guarded_so_a_clone_without_bd_still_commits(rendered: Pat
                 continue
 
             entry = hook["entry"]
-            if entry.endswith(".sh"):
-                body = (rendered / entry).read_text()
-                assert "command -v bd" in body, f"{hook['id']}'s script is unguarded"
+            if "bd-dolt-push.sh" in entry:
+                # agentic/beads ships that script and guards on bd inside it. This
+                # layer renders whether or not beads did, so the entry guards on the
+                # script being there at all.
+                assert "test -x" in entry, f"{hook['id']} runs a script that may be absent"
                 continue
 
             assert "command -v bd" in entry, f"{hook['id']} is unguarded"
@@ -401,28 +403,28 @@ def test_prek_accepts_the_generated_config(rendered: Path) -> None:
 def test_prek_installs_a_shim_for_every_declared_stage(rendered: Path) -> None:
     """The end of the chain: a stage in the config has to become a real git hook.
 
-    `prek install` declines when core.hooksPath points outside the repository, which
-    an ambient global setting does, so the repo-local path is set first exactly as
-    `just hooks-install` does.
+    `--git-dir` rather than a `core.hooksPath` override. prek declines to install while
+    an ambient global hooksPath is set, which a machine-wide hook manager leaves behind,
+    and it writes no shim while only printing a note. This machine has one set, so the
+    test exercises exactly the case that used to fail silently.
     """
     if shutil.which("prek") is None:
         pytest.skip("prek absent from PATH")
 
-    hooks_dir = subprocess.run(
-        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+    git_dir = subprocess.run(
+        ["git", "rev-parse", "--absolute-git-dir"],
         cwd=rendered,
         capture_output=True,
         text=True,
         check=True,
     ).stdout.strip()
-    subprocess.run(
-        ["git", "config", "--local", "core.hooksPath", f"{hooks_dir}/hooks"],
-        cwd=rendered,
-        check=True,
-    )
 
     result = subprocess.run(
-        ["prek", "install"], cwd=rendered, capture_output=True, text=True, check=False
+        ["prek", "install", "--git-dir", git_dir],
+        cwd=rendered,
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
 

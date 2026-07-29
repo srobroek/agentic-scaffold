@@ -1,21 +1,33 @@
 # Agent index recipes, imported by the root justfile.
 
-# Rebuild the directory map that answers "what exists and where"
+# One artefact, searched rather than read. `rg` over the pack lists every path in
+# 0.009s and finds one in 0.010s, so a second metadata-only artefact earns nothing
+# and avoids repomix's `--no-files` trap: there is no `--files`, so a config
+# carrying `files: false` cannot be overridden from the command line.
+
+# Rebuild the pack, from the patterns in repomix.config.json
 [group('index')]
-map:
+pack:
     repomix
 
-{% if index_full_pack %}
-# Its own config file, because repomix has `--no-files` but no `--files`, so the
-# map's `files: false` cannot be overridden from the command line.
+# `graphify update` has no output flag, so it writes graphify-out/ into the tree
+# regardless. That is 9.9MB on 741 files and 60MB on 4,107, and unignored it gets
+# packed into the next artefact.
 
-# Rebuild the contents pack, a grep target the Read hook refuses whole
-[group('index')]
-map-full:
-    repomix -c repomix-full.config.json
-
-{% endif %}
 # Rebuild the code graph
 [group('index')]
 graph:
     graphify update .
+
+# Where a name appears, without walking the tree
+[group('index')]
+find pattern:
+    @rg -o 'path="[^"]*{{ pattern }}[^"]*"' repomix-full.xml || echo "no path matches {{ pattern }}"
+
+# The `</file>` close tag is self-delimiting, which is why xml works here and markdown
+# does not: its boundary depends on the next heading existing.
+
+# One file's contents out of the pack
+[group('index')]
+show path:
+    @awk '/<file path="{{ path }}">/,/<\/file>/' repomix-full.xml

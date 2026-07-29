@@ -23,6 +23,44 @@ default:
 # No fragments rendered yet.
 # END GENERATED: imports
 
+# --- setup -----------------------------------------------------------------
+#
+# What a fresh clone runs, and what `wt`'s blocking pre-start runs per worktree. Every
+# step probes for the recipe that does the work, because which layers rendered decides
+# which exist: a dependency on one that never rendered is a parse error that breaks
+# every recipe in this file.
+#
+# Ordered by what the next step needs. mise supplies the interpreters and binaries, so
+# it is first; hooks need the toolchain the shims call.
+
+# Install the toolchain, the dependencies, and the hook shims
+[group('all')]
+setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v mise >/dev/null 2>&1; then
+      echo "==> toolchain"
+      mise install --yes
+    else
+      echo "mise is not on PATH; skipping the toolchain" >&2
+    fi
+
+    # Per language, so a member's dependencies install with the language that needs
+    # them. `deps` exists only where a lang/* layer provides one.
+    for name in rust python go ts; do
+      if just --show "$name-deps" >/dev/null 2>&1; then
+        echo "==> $name-deps"
+        just "$name-deps"
+      fi
+    done
+
+    for recipe in hooks-install rtk-setup apm-install; do
+      if just --show "$recipe" >/dev/null 2>&1; then
+        echo "==> $recipe"
+        just "$recipe"
+      fi
+    done
+
 # --- aggregates ------------------------------------------------------------
 #
 # These dispatch to whichever per-language recipes exist rather than naming them.

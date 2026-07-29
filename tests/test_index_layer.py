@@ -14,7 +14,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RENDER = REPO_ROOT / "scripts" / "render.py"
 
-ANSWERS = 'index_languages:\n  - "**/*.py"\n  - "**/*.md"\nindex_full_pack: false\nindex_extra_ignores: []\n'
+ANSWERS = 'index_languages:\n  - "**/*.py"\n  - "**/*.md"\nindex_extra_ignores: []\n'
 
 
 def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
@@ -40,14 +40,21 @@ def test_the_config_is_valid_json(tmp_path: Path) -> None:
     assert config_of(dest)["include"] == ["**/*.py", "**/*.md"]
 
 
-def test_the_map_omits_file_contents(tmp_path: Path) -> None:
-    """A map is 20 thousand tokens against the full pack's 6.3 million."""
+def test_one_artefact_carries_the_contents(tmp_path: Path) -> None:
+    """One pack, searched. `rg` over it lists every path in 0.009s and finds one in
+    0.010s, so a separate metadata-only map earns nothing.
+
+    Keeping one also removes repomix's `--no-files` trap: there is no `--files`, so a
+    config carrying `files: false` cannot be overridden from the command line, and a
+    recipe pointing at it produces a metadata-only pack while calling itself full.
+    """
     dest = tmp_path / "d"
     dest.mkdir()
     render("agentic/index", dest, ANSWERS)
     output = config_of(dest)["output"]
-    assert output["files"] is False
-    assert output["filePath"] == "repomix-map.xml"
+    assert output["filePath"] == "repomix-full.xml"
+    # `files: false` is what would make the pack metadata-only, unoverridably.
+    assert output.get("files") is not False
 
 
 def test_extra_ignores_are_appended(tmp_path: Path) -> None:
@@ -80,7 +87,7 @@ def test_the_gitignore_fragment_covers_repomix_default_names(tmp_path: Path) -> 
     render("agentic/index", dest, ANSWERS)
     body = (dest / ".gitignore.d" / "index").read_text()
     for name in (
-        "repomix-map.xml",
+        "repomix-full.xml",
         "graphify-out/",
         ".serena/",
         "/repomix-output.xml",
@@ -90,40 +97,31 @@ def test_the_gitignore_fragment_covers_repomix_default_names(tmp_path: Path) -> 
         assert name in body
 
 
-FULL_ON = ANSWERS.replace("index_full_pack: false", "index_full_pack: true")
-
-
-def test_the_full_pack_can_be_turned_off(tmp_path: Path) -> None:
-    off = tmp_path / "off"
-    off.mkdir()
-    render("agentic/index", off, ANSWERS)
-    assert "repomix-full.xml" not in (off / ".gitignore.d" / "index").read_text()
-    assert not (off / "repomix-full.config.json").exists()
-
-
-def test_the_full_pack_gets_its_own_config(tmp_path: Path) -> None:
-    """repomix has --no-files but no --files, so the map's files:false cannot be
-    overridden from the command line. A second config is the only way."""
+def test_no_second_config_is_written(tmp_path: Path) -> None:
+    """Two configs need a test asserting their filters match, or the pack indexes what
+    the map hides. One artefact removes the class of bug."""
     dest = tmp_path / "d"
     dest.mkdir()
-    render("agentic/index", dest, FULL_ON)
+    render("agentic/index", dest, ANSWERS)
 
-    full = json.loads((dest / "repomix-full.config.json").read_text())
-    assert full["output"]["files"] is True
-    assert full["output"]["filePath"] == "repomix-full.xml"
-    assert full["output"]["directoryStructure"] is False
-
-    # Both configs must filter identically, or the pack indexes what the map hides.
-    assert full["ignore"]["customPatterns"] == config_of(dest)["ignore"]["customPatterns"]
-    assert full["include"] == config_of(dest)["include"]
+    assert not (dest / "repomix-full.config.json").exists()
+    assert sorted(p.name for p in dest.glob("repomix*.json")) == ["repomix.config.json"]
 
 
-def test_the_recipe_uses_the_full_config(tmp_path: Path) -> None:
+def test_the_recipes_search_the_pack_rather_than_read_it(tmp_path: Path) -> None:
+    """A pack of a 4,107-file repository is 6.3 million tokens, roughly six context
+    windows, so reading it cannot succeed. Searching it is 0.010s."""
     dest = tmp_path / "d"
     dest.mkdir()
-    render("agentic/index", dest, FULL_ON)
+    render("agentic/index", dest, ANSWERS)
     body = (dest / ".just.d" / "index.just").read_text()
-    assert "repomix -c repomix-full.config.json" in body
+
+    # Bare `repomix` reads repomix.config.json, so the recipe is identical everywhere
+    # while the patterns differ per repository.
+    assert "\n    repomix\n" in body
+    assert "rg -o" in body
+    # `</file>` is self-delimiting, which is why the extract works on xml.
+    assert "awk" in body
 
 
 # --- the worktrunk side ----------------------------------------------------
@@ -146,19 +144,24 @@ def test_worktrunk_config_is_valid_toml_both_ways(tmp_path: Path) -> None:
         tomllib.loads((dest / ".config" / "wt.toml").read_text())
 
 
-def test_the_map_and_graph_are_copied_into_a_worktree(tmp_path: Path) -> None:
-    """Copying beats rebuilding: 82KB against 1.3s, 9.9MB against 6.9s."""
+def test_the_pack_and_graph_are_copied_into_a_worktree(tmp_path: Path) -> None:
+    """Copying beats rebuilding on both: 1.3 to 3.2s for the pack, 6.9s for the graph.
+
+    Neither holds an absolute path, so a copy is valid in any checkout.
+    """
     dest = tmp_path / "d"
     dest.mkdir()
     render("workspace/worktrunk", dest, WT_ANSWERS)
     body = (dest / ".worktreeinclude").read_text()
-    assert "repomix-map.xml" in body
+    assert "repomix-full.xml" in body
     assert "graphify-out/" in body
 
 
-def test_post_start_refreshes_the_map(tmp_path: Path) -> None:
+def test_post_start_refreshes_the_pack(tmp_path: Path) -> None:
+    """No staleness gate: a pack is 1.3 to 3.2s, repomix has no cache, and post-start
+    runs once per worktree, so deferring amortises nothing."""
     dest = tmp_path / "d"
     dest.mkdir()
     render("workspace/worktrunk", dest, WT_ANSWERS)
     config = tomllib.loads((dest / ".config" / "wt.toml").read_text())
-    assert config["post-start"]["repomix-map"] == "repomix"
+    assert config["post-start"]["repomix"] == "repomix"

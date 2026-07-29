@@ -76,9 +76,13 @@ repos:
       # must not stop the git push; `bd dolt push` is recoverable by running it again.
       # A script rather than an inline `bash -c`: the message names the command to rerun,
       # and quoting that inside a YAML string inside a shell string does not survive.
+      #
+      # `agentic/beads` ships the script, since it owns beads and `just bd-push` calls the
+      # same file. Guarded on its presence, because this layer renders whether or not
+      # beads did.
       - id: bd-dolt-push
         name: bd (push the issue database)
-        entry: scripts/bd-dolt-push.sh
+        entry: bash -c 'test -x scripts/bd-dolt-push.sh || exit 0; exec scripts/bd-dolt-push.sh' --
         language: system
         stages: [pre-push]
         pass_filenames: false
