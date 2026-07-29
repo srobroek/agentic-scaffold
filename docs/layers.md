@@ -36,10 +36,12 @@ own their own subtrees.
 `gitnr`, notes `mise` and `prek` when absent, and refuses a destination with
 uncommitted changes, because copier overwrites and leaves no diff to review.
 
-`base/gitignore` always ignores what a tool in the repository writes: the repomix
-pack and any generated skill directory. A fragment opening with its own comment
-keeps it rather than gaining a second one, and the whole file is rebuilt from its
-sources each run, so two runs produce the same bytes.
+`base/gitignore` always ignores what a tool in the repository writes, meaning the
+repomix pack and any generated skill directory.
+
+A fragment opening with its own comment keeps it rather than gaining a second one.
+The whole file is rebuilt from its sources each run, so two runs produce the same
+bytes.
 
 ## lang
 
