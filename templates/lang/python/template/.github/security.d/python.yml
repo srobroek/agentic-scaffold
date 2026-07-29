@@ -1,0 +1,9 @@
+# A job fragment the host layer's wc-security.yml folds into its matrix.
+codeql:
+  supported: true
+  language: python
+osv:
+  lockfiles: ["uv.lock"]
+trivy:
+  mode: fs
+  scanners: ["vuln", "secret"]

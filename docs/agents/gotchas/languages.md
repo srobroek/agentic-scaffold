@@ -25,3 +25,19 @@ Both are left out of the generated manifest. Turn them on per crate once the cod
 and its docs exist. `unwrap_used` and `expect_used` stay at warn because
 `clippy.toml` sets `allow-unwrap-in-tests`, so they do not fire on the test the
 scaffold writes.
+
+### ruff preview turns on lints that reject its own config
+
+`preview = true` is required for the `DOC` rules, and it also enables `RUF201`
+(`rule-codes-in-selectors`), new in ruff 0.16. That rule rejects a specific rule
+code inside `lint.per-file-ignores`, so `"tests/**" = ["S101"]` fails the very
+config that selected it. Use the rule name, `assert`. A group prefix such as `ANN`
+is still accepted; only specific codes are rejected.
+
+A wrong selector name is a **warning**, not an error: `Unknown rule selector
+'flake8-annotations'` printed while `ruff check` still reported "All checks
+passed". Read the warnings, or an ignore silently covers nothing.
+
+`uv init --lib` writes a function into `src/<pkg>/__init__.py`, which
+`non-empty-init-module` rejects. Without a per-file ignore the scaffold fails
+before a line of real code exists.

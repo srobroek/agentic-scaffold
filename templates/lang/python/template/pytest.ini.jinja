@@ -1,0 +1,6 @@
+[pytest]
+testpaths = tests
+addopts = -q --strict-markers --strict-config
+{% if python_layout == 'src' %}pythonpath = src
+{% endif %}filterwarnings =
+    error

@@ -15,6 +15,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
 | `docs/agents` | 1 | 9 |
+| `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
 | `workspace/worktrunk` | 6 | 2 |
 
@@ -105,6 +106,35 @@ docs/agents/index.md
 docs/agents/quality/index.md
 docs/agents/release/index.md
 docs/agents/testing/index.md
+```
+
+## `lang/python`
+
+Python tooling: uv, ruff, ty, pytest, deptry, nox, plus the CI jobs and the fragments every aggregating layer folds in.
+
+Requires `uv` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `python_version` | str | `3.13` |
+| `python_layout` | `src` | `flat` | `src` |
+| `python_framework` | `none` | `fastapi` | `django` | `flask` | `none` |
+
+Writes:
+
+```
+.github/actions/setup-python/action.yml
+.github/quality.d/python.yml
+.github/security.d/python.yml
+.github/workflows/wc-lint-python.yml
+.github/workflows/wc-test-python.yml
+.gitignore.d/python
+.gitlab/ci/python.yml
+.just.d/python.just
+.mise/conf.d/python.toml
+.pre-commit.d/python.yaml
+pytest.ini
+ruff.toml
 ```
 
 ## `lang/rust`
