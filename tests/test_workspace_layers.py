@@ -287,6 +287,254 @@ def test_just_check_passes_once_synced(rendered: Path) -> None:
     assert just(rendered, "just-check").returncode == 0
 
 
+# --- workspace/monorepo ----------------------------------------------------
+
+MONOREPO_ANSWERS = {
+    "rust": 'layout: rust\nproject_name: demo\nmembers: ""\nrust_edition: "2024"\n',
+    "python": 'layout: python\nproject_name: demo\nmembers: ""\npython_version: "3.13"\n',
+    "go": 'layout: go\nproject_name: demo\nmembers: ""\ngo_module_path: example.com/demo\ngo_version: "1.26"\n',
+    "ts": 'layout: ts\nproject_name: demo\nmembers: ""\n',
+}
+
+MANIFEST = {
+    "rust": "Cargo.toml",
+    "python": "pyproject.toml",
+    "go": "go.mod",
+    "ts": "package.json",
+}
+
+
+def workspace(tmp_path: Path, layout: str) -> Path:
+    dest = tmp_path / "ws"
+    dest.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", str(dest)], check=True)
+    for key, value in (("user.email", "t@e.com"), ("user.name", "T")):
+        subprocess.run(["git", "-C", str(dest), "config", key, value], check=True)
+    result = render("workspace/monorepo", dest, MONOREPO_ANSWERS[layout])
+    assert result.returncode == 0, result.stderr
+    return dest
+
+
+@pytest.mark.parametrize("layout", sorted(MONOREPO_ANSWERS))
+def test_each_layout_writes_only_its_own_manifest(layout: str, tmp_path: Path) -> None:
+    """A conditional filename holding a quote breaks jinja, so the comparison is a
+    derived boolean instead."""
+    dest = workspace(tmp_path, layout)
+
+    assert (dest / MANIFEST[layout]).is_file()
+    for other, name in MANIFEST.items():
+        if other != layout:
+            assert not (dest / name).exists(), f"{layout} also wrote {name}"
+
+
+def test_the_member_glob_follows_the_layout(tmp_path: Path) -> None:
+    """rust conventionally uses crates/*, python and ts packages/*, go cmd/*."""
+    assert 'members = ["crates/*"]' in (
+        workspace(tmp_path / "a", "rust") / "Cargo.toml"
+    ).read_text()
+    assert 'members = ["packages/*"]' in (
+        workspace(tmp_path / "b", "python") / "pyproject.toml"
+    ).read_text()
+    assert '"packages/*"' in (workspace(tmp_path / "c", "ts") / "package.json").read_text()
+
+
+def test_an_explicit_member_glob_wins(tmp_path: Path) -> None:
+    dest = tmp_path / "ws"
+    dest.mkdir()
+    render(
+        "workspace/monorepo",
+        dest,
+        MONOREPO_ANSWERS["rust"].replace('members: ""', 'members: "libs/*"'),
+    )
+    assert 'members = ["libs/*"]' in (dest / "Cargo.toml").read_text()
+
+
+def test_the_python_root_is_not_a_distribution(tmp_path: Path) -> None:
+    """Without `[tool.uv] package = false` uv treats the root as a package, and
+    `uv sync` fails with "Expected a Python module at: src/<name>/__init__.py"."""
+    body = (workspace(tmp_path, "python") / "pyproject.toml").read_text()
+    assert "package = false" in body
+
+
+def test_a_generator_manifest_is_not_replaced(tmp_path: Path) -> None:
+    """The generator runs before this layer in a single repo, and its manifest wins."""
+    dest = tmp_path / "ws"
+    dest.mkdir()
+    (dest / "Cargo.toml").write_text('[package]\nname = "mine"\nversion = "0.1.0"\n')
+
+    render("workspace/monorepo", dest, MONOREPO_ANSWERS["rust"])
+
+    assert "mine" in (dest / "Cargo.toml").read_text()
+
+
+@needs_just
+def test_add_refuses_a_name_that_reaches_a_shell(tmp_path: Path) -> None:
+    """`name` reaches `uv init --name` and `go mod init`, so it is validated first."""
+    dest = workspace(tmp_path, "rust")
+    render("workspace/just", dest)
+
+    for bad in ("../escape", "a b", "x;whoami"):
+        result = subprocess.run(
+            [sys.executable, str(dest / "scripts" / "add_member.py"), bad, "rust"],
+            cwd=dest,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode != 0, f"{bad!r} was accepted"
+        assert "must start alphanumeric" in result.stderr
+
+
+@needs_just
+def test_add_refuses_an_occupied_member_path(tmp_path: Path) -> None:
+    dest = workspace(tmp_path, "rust")
+    (dest / "crates" / "taken").mkdir(parents=True)
+    (dest / "crates" / "taken" / "keep.txt").write_text("mine\n")
+
+    result = subprocess.run(
+        [sys.executable, str(dest / "scripts" / "add_member.py"), "taken", "rust"],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "already exists" in result.stderr
+
+
+@needs_just
+def test_add_reads_the_member_path_from_the_manifest(tmp_path: Path) -> None:
+    """Deriving it keeps `just add` and the manifest from disagreeing."""
+    dest = tmp_path / "ws"
+    dest.mkdir()
+    subprocess.run(["git", "init", "-q", str(dest)], check=True)
+    render(
+        "workspace/monorepo",
+        dest,
+        MONOREPO_ANSWERS["rust"].replace('members: ""', 'members: "libs/*"'),
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(dest / "scripts" / "add_member.py"), "thing", "rust"],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert (dest / "libs" / "thing").is_dir()
+
+
+@needs_just
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="cargo absent from PATH")
+def test_a_language_layer_lands_in_two_roots(tmp_path: Path) -> None:
+    """The case the layer exists for.
+
+    A language layer's tool configs describe the member and stay with it; its
+    `.mise/conf.d/`, `.just.d/`, `.gitignore.d/`, and CI fragments are read from the
+    repository root by the aggregating layers. copier renders to one destination, so
+    the repo-wide directories are moved up afterwards.
+    """
+    dest = workspace(tmp_path, "rust")
+    render("workspace/just", dest)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(dest / "scripts" / "add_member.py"),
+            "api",
+            "rust",
+            "--scaffold",
+            str(REPO_ROOT),
+        ],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    member = dest / "crates" / "api"
+    # Describes the member, so it stays with it.
+    for expected in ("Cargo.toml", "clippy.toml", "rustfmt.toml", "deny.toml"):
+        assert (member / expected).is_file(), f"{expected} should stay with the member"
+
+    # Read from the repository root, so it moved up.
+    for expected in (
+        ".mise/conf.d/rust.toml",
+        ".just.d/rust.just",
+        ".gitignore.d/rust",
+        ".github/workflows/wc-lint-rust.yml",
+        ".gitlab/ci/rust.yml",
+    ):
+        assert (dest / expected).is_file(), f"{expected} should be at the repo root"
+        assert not (member / expected).exists(), f"{expected} was left in the member"
+
+
+@needs_just
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="cargo absent from PATH")
+def test_a_second_member_merges_rather_than_replaces(tmp_path: Path) -> None:
+    """Two members both contribute a `.mise/conf.d/` entry, so moving the directory
+    wholesale would drop the first."""
+    dest = workspace(tmp_path, "rust")
+    render("workspace/just", dest)
+
+    for name in ("first", "second"):
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(dest / "scripts" / "add_member.py"),
+                name,
+                "rust",
+                "--scaffold",
+                str(REPO_ROOT),
+            ],
+            cwd=dest,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+
+    assert (dest / ".mise" / "conf.d" / "rust.toml").is_file()
+    assert (dest / ".just.d" / "rust.just").is_file()
+    for name in ("first", "second"):
+        assert (dest / "crates" / name / "Cargo.toml").is_file()
+
+
+@needs_just
+@pytest.mark.skipif(shutil.which("cargo") is None, reason="cargo absent from PATH")
+def test_a_member_gets_a_real_hook_config(tmp_path: Path) -> None:
+    """prek's workspace mode reads `.pre-commit-config.yaml`, one per directory, and
+    namespaces the hooks `<dir>:<hook-id>`.
+
+    It skips dot-prefixed directories while discovering, so the `.pre-commit.d/`
+    fragment alone is invisible to it and the member's hooks never run.
+    """
+    dest = workspace(tmp_path, "rust")
+    render("workspace/just", dest)
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(dest / "scripts" / "add_member.py"),
+            "api",
+            "rust",
+            "--scaffold",
+            str(REPO_ROOT),
+        ],
+        cwd=dest,
+        check=True,
+        capture_output=True,
+    )
+
+    config = dest / "crates" / "api" / ".pre-commit-config.yaml"
+    assert config.is_file(), "the member has no config for prek to union"
+    assert "cargo-fmt" in config.read_text()
+
+
 @needs_just
 def test_the_shell_setting_avoids_bash_3_2_traps(rendered: Path) -> None:
     """macOS ships bash 3.2, where `mapfile` reports success while doing nothing."""

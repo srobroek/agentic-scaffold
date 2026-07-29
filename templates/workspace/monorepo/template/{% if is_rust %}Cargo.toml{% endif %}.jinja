@@ -1,0 +1,18 @@
+# Cargo workspace root. Members resolve through the glob below, so a crate created
+# under it is a member with no edit here. Verified against cargo: `cargo metadata`
+# listed a crate added to `crates/` with the root manifest untouched.
+[workspace]
+members = ["{{ member_glob }}"]
+resolver = "3"
+
+# Inherited by each member through `edition.workspace = true` and the like, so a
+# version or a licence is stated once.
+[workspace.package]
+edition = "{{ rust_edition }}"
+{% if project_name %}
+[workspace.metadata]
+name = "{{ project_name }}"
+{%- endif %}
+
+# A workspace root that is not itself a crate needs no [package] section. Adding one
+# would make the root a publishable crate nobody intends to publish.

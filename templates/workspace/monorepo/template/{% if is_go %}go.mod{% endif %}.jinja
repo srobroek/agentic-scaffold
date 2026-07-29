@@ -1,0 +1,9 @@
+// One module for the whole repository, so a member is a directory rather than a
+// module of its own. `go build ./...` covers every member with no per-member
+// registration, verified against go 1.26.
+//
+// A go.work file is deliberately absent: it exists to join separate modules, and
+// committing one makes a member's own go.mod authoritative over this.
+module {{ go_module_path | default('example.com/workspace', true) }}
+
+go {{ go_version | default('1.26', true) }}

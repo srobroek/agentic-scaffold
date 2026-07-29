@@ -100,6 +100,21 @@ language layer therefore has two destination roots: the member directory for its
 tool configs and its `.pre-commit-config.yaml`, and the repository root for
 `.mise/conf.d/`, `.just.d/`, and the CI files, which are repository-wide.
 
+copier renders to one destination, so `add_member.py` renders into the member path and
+moves the repository-wide directories up, merging into whatever is already there. Two
+members both contribute a `.mise/conf.d/` entry, and moving the directory wholesale
+would drop the first.
+
+The member's hook fragment is promoted to a real `.pre-commit-config.yaml`. prek's
+workspace mode reads one config per directory and namespaces the hooks
+`<dir>:<hook-id>`, but it skips dot-prefixed directories while discovering, so a
+`.pre-commit.d/` fragment alone is invisible and the member's hooks never run.
+
+prek also caches which directories hold a config, so a member added afterwards stays
+invisible until the cache is rescanned. `add_member.py` runs `prek list --refresh`
+once, which is enough: verified against prek 0.4.11, where `prek list` showed only
+root hooks beforehand and kept listing `packages/svc:ruff-format` after.
+
 CI stays inside the language layer rather than in a layer of its own. A separate
 CI layer would have to know which languages sit at which paths; inside the
 language layer, a monorepo gets the right jobs by construction, and the reusable
@@ -201,7 +216,7 @@ carries the root config and the repository-wide hygiene hooks alone.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `workspace/monorepo` | the workspace manifest: `[workspace] members`, uv workspace, or bun workspaces | `layout`, `members` |
+| `workspace/monorepo` | the workspace manifest (`[workspace] members`, uv workspace, bun workspaces, or one go module), `scripts/add_member.py`, `.just.d/monorepo.just` | `layout`, `members`, `project_name` |
 | `workspace/just` | `justfile` carrying one `import?` per `.just.d/*.just`, `scripts/gen_justfile.py`, `.mise/conf.d/just.toml` | none |
 | `workspace/moon` | `.moon/workspace.yml` | `members` |
 | `workspace/devcontainer` | `.devcontainer/devcontainer.json` | none |
@@ -395,10 +410,10 @@ is therefore not used.
 
 ```
 base/repo precheck
-<generator>            cargo new, uv init, go mod init, bun init, bts, projen
+<generator>            single repo only: cargo new, uv init, go mod init, bun init
 base/license
 base/repo
-workspace/monorepo
+workspace/monorepo     monorepo: the root manifest, then the generator per member
 lang/*
 host/{github,gitlab}
 release/*  iac/*  docs/*
@@ -413,8 +428,19 @@ The generator runs before every layer. `cargo init` writes no `license` key and
 `uv init` writes its own `pyproject.toml`, so a language layer patches an
 existing manifest rather than creating one.
 
-`workspace/monorepo` precedes `lang/*` so the manifest exists before members
-render.
+`workspace/monorepo` precedes `lang/*` so the manifest exists before members render.
+
+The generator's position depends on the shape. In a single repository it runs first,
+against the repository root, and a language layer patches the manifest it wrote. In a
+monorepo it cannot: `cargo init .` writes a `[package]` root, `workspace/monorepo`
+then skips the file it finds, and no `[workspace]` section is ever written, so the
+repository silently is not a workspace. Verified by rendering in that order.
+
+A monorepo therefore renders the root manifest first and runs the generator per member,
+which is what `just add` does. Members resolve through the manifest's glob, so a
+directory created under it is a member with no edit to the root: confirmed against
+cargo, uv, and bun, and go needs no registration because a member is a directory in
+one module.
 
 `agentic/beads` follows `docs/*` because bd appends to an existing `AGENTS.md` and
 writes its own beads-only one when none exists. The order is what decides which file

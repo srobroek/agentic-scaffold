@@ -1,0 +1,17 @@
+# uv workspace root. Members resolve through the glob below, so a package created
+# under it is already a member. Verified: `uv init` inside the path reported
+# "already a member of workspace" and left this file untouched.
+[project]
+name = "{{ project_name | default('workspace', true) }}"
+version = "0.1.0"
+requires-python = ">={{ python_version }}"
+dependencies = []
+
+# The root is a container, not a distribution. Without this uv treats it as a package
+# and `uv sync` fails with "Expected a Python module at: src/<name>/__init__.py",
+# because there is no source tree here and there should not be one.
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["{{ member_glob }}"]

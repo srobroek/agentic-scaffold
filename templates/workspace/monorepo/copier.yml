@@ -1,0 +1,96 @@
+_subdirectory: template
+_answers_file: .copier-answers.monorepo.yml
+
+_scaffold:
+  summary: >-
+    The workspace manifest carrying a member glob, plus `just add` and the script that
+    renders a language layer at a member path.
+  requires_bin: [git]
+  # Precedes lang/* so the manifest exists before any member renders.
+  after: [base/repo]
+
+# A manifest the generator or a person has edited is not this layer's to replace.
+_skip_if_exists:
+  - Cargo.toml
+  - pyproject.toml
+  - package.json
+  - go.mod
+
+layout:
+  type: str
+  choices: [rust, python, go, ts]
+  help: >-
+    Workspace mechanism. rust uses [workspace] members, python a uv workspace, ts bun
+    workspaces, and go a single module where a member is a directory.
+
+project_name:
+  type: str
+  help: workspace name, used as the root manifest's name.
+  default: ""
+
+# Every mechanism resolves members through a glob, verified against cargo, uv, and
+# bun: a directory created under the member path is a member with no edit to the root
+# manifest, so `just add` never patches it.
+members:
+  type: str
+  help: >-
+    Glob the manifest lists as the member path. rust conventionally uses crates/*,
+    python and ts packages/*, and go needs none.
+  default: ""
+
+go_module_path:
+  type: str
+  help: module path for the single go module, as `go mod init` takes it.
+  default: ""
+  when: "{{ layout == 'go' }}"
+
+go_version:
+  type: str
+  help: minimum go version the module declares.
+  default: "1.26"
+  when: "{{ layout == 'go' }}"
+
+python_version:
+  type: str
+  help: minimum interpreter the workspace root declares.
+  default: "3.13"
+  when: "{{ layout == 'python' }}"
+
+rust_edition:
+  type: str
+  help: edition the workspace shares through `edition.workspace = true`.
+  default: "2024"
+  when: "{{ layout == 'rust' }}"
+
+# Derived render flags. A conditional filename containing a quote breaks jinja
+# compilation, because the filename is embedded in the generated Python, so the
+# comparison moves out of the path and into a boolean. `when: false` keeps these out
+# of the interview while still recording them.
+is_rust:
+  type: bool
+  default: "{{ layout == 'rust' }}"
+  when: false
+is_python:
+  type: bool
+  default: "{{ layout == 'python' }}"
+  when: false
+is_ts:
+  type: bool
+  default: "{{ layout == 'ts' }}"
+  when: false
+is_go:
+  type: bool
+  default: "{{ layout == 'go' }}"
+  when: false
+
+# The member path the language layers render into, derived so `just add` and the
+# manifest cannot disagree. go has no glob: a member is a directory in one module.
+member_glob:
+  type: str
+  default: >-
+    {%- if members -%}{{ members }}
+    {%- elif layout == 'rust' -%}crates/*
+    {%- elif layout == 'go' -%}cmd/*
+    {%- else -%}packages/*
+    {%- endif -%}
+  when: false

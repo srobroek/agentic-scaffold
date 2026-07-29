@@ -25,6 +25,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `lang/ts` | 2 | 13 |
 | `quality/hooks` | 3 | 5 |
 | `workspace/just` | 0 | 3 |
+| `workspace/monorepo` | 12 | 6 |
 | `workspace/worktrunk` | 6 | 2 |
 
 ## `agentic/apm`
@@ -370,6 +371,38 @@ Writes:
 .mise/conf.d/just.toml
 justfile
 scripts/gen_justfile.py
+```
+
+## `workspace/monorepo`
+
+The workspace manifest carrying a member glob, plus `just add` and the script that renders a language layer at a member path.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `layout` | `rust` | `python` | `go` | `ts` |  |
+| `project_name` | str |  |
+| `members` | str |  |
+| `go_module_path` | str |  |
+| `go_version` | str | `1.26` |
+| `python_version` | str | `3.13` |
+| `rust_edition` | str | `2024` |
+| `is_rust` | bool | `{{ layout == 'rust' }}` |
+| `is_python` | bool | `{{ layout == 'python' }}` |
+| `is_ts` | bool | `{{ layout == 'ts' }}` |
+| `is_go` | bool | `{{ layout == 'go' }}` |
+| `member_glob` | str | `{%- if members -%}{{ members }} {%- elif layout == 'rust' -%}crates/* {%- elif layout == 'go' -%}cmd/* {%- else -%}packages/* {%- endif -%}` |
+
+Writes:
+
+```
+.just.d/monorepo.just
+scripts/add_member.py
+{% if is_go %}go.mod{% endif %}
+{% if is_python %}pyproject.toml{% endif %}
+{% if is_rust %}Cargo.toml{% endif %}
+{% if is_ts %}package.json{% endif %}
 ```
 
 ## `workspace/worktrunk`
