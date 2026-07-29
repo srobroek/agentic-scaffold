@@ -1,0 +1,13 @@
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# node
+node_modules/
+dist/
+
+# local
+.DS_Store
+*.log
+/tmp/
