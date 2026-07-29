@@ -10,7 +10,7 @@ Design lives in `layers.md`; this file is the inventory.
 
 | Layer | Questions | Files |
 |---|---|---|
-| `agentic/index` | 3 | 3 |
+| `agentic/index` | 3 | 4 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
@@ -27,7 +27,7 @@ Requires `git` on `PATH`.
 | Question | Type | Default |
 |---|---|---|
 | `index_languages` | yaml | `['**/*.md', '**/*.toml', '**/*.yaml', '**/*.yml', '**/*.sh']` |
-| `index_full_pack` | bool | `False` |
+| `index_full_pack` | bool | `True` |
 | `index_extra_ignores` | yaml | `[]` |
 
 Writes:
@@ -36,6 +36,7 @@ Writes:
 .gitignore.d/index
 .just.d/index.just
 repomix.config.json
+{% if index_full_pack %}repomix-full.config.json{% endif %}
 ```
 
 ## `base/gitignore`

@@ -223,7 +223,8 @@ The agent then reads the rendered layer set and recommends packages against it:
 shell, `steering-infrastructure` for terraform, `speckit` when SpecKit is in use.
 That match is judgement, so it belongs to the agent rather than a template.
 
-`agentic/index` commits the patterns to `repomix.config.json`, which repomix reads
+`agentic/index` requires the `token-savings` package, which guards reading the
+pack. It commits the patterns to `repomix.config.json`, which repomix reads
 natively. They are then visible to anyone reading the repository.
 
 Path filtering is the only lever that works. Measured against a 1,269-file
@@ -235,9 +236,19 @@ against the 70 its documentation claims, and grows comment-dense files;
 `--style json` and `--parsable-style` make the output 10 percent larger.
 
 Two artefacts, and they differ by 311 times. `repomix-map.xml` carries no file
-contents and is 20 thousand tokens: read it. A contents pack is 6.3 million
-tokens, roughly six context windows, so it is only ever a grep target and is
-opt-in.
+contents and is 20 thousand tokens: read it. `repomix-full.xml` carries every
+body, roughly six context windows, and is a grep target. Grepping one file beats
+walking the live tree, measured at 0.018s against 0.126s.
+
+Guarding the read belongs to the `token-savings` package, which already denies a
+whole-file read of `repomix-full.xml` on both `Read` and `Bash`, so `cat pack` is
+caught too. It carries a `TOKEN_SAVINGS_ALLOW_PACK_READ=1` escape hatch. This
+layer ships no hook; `agentic/apm` names the package instead.
+
+The pack needs its own config file. repomix has `--no-files` but no `--files`, so
+the map's `files: false` cannot be overridden from the command line, and a single
+config would silently produce a metadata-only pack. Both configs carry the same
+`include` and `ignore`, or the pack would index what the map hides.
 
 Every index artefact is ignored, including repomix's own default output names.
 An unignored artefact is packed into the next one, which measured 38 percent of one

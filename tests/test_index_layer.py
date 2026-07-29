@@ -90,16 +90,40 @@ def test_the_gitignore_fragment_covers_repomix_default_names(tmp_path: Path) -> 
         assert name in body
 
 
-def test_the_full_pack_is_opt_in(tmp_path: Path) -> None:
+FULL_ON = ANSWERS.replace("index_full_pack: false", "index_full_pack: true")
+
+
+def test_the_full_pack_can_be_turned_off(tmp_path: Path) -> None:
     off = tmp_path / "off"
     off.mkdir()
     render("agentic/index", off, ANSWERS)
     assert "repomix-full.xml" not in (off / ".gitignore.d" / "index").read_text()
+    assert not (off / "repomix-full.config.json").exists()
 
-    on = tmp_path / "on"
-    on.mkdir()
-    render("agentic/index", on, ANSWERS.replace("index_full_pack: false", "index_full_pack: true"))
-    assert "repomix-full.xml" in (on / ".gitignore.d" / "index").read_text()
+
+def test_the_full_pack_gets_its_own_config(tmp_path: Path) -> None:
+    """repomix has --no-files but no --files, so the map's files:false cannot be
+    overridden from the command line. A second config is the only way."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("agentic/index", dest, FULL_ON)
+
+    full = json.loads((dest / "repomix-full.config.json").read_text())
+    assert full["output"]["files"] is True
+    assert full["output"]["filePath"] == "repomix-full.xml"
+    assert full["output"]["directoryStructure"] is False
+
+    # Both configs must filter identically, or the pack indexes what the map hides.
+    assert full["ignore"]["customPatterns"] == config_of(dest)["ignore"]["customPatterns"]
+    assert full["include"] == config_of(dest)["include"]
+
+
+def test_the_recipe_uses_the_full_config(tmp_path: Path) -> None:
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("agentic/index", dest, FULL_ON)
+    body = (dest / ".just.d" / "index.just").read_text()
+    assert "repomix -c repomix-full.config.json" in body
 
 
 # --- the worktrunk side ----------------------------------------------------
