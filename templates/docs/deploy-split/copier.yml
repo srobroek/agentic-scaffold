@@ -1,0 +1,36 @@
+_subdirectory: template
+_answers_file: .copier-answers.deploy-split.yml
+
+_scaffold:
+  summary: >-
+    The cross-repository publish workflow, for when the docs build needs the code. Renders
+    into the code repository and pushes the built output to the sibling.
+  requires_bin: [git]
+  # docs/api-refs forces this topology, because extracting an API reference needs the
+  # language toolchains, which live with the code.
+  after: [docs/site]
+
+_skip_if_exists:
+  - .github/workflows/docs-publish.yml
+
+pages_repo:
+  type: str
+  help: >-
+    The sibling repository the built output is pushed to, such as owner/owner.github.io.
+
+deploy_key_secret:
+  type: str
+  help: >-
+    Name of the repository secret holding an SSH deploy key with write access to
+    pages_repo. The key is what this topology costs over the sibling one.
+  default: DOCS_DEPLOY_KEY
+
+default_branch:
+  type: str
+  help: branch a push publishes from.
+  default: main
+
+job_timeout_minutes:
+  type: int
+  help: per-job timeout. GitHub defaults to 360, so a hung job burns six runner hours.
+  default: 15

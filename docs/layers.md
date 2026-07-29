@@ -352,8 +352,8 @@ package.
 | `docs/site` | `docs/site/{astro.config.mjs,package.json,src/}`, `.gitignore.d/site`, `.mise/conf.d/site.toml`, `.just.d/site.just` | `docs_engine`, `site_url`, `project_name`, `description`, `node_version`, `repo_url`, `sidebar_autogenerate` |
 | `docs/agents` | `docs/agents/**`, the `AGENTS.md` body, the `CLAUDE.md` symlink | none |
 | `docs/adr` | `docs/adr/{0000-template.md,index.md}` | `project_name` |
-| `docs/deploy-sibling` | the sibling repository's workflow and `.nojekyll` | `pages_repo` |
-| `docs/deploy-split` | the code repository's cross-repository publish workflow | `pages_repo`, `deploy_key_secret` |
+| `docs/deploy-sibling` | `.github/workflows/pages.yml`, which builds and deploys in place | `pages_repo`, `default_branch`, `job_timeout_minutes` |
+| `docs/deploy-split` | `.github/workflows/docs-publish.yml`, which pushes the built output across | `pages_repo`, `deploy_key_secret`, `default_branch`, `job_timeout_minutes` |
 | `docs/api-refs` | `docs/site/scripts/extract-<lang>-api.*`, `gen-api-refs.mjs` | none |
 
 `docs_engine` is `starlight` or `fumadocs`, and one renders at a time: the comparison is a
@@ -368,6 +368,27 @@ An empty `repo_url` omits the edit link and the source link rather than renderin
 one.
 
 Selecting `docs/api-refs` forces `docs/deploy-split`.
+
+Each writes its own workflow. Pages deployment needs `pages: write` and `id-token: write`,
+which the gate does not carry, and both are scoped to the deploy job rather than the whole
+workflow.
+
+`concurrency` is grouped per ref in both. A global group would make two different refs
+cancel each other, where per ref two pushes to one branch serialise and the later wins.
+
+Both write `.nojekyll` into the built output. Pages applies Jekyll unless told not to,
+which drops every directory whose name opens with an underscore, and Astro emits `_astro/`,
+so the assets 404 and the pages render unstyled.
+
+`deploy-pages` clamps its own poll timeout and ignores a longer one, so `deploy-sibling`
+runs a first attempt under `continue-on-error` and retries in a second step against the
+same artefact.
+
+`deploy-split` sets `keep_files: false`, so a page deleted here disappears there, and
+excludes `.github` from the replacement. Removing the sibling's own workflow would leave
+nothing to trigger on the next push, and it would stop deploying without saying so. An
+`on.push.paths` filter is safe on both, unlike a required check: nothing waits on a deploy
+workflow to report a status.
 
 ## agentic
 

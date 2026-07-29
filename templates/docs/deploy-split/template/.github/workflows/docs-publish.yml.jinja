@@ -1,0 +1,72 @@
+name: Publish docs
+
+# The split topology: this repository builds the site and pushes the rendered output to
+# {{ pages_repo | default('the sibling repository', true) }}, which serves it.
+#
+# It exists because extracting an API reference needs the language toolchains, and those
+# live with the code. It costs an SSH deploy key, which the sibling topology does not.
+
+on:
+  push:
+    branches:
+      - {{ default_branch }}
+    paths:
+      - 'docs/site/**'
+      - '.github/workflows/docs-publish.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Per ref, so two pushes to the same branch serialise and two refs do not cancel each
+# other.
+concurrency:
+  group: docs-${{ '{{' }} github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Build and push
+    runs-on: ubuntu-latest
+    timeout-minutes: {{ job_timeout_minutes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install tools
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          cache: true
+
+      - name: Install dependencies
+        working-directory: docs/site
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        working-directory: docs/site
+        run: bun run build
+
+      # Pages applies Jekyll unless told not to, which drops every directory whose name
+      # opens with an underscore. Astro emits `_astro/`, so the assets 404 without this.
+      - name: Disable Jekyll
+        run: touch docs/site/dist/.nojekyll
+
+      # `keep_files: false` replaces the target's content, which is the point: a page
+      # deleted here should disappear there. `exclude_assets` is what keeps the replacement
+      # from removing the sibling's own workflow, because a repository with no workflow has
+      # nothing to trigger on the next push and silently stops deploying.
+      #
+      # The action preserves `.git` itself; `.github` is the one that needs naming.
+      - name: Push to {{ pages_repo | default('the sibling repository', true) }}
+        uses: peaceiris/actions-gh-pages@1ef5a1b1df4c63fe21a2242edbee6cac921ece01 # v4.1.0
+        with:
+          deploy_key: ${{ '{{' }} secrets.{{ deploy_key_secret }} }}
+          external_repository: {{ pages_repo }}
+          publish_branch: {{ default_branch }}
+          publish_dir: docs/site/dist
+          keep_files: false
+          exclude_assets: '.github'
+          # Names the commit this output was built from, so the sibling's history says
+          # which code produced it.
+          commit_message: "docs: publish from ${{ '{{' }} github.sha }}"

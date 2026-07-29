@@ -19,6 +19,8 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/repo` | 3 | 5 |
 | `docs/adr` | 1 | 2 |
 | `docs/agents` | 1 | 9 |
+| `docs/deploy-sibling` | 3 | 1 |
+| `docs/deploy-split` | 4 | 1 |
 | `docs/site` | 9 | 9 |
 | `host/github` | 6 | 12 |
 | `host/gitlab` | 7 | 10 |
@@ -194,6 +196,43 @@ docs/agents/index.md
 docs/agents/quality/index.md
 docs/agents/release/index.md
 docs/agents/testing/index.md
+```
+
+## `docs/deploy-sibling`
+
+The Pages workflow for a sibling repository that holds the docs source and builds itself. The default topology.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `pages_repo` | str |  |
+| `default_branch` | str | `main` |
+| `job_timeout_minutes` | int | `15` |
+
+Writes:
+
+```
+.github/workflows/pages.yml
+```
+
+## `docs/deploy-split`
+
+The cross-repository publish workflow, for when the docs build needs the code. Renders into the code repository and pushes the built output to the sibling.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `pages_repo` | str |  |
+| `deploy_key_secret` | str | `DOCS_DEPLOY_KEY` |
+| `default_branch` | str | `main` |
+| `job_timeout_minutes` | int | `15` |
+
+Writes:
+
+```
+.github/workflows/docs-publish.yml
 ```
 
 ## `docs/site`

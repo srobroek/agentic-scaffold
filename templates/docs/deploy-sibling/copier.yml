@@ -1,0 +1,32 @@
+_subdirectory: template
+_answers_file: .copier-answers.deploy-sibling.yml
+
+_scaffold:
+  summary: >-
+    The Pages workflow for a sibling repository that holds the docs source and builds
+    itself. The default topology.
+  requires_bin: [git]
+  after: [docs/site]
+
+_skip_if_exists:
+  - .github/workflows/pages.yml
+
+# Where the site is served from. The sibling repository holds the source and publishes it,
+# so this layer renders INTO that repository rather than into the code repository.
+pages_repo:
+  type: str
+  help: >-
+    The sibling repository serving the site, such as owner/owner.github.io. Recorded so a
+    reader knows which repository this workflow belongs to.
+  default: ""
+
+default_branch:
+  type: str
+  help: branch a push publishes from.
+  default: main
+
+job_timeout_minutes:
+  type: int
+  help: >-
+    Per-job timeout. GitHub defaults to 360, so a hung job burns six runner hours.
+  default: 15
