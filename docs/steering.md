@@ -86,16 +86,23 @@ questions, and `index.md` names which of the two this repository has.
 
 ### One statement per fact
 
-A fact is stated in one place. A tool that surfaces itself through a global rule,
-an installed skill, or a native hook does not also get a block in `AGENTS.md`.
+A source belongs in `AGENTS.md` when it states something no other loaded source
+states. The test is content, not count: two pointers to the same tool are fine
+when each carries different content.
 
-Beads is the worked example. `~/.claude/rules/40-beads.md` is scoped to `**/*`
-and fires in every repository, `~/.agents/skills/beads/` is installed globally,
-and `.codex/hooks.json` runs `bd codex-hook` on compaction. A repository running
-apm gets a fourth pointer from `apm compile`. `bd`'s own block restates the same
-five commands, so `AGENTS.md` carries one line naming the prefix instead.
+Beads is the worked example, and it cuts both ways.
 
-Measured on this repository: the block was 54 of 90 lines.
+`bd`'s own block is dropped. It restated the five commands `bd prime` prints,
+and `bd prime` is what its native hooks already call on compaction. Measured on
+this repository, the block was 54 of 90 lines. `AGENTS.md` names the prefix in
+one line instead.
+
+`~/.claude/rules/40-beads.md` stays. It points at a context file holding the
+label-and-metadata conventions that `bd prime` has no knowledge of: routing by
+`agent:<kind>` label with the assignee pinning an instance, `execution_*`
+metadata set before spawn, git anchors, dedupe keys, `BD_JSON_ENVELOPE=1` for
+anything parsing output, and that `git push` does not sync `refs/dolt/data`.
+Upstream documents its CLI; that file documents the local conventions on top.
 
 `AGENTS.md` is the only agent index. `CLAUDE.md` is a symlink to it, tracked by
 git as mode `120000`, so a tool appending to `AGENTS.md` is visible through both
