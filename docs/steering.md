@@ -84,6 +84,29 @@ pointers into `docs/agents/` and runs `apm compile` last.
 Directory structure is not documented. gitnexus and repomix answer structural
 questions, and `index.md` names which of the two this repository has.
 
+### Each block stands alone
+
+Every tool appending to `AGENTS.md` owns one block, and each block is complete
+on its own. Removing any one of them leaves the rest accurate, because no block
+depends on another for context. A row in the index table names a file that
+exists; a reader who drops the beads block still finds every document.
+
+The layer supplies its own `AGENTS.md` body and lets each tool append below it:
+
+```sh
+bd init --prefix <p> --non-interactive --skip-hooks \
+  --agents-template templates/agentic/beads/agents-template.md
+```
+
+`--skip-hooks` is required. Without it `bd init` copies the ambient hook
+binaries from the configured `core.hooksPath` into `.beads/hooks`, repoints
+`core.hooksPath` at the copy, and stages the result. Observed on macOS with a
+hooks path owned by another tool: the copied `pre-commit` was 24MB with an
+unusable arm64 slice, and every commit failed with `cannot execute binary file`.
+
+`.beads/.gitignore` gets a `hooks/` line so a later `bd` invocation cannot stage
+them either.
+
 ## Freshness
 
 `just docs:agents` regenerates in place. `just docs:agents --check` regenerates
