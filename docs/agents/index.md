@@ -11,7 +11,6 @@ then the leaf.
 | Test layout and invocation | `testing/` |
 | Where docs live and how they deploy | `docs/` |
 | Required environment variables | `env/` |
-| Failures found by running a tool | `gotchas/` |
 | Error handling, naming, ownership | `../conventions.md` |
 
 Design decisions live outside this directory: `../architecture.md` for the model

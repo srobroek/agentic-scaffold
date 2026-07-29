@@ -25,12 +25,10 @@ docs/agents/
   testing/index.md
   docs/index.md
   env/index.md
-  gotchas/index.md
-  gotchas/{rust,python,ts,go,ci,tooling}.md
 ```
 
-Adding a language adds `quality/<lang>.md` and `gotchas/<lang>.md` plus one line
-in each index. No existing file grows.
+Adding a language adds `quality/<lang>.md` plus one line in its index. No existing
+file grows.
 
 ## Ownership
 
@@ -44,7 +42,6 @@ in each index. No existing file grows.
 | `docs/index.md` | topology, deploy trigger, generated versus authored | none |
 | `env/index.md` | variable names from CI and configuration | what fails without each |
 | `conventions.md` | none | all |
-| `gotchas/*` | none | all |
 
 Generated content sits between markers:
 
@@ -55,7 +52,7 @@ Generated content sits between markers:
 
 The generator replaces marked blocks and leaves everything else. A file with no
 marker is never written after it is first created, which is why `conventions.md`
-and `gotchas/*` survive.
+survives.
 
 ## Sources
 

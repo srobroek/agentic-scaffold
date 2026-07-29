@@ -10,4 +10,3 @@ profile into a temporary directory and runs that project's own build.
 A layer is tested when a profile using it renders and the rendered project's own
 build passes. Rendering alone does not count.
 
-Every entry in `gotchas/` is a case that rendering alone did not catch.

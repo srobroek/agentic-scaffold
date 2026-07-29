@@ -268,13 +268,17 @@ docs/agents/
   quality/index.md + <lang>.md
   ci/index.md + {github,gitlab}.md
   release/index.md  testing/index.md  docs/index.md  env/index.md
-  gotchas/index.md + <lang>.md
 ```
 
 Derived content sits inside `<!-- BEGIN GENERATED: <id> -->` markers. The
 generator replaces marked blocks and never touches text outside them, so
-hand-written rationale survives regeneration. `conventions.md` and `gotchas/*`
-carry no generated block.
+hand-written rationale survives regeneration. `conventions.md` carries no
+generated block.
+
+A failure found by running a tool goes in the file whose behaviour depends on it:
+a test docstring when a test pins it, a comment beside the code that works around
+it, or the decision record that measured it. Prose collected separately drifts from
+whatever enforces it, and nothing fails when it does.
 
 `AGENTS.md` is an index. Detail lives in `docs/agents`, reached through
 `.apm/context` pointers that `apm compile` weaves in. Directory structure is

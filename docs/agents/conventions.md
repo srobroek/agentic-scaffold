@@ -37,7 +37,6 @@ that ran, and every command that failed with its output.
 ## Documents
 
 `docs/architecture.md` records decisions and stays current with the code.
-`docs/agents/gotchas/` records failures and only grows.
 
 A rejected alternative belongs in `docs/architecture.md` under Excluded, with the
 measurement that rejected it. It does not belong in prose next to the thing that

@@ -16,7 +16,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
-| `docs/agents` | 1 | 10 |
+| `docs/agents` | 1 | 9 |
 | `host/github` | 6 | 12 |
 | `host/gitlab` | 7 | 10 |
 | `lang/go` | 3 | 11 |
@@ -150,7 +150,6 @@ docs/agents/ci/index.md
 docs/agents/conventions.md
 docs/agents/docs/index.md
 docs/agents/env/index.md
-docs/agents/gotchas/index.md
 docs/agents/index.md
 docs/agents/quality/index.md
 docs/agents/release/index.md

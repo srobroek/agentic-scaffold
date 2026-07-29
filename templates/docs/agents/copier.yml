@@ -2,7 +2,6 @@ _subdirectory: template
 _answers_file: .copier-answers.agents.yml
 _skip_if_exists:
 - docs/agents/conventions.md
-- docs/agents/gotchas/*.md
 project_name:
   type: str
   help: the project name, used in the generated index.

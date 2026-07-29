@@ -64,7 +64,11 @@ def test_render_writes_the_layer(tmp_path: Path) -> None:
 
 
 def test_hand_written_files_survive_a_second_render(tmp_path: Path) -> None:
-    """`_skip_if_exists` is what keeps conventions.md and gotchas/* from being lost."""
+    """`_skip_if_exists` is what keeps conventions.md from being lost.
+
+    It carries no generated block, so all of it is hand-written and a re-render would
+    otherwise replace the lot.
+    """
     dest = tmp_path / "dest"
     dest.mkdir()
     answers = tmp_path / "a.yml"
@@ -74,14 +78,11 @@ def test_hand_written_files_survive_a_second_render(tmp_path: Path) -> None:
 
     conventions = dest / "docs" / "agents" / "conventions.md"
     conventions.write_text("# Mine\n\nDo not lose this.\n")
-    leaf = dest / "docs" / "agents" / "gotchas" / "rust.md"
-    leaf.write_text("# Rust\n\nNor this.\n")
 
     result = run("docs/agents", str(dest), "--answers", str(answers))
 
     assert result.returncode == 0
     assert "Do not lose this." in conventions.read_text()
-    assert "Nor this." in leaf.read_text()
 
 
 @pytest.mark.parametrize("binary", ["copier", "git"])

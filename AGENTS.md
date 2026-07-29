@@ -11,7 +11,6 @@ Layered copier templates plus an agent skill that scaffolds a repository.
 | How the CI caller is written | `rules/ci-composition.md` |
 | What `docs/agents/` holds in a rendered repo | `docs/steering.md` |
 | Working context for this repo | `docs/agents/index.md` |
-| A failure that looks like a mystery | `docs/agents/gotchas/` |
 | Which layers exist, and their variables | `docs/INDEX.md` |
 | Layer set per profile | `profiles/*.md` |
 
@@ -27,8 +26,6 @@ or change the template.
 A tree that renders is not a project that builds. `just check` renders every
 profile and runs its own build.
 
-Record a failure found by running something in `docs/agents/gotchas/`, with
-the cause.
 
 ## Work
 

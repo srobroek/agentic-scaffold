@@ -11,7 +11,6 @@ touched.
 | Test layout and invocation | `testing/` |
 | Where docs live and how they deploy | `docs/` |
 | Required environment variables | `env/` |
-| Failures found by running a tool | `gotchas/` |
 | Error handling, naming, ownership | `conventions.md` |
 
 <!-- BEGIN GENERATED: index -->
