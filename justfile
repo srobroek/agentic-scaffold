@@ -10,9 +10,12 @@ default:
 setup:
     mise install
     uv sync
-    git config --local core.hooksPath .git/hooks
+    # ABSOLUTE, not .git/hooks. A linked worktree's .git is a FILE, so a relative
+    # hooksPath resolves to <worktree>/.git/hooks and git reports
+    # "Not a directory" -- the hook then silently never runs there.
+    git config --local core.hooksPath "$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
     prek install
-    @echo "hooksPath set repo-locally so prek's shims run even where another tool owns the global path"
+    @echo "hooksPath set to an absolute path, so prek's shims fire in linked worktrees too"
 
 # Render one layer into a destination
 render layer dest *answers:

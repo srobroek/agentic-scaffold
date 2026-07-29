@@ -25,6 +25,15 @@ forge_hostname:
     API host for a self-hosted forge. Leave empty for github.com or gitlab.com.
   default: ""
 
+setup_command:
+  type: str
+  help: >-
+    Blocking pre-start command that makes a new worktree usable. Runs after the
+    user config's mise trust, and after copy-ignored has warmed the caches.
+    Derived from the language layers: uv sync, bun install, cargo fetch, go mod
+    download, or a just recipe wrapping them.
+  default: "just setup"
+
 dev_server:
   type: bool
   help: >-

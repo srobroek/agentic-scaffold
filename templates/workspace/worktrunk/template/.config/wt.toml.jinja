@@ -11,6 +11,20 @@
 # gate CI runs, so a merge cannot land what CI would reject.
 pre-merge = "just check"
 
+[[pre-start]]
+# mise before the package managers: it supplies the interpreter and toolchain the
+# next step needs. The user config already ran `mise trust`, which is separate.
+toolchain = "mise install --yes"
+
+[[pre-start]]
+# Blocking, so `--execute` and post-start see a usable tree. A copied cache from
+# copy-ignored makes this fast; without one it is a cold install.
+#
+# prek's shims live in the primary checkout's .git/hooks. A linked worktree's
+# .git is a file, so this must be set to an absolute path or the hooks silently
+# never fire in a worktree. `just setup` does that.
+deps = "{{ setup_command }}"
+
 [forge]
 platform = "{{ forge_platform }}"
 {% if forge_hostname %}hostname = "{{ forge_hostname }}"
