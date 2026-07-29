@@ -1,0 +1,9 @@
+{
+{%- if release_packages %}
+{%- for pkg in release_packages %}
+  "{{ pkg }}": "{{ initial_version }}"{% if not loop.last %},{% endif %}
+{%- endfor %}
+{%- else %}
+  ".": "{{ initial_version }}"
+{%- endif %}
+}

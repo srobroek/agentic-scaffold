@@ -1,0 +1,36 @@
+name: release-please
+
+# Maintains a release pull request from the Conventional Commits on the default branch.
+# Merging it tags the version and writes the changelog, which is why the commit-msg hook
+# and the CI check on the range matter: the subject type decides the bump.
+#
+# Its own workflow rather than a job in the gate. It needs `contents: write` and
+# `pull-requests: write`, which the gate deliberately does not carry, and it runs on
+# push to the default branch rather than per pull request.
+
+on:
+  push:
+    branches:
+      - {{ default_branch }}
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    name: Release pull request
+    runs-on: ubuntu-latest
+    # GitHub defaults to 360 minutes, so a hung job burns six runner hours.
+    timeout-minutes: 15
+    permissions:
+      # Writes the tag and the changelog commit.
+      contents: write
+      # Opens and updates the release pull request.
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ '{{' }} secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

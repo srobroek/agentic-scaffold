@@ -1,0 +1,37 @@
+_subdirectory: template
+_answers_file: .copier-answers.dep-updates.yml
+
+_scaffold:
+  summary: >-
+    renovate.json for the language ecosystems and .github/dependabot.yml for action
+    versions, plus the auto-merge workflow dependabot feeds.
+  requires_bin: [git]
+  after: [base/repo, lang/*]
+
+# Both are hand-tuned after the fact: a package rule, an ignored dependency, a schedule.
+_skip_if_exists:
+  - renovate.json
+  - .github/dependabot.yml
+
+# Both tools, not a choice between them. renovate covers the language ecosystems, where
+# its grouping and scheduling are better; dependabot covers `github-actions`, because its
+# metadata action is what the auto-merge workflow keys off and renovate emits no
+# equivalent. bailiff offered one or the other.
+default_branch:
+  type: str
+  help: branch both tools open pull requests against.
+  default: main
+
+auto_merge:
+  type: bool
+  help: >-
+    Add the workflow that approves and merges dependabot's patch and minor action
+    updates. A major update always waits for a person.
+  default: true
+
+renovate_timezone:
+  type: str
+  help: >-
+    IANA timezone the renovate schedule is read in. Without one it uses UTC, so an
+    "after 9pm" window opens at the wrong local hour.
+  default: "Europe/Amsterdam"

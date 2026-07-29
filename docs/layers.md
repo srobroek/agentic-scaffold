@@ -267,13 +267,38 @@ the developer has.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow | `release_type`, `initial_version` |
-| `release/cocogitto` | `cog.toml` | `initial_version` |
-| `release/dep-updates` | `renovate.json`, and `.github/dependabot.yml` for `github-actions` | none |
+| `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow, `scripts/sync_release_packages.py`, `.just.d/release.just` | `release_type`, `initial_version`, `default_branch`, `release_packages` |
+| `release/cocogitto` | `cog.toml`, `.just.d/cog.just` | `initial_version`, `release_scopes` |
+| `release/dep-updates` | `renovate.json`, `.github/dependabot.yml`, and the auto-merge workflow | `default_branch`, `auto_merge`, `renovate_timezone` |
 
 Ecosystems follow from the language layers. renovate covers the language
 ecosystems; dependabot covers action versions, which is what the existing
 auto-merge workflow in `astro-up.github.io` consumes.
+
+Both tools render, rather than one or the other as bailiff offered. renovate disables
+its own `github-actions` manager, because dependabot's `fetch-metadata` action reports
+the semver level of a bump and renovate emits no equivalent. Enabling both would open
+two pull requests per action version.
+
+`pep621` is the manager covering a uv `pyproject.toml`. There is no `uv` manager, and a
+name renovate does not know silently updates nothing.
+
+The auto-merge workflow triggers on `pull_request` and gates on
+`github.event.pull_request.user.login`. `github.actor` can be spoofed by pushing to a
+branch dependabot opened, which zizmor reports as `bot-conditions` at high confidence,
+and `pull_request_target` runs with a writable token in the base repository's context
+for no benefit here. A major update always waits for a person.
+
+`release-please` and `cocogitto` are alternatives rather than companions: cog bumps and
+tags from a developer's working copy, release-please through a pull request CI merges,
+and a repository selecting both would tag twice. A profile picks one.
+
+release-please does not discover a workspace member. A package absent from its config is
+never versioned, tagged, or written into the changelog, so `just release-sync` rebuilds
+the packages list from the workspace manifest and `just release-check` fails a stale one
+inside the quality job. The recorded versions are release-please's own after the first
+release, so a member already listed keeps its version and only a new one starts at
+`initial_version`.
 
 ## docs
 

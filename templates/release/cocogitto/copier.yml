@@ -1,0 +1,27 @@
+_subdirectory: template
+_answers_file: .copier-answers.cocogitto.yml
+
+_scaffold:
+  summary: >-
+    cog.toml for cocogitto, the local alternative to release-please. Bumps and tags from
+    the working copy rather than through a release pull request.
+  requires_bin: [git]
+  after: [base/repo]
+
+_skip_if_exists:
+  - cog.toml
+
+initial_version:
+  type: str
+  help: version cocogitto treats as the starting point.
+  default: 0.1.0
+
+# cocogitto and release-please solve the same problem in opposite places: cog bumps from
+# a developer's machine, release-please through a pull request CI merges. A repository
+# wanting both would tag twice, so a profile selects one.
+release_scopes:
+  type: yaml
+  help: >-
+    Allowed Conventional Commits scopes, matching quality/hooks' commit_scopes. Empty
+    allows any.
+  default: []

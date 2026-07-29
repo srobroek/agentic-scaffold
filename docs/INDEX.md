@@ -24,6 +24,9 @@ Design lives in `layers.md`; this file is the inventory.
 | `lang/rust` | 3 | 14 |
 | `lang/ts` | 2 | 13 |
 | `quality/hooks` | 3 | 5 |
+| `release/cocogitto` | 2 | 2 |
+| `release/dep-updates` | 3 | 3 |
+| `release/release-please` | 4 | 5 |
 | `workspace/just` | 0 | 3 |
 | `workspace/monorepo` | 12 | 6 |
 | `workspace/worktrunk` | 6 | 2 |
@@ -357,6 +360,67 @@ Writes:
 .pre-commit.d/beads.yaml
 .pre-commit.d/hygiene.yaml
 scripts/merge_hooks.py
+```
+
+## `release/cocogitto`
+
+cog.toml for cocogitto, the local alternative to release-please. Bumps and tags from the working copy rather than through a release pull request.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `initial_version` | str | `0.1.0` |
+| `release_scopes` | yaml | `[]` |
+
+Writes:
+
+```
+.just.d/cog.just
+cog.toml
+```
+
+## `release/dep-updates`
+
+renovate.json for the language ecosystems and .github/dependabot.yml for action versions, plus the auto-merge workflow dependabot feeds.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `default_branch` | str | `main` |
+| `auto_merge` | bool | `True` |
+| `renovate_timezone` | str | `Europe/Amsterdam` |
+
+Writes:
+
+```
+.github/dependabot.yml
+.github/workflows/{% if auto_merge %}dependabot-auto-merge.yml{% endif %}
+renovate.json
+```
+
+## `release/release-please`
+
+release-please config, manifest, and workflow. Reads Conventional Commits on the default branch and maintains a release pull request.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `release_type` | `node` | `python` | `rust` | `go` | `simple` | `simple` |
+| `initial_version` | str | `0.1.0` |
+| `default_branch` | str | `main` |
+| `release_packages` | yaml | `[]` |
+
+Writes:
+
+```
+.github/workflows/release-please.yml
+.just.d/release.just
+.release-please-manifest.json
+release-please-config.json
+scripts/sync_release_packages.py
 ```
 
 ## `workspace/just`

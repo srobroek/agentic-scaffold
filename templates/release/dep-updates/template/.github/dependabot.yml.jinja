@@ -1,0 +1,23 @@
+# .github/dependabot.yml -- action versions only.
+#
+# renovate.json covers the language ecosystems and disables its own github-actions
+# manager, so nothing is updated twice. dependabot owns this one because its
+# fetch-metadata action reports the semver level of a bump, which is what the auto-merge
+# workflow keys off; renovate emits no equivalent.
+#
+# https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "{{ default_branch }}"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      # Conventional Commits, so release tooling reads the bump as a chore rather than
+      # a feature. The commit-msg hook rejects anything else.
+      prefix: "chore"
+    groups:
+      actions:
+        patterns:
+          - "*"

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "timezone": "{{ renovate_timezone }}",
+  "baseBranches": ["{{ default_branch }}"],
+  "enabledManagers": [
+    "cargo",
+    "rust-toolchain",
+    "gomod",
+    "npm",
+    "bun",
+    "pep621",
+    "mise",
+    "pre-commit",
+    "terraform"
+  ],
+  "packageRules": [
+    {
+      "description": "github-actions belongs to dependabot, whose metadata action the auto-merge workflow reads. Renovate emits no equivalent, so enabling it here would open two pull requests per action bump.",
+      "matchManagers": ["github-actions"],
+      "enabled": false
+    },
+    {
+      "description": "One pull request for patch and minor across an ecosystem, so a week of updates is one review rather than twenty.",
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "patch and minor",
+      "schedule": ["after 9pm on friday"]
+    },
+    {
+      "description": "A major update is reviewed on its own, since the changelog is the point.",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on monday"]
+  },
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "schedule": ["at any time"]
+  }
+}

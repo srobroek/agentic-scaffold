@@ -1,0 +1,43 @@
+_subdirectory: template
+_answers_file: .copier-answers.release-please.yml
+
+_scaffold:
+  summary: >-
+    release-please config, manifest, and workflow. Reads Conventional Commits on the
+    default branch and maintains a release pull request.
+  requires_bin: [git]
+  # The member list comes from the workspace manifest, so monorepo renders first.
+  after: [base/repo, workspace/monorepo]
+
+# The manifest records the current version of every package, so release-please owns it
+# after the first release. Re-rendering would reset each one to initial_version.
+_skip_if_exists:
+  - .release-please-manifest.json
+
+release_type:
+  type: str
+  choices: [node, python, rust, go, simple]
+  help: >-
+    Strategy release-please applies. It decides which file the version is written into,
+    so it has to match the language: node edits package.json, python pyproject.toml,
+    rust Cargo.toml, go a version file. `simple` maintains version.txt alone.
+  default: simple
+
+initial_version:
+  type: str
+  help: version recorded for every package before the first release.
+  default: 0.1.0
+
+default_branch:
+  type: str
+  help: branch the release workflow triggers on.
+  default: main
+
+# Empty means a single-package repository. A monorepo passes the member directories,
+# which `just release-sync` reads from the workspace manifest rather than asking twice.
+release_packages:
+  type: yaml
+  help: >-
+    Package directories relative to the repository root, as a YAML list. Empty releases
+    the repository as one package.
+  default: []

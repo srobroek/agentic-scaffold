@@ -1,0 +1,36 @@
+# cog.toml -- cocogitto. Keys taken from `cog init`'s own output on 7.0.0, since an
+# unrecognised key is rejected rather than ignored.
+#
+# The local alternative to release-please: `cog bump --auto` reads the Conventional
+# Commits since the last tag, bumps, writes the changelog, and tags, all from the
+# working copy. release-please does the same through a pull request CI merges. A
+# repository selecting both would tag twice.
+
+# A merge commit carries no meaningful type, and a fixup is noise in a changelog.
+ignore_merge_commits = true
+ignore_fixup_commits = true
+
+# Refuse to bump with untracked files present, so a tag always describes a clean tree.
+skip_untracked = false
+
+# The bump commit is what release tooling and the changelog read, so it is kept.
+disable_bump_commit = false
+disable_changelog = false
+
+# One tag for the workspace plus one per package, which is what makes a monorepo member
+# releasable on its own. Harmless in a single-package repository, where only the global
+# tag is ever written.
+generate_mono_repository_global_tag = true
+generate_mono_repository_package_tags = true
+
+# Empty allows a bump from any branch. Naming branches here is the guard against
+# tagging from a feature branch.
+branch_whitelist = []
+
+# prek owns the git hooks, so cocogitto installs none of its own. Two managers writing
+# .git/hooks/ means whichever ran last wins.
+[git_hooks]
+
+[changelog]
+path = "CHANGELOG.md"
+authors = []

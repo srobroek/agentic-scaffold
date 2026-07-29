@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "{{ release_type }}",
+{%- if release_packages %}
+  "separate-pull-requests": false,
+  "include-component-in-tag": true,
+  "packages": {
+{%- for pkg in release_packages %}
+    "{{ pkg }}": {
+      "component": "{{ pkg.split('/') | last }}"
+    }{% if not loop.last %},{% endif %}
+{%- endfor %}
+  }
+{%- else %}
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {}
+  }
+{%- endif %}
+}
