@@ -17,6 +17,7 @@ TEMPLATES = REPO_ROOT / "templates" / "lang"
 ANSWERS = {
     "rust": 'crate_kind: lib\nrust_edition: "2024"\n',
     "python": 'python_version: "3.13"\npython_layout: src\npython_framework: none\n',
+    "go": 'go_module_path: github.com/srobroek/demo\ngo_version: "1.26"\ngo_vendor: false\n',
 }
 
 
@@ -204,3 +205,43 @@ def test_the_init_ignore_is_gone(tmp_path: Path) -> None:
     dest.mkdir()
     render("lang/python", dest, ANSWERS["python"])
     assert "non-empty-init-module" not in (dest / "ruff.toml").read_text()
+
+
+# --- lang/go ---------------------------------------------------------------
+
+
+def test_golangci_uses_the_v2_schema(tmp_path: Path) -> None:
+    """A v1 config fails outright: "unsupported version of the configuration"."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("lang/go", dest, ANSWERS["go"])
+    config = yaml.safe_load((dest / ".golangci.yml").read_text())
+
+    assert config["version"] == "2"
+    # v1 put settings at the top level; v2 rejects that key by name.
+    assert "linters-settings" not in config
+    assert "settings" in config["linters"]
+
+
+def test_gosec_and_revive_are_enabled(tmp_path: Path) -> None:
+    """gosec ships inside golangci-lint and the standard set leaves it off, so a
+    config without this line has no security lint at all."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("lang/go", dest, ANSWERS["go"])
+    enabled = yaml.safe_load((dest / ".golangci.yml").read_text())["linters"]["enable"]
+    assert "gosec" in enabled
+    assert "revive" in enabled
+
+
+def test_vendor_is_ignored_unless_committed(tmp_path: Path) -> None:
+    off = tmp_path / "off"
+    off.mkdir()
+    render("lang/go", off, ANSWERS["go"])
+    assert "vendor/" in (off / ".gitignore.d" / "go").read_text()
+
+    on = tmp_path / "on"
+    on.mkdir()
+    render("lang/go", on, ANSWERS["go"].replace("go_vendor: false", "go_vendor: true"))
+    body = (on / ".gitignore.d" / "go").read_text()
+    assert not any(line.strip() == "vendor/" for line in body.splitlines())

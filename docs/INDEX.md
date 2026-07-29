@@ -15,6 +15,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
 | `docs/agents` | 1 | 9 |
+| `lang/go` | 3 | 11 |
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
 | `workspace/worktrunk` | 6 | 2 |
@@ -106,6 +107,34 @@ docs/agents/index.md
 docs/agents/quality/index.md
 docs/agents/release/index.md
 docs/agents/testing/index.md
+```
+
+## `lang/go`
+
+Go tooling: golangci-lint on the v2 schema with gosec and revive, govulncheck, and a tidy check, plus the CI jobs and the fragments every aggregating layer folds in.
+
+Requires `go` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `go_module_path` | str |  |
+| `go_version` | str | `1.26` |
+| `go_vendor` | bool | `False` |
+
+Writes:
+
+```
+.github/actions/setup-go/action.yml
+.github/quality.d/go.yml
+.github/security.d/go.yml
+.github/workflows/wc-lint-go.yml
+.github/workflows/wc-test-go.yml
+.gitignore.d/go
+.gitlab/ci/go.yml
+.golangci.yml
+.just.d/go.just
+.mise/conf.d/go.toml
+.pre-commit.d/go.yaml
 ```
 
 ## `lang/python`

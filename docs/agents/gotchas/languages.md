@@ -49,3 +49,18 @@ of real code exists.
 A per-file ignore would silence it. The layer moves the body into `core.py` and
 leaves an `__init__.py` that re-exports, which is the convention the rule exists to
 encourage. An ignore would also hide the finding in code written later.
+
+### golangci-lint v2 rejects a v1 config outright
+
+Verified against 2.12.2: a config with a top-level `linters-settings` key fails
+with `unsupported version of the configuration: ""`. In v2 settings nest under
+`linters.settings`, and `version: "2"` is required at the top.
+
+`gosec` ships inside golangci-lint and the `standard` default set leaves it off,
+so a config that does not name it has no security lint at all. Confirmed both
+ways: `golangci-lint linters` lists gosec and revive as enabled, and a
+`exec.Command("sh", "-c", userInput)` produced `G204: Subprocess launched with
+variable (gosec)`.
+
+`go mod tidy -diff` reports without writing, so it works as a check. Available in
+Go 1.26.
