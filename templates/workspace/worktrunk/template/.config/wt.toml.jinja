@@ -20,9 +20,10 @@ toolchain = "mise install --yes"
 # Blocking, so `--execute` and post-start see a usable tree. A copied cache from
 # copy-ignored makes this fast; without one it is a cold install.
 #
-# prek's shims live in the primary checkout's .git/hooks. A linked worktree's
-# .git is a file, so this must be set to an absolute path or the hooks silently
-# never fire in a worktree. `just setup` does that.
+# `just setup` also repairs core.hooksPath, which has to be absolute: a linked
+# worktree's .git is a file, so a relative path resolves to <worktree>/.git/hooks
+# and the hooks silently never fire there. Running it per worktree start means a
+# clone that never ran setup by hand still gets hooked.
 deps = "{{ setup_command }}"
 
 [forge]

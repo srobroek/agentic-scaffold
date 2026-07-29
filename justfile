@@ -6,16 +6,26 @@ py := "uv run"
 default:
     @just --list
 
-# Install the toolchain and the hook shims
-setup:
+# Install the toolchain, the dependencies, and the hook shims
+setup: hooks-path
     mise install
     uv sync
-    # ABSOLUTE, not .git/hooks. A linked worktree's .git is a FILE, so a relative
-    # hooksPath resolves to <worktree>/.git/hooks and git reports
-    # "Not a directory" -- the hook then silently never runs there.
-    git config --local core.hooksPath "$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
     prek install
-    @echo "hooksPath set to an absolute path, so prek's shims fire in linked worktrees too"
+
+# Absolute is required: a linked worktree's .git is a FILE holding a gitdir
+# pointer, so a relative `.git/hooks` resolves to <worktree>/.git/hooks and git
+# reports "Not a directory", after which the hook never fires there, silently.
+#
+# --git-common-dir resolves to the primary .git from any worktree, so this runs
+# from anywhere. The value never travels: .git/config is untracked, so every
+# clone generates its own.
+
+# Point core.hooksPath at the primary checkout, absolutely
+[group('setup')]
+hooks-path:
+    @git config --local core.hooksPath \
+      "$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
+    @echo "core.hooksPath -> $(git config --local core.hooksPath)"
 
 # Render one layer into a destination
 render layer dest *answers:
