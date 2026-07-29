@@ -1,0 +1,15 @@
+// astro.config.mjs -- rendered by docs/site for the fumadocs engine. Safe to edit; a
+// re-render skips this file once it exists.
+//
+// fumadocs hydrates the page shell as a React island, so react is a real dependency here
+// where starlight needs none.
+import { defineConfig } from 'astro/config';
+import mdx from '@astrojs/mdx';
+import react from '@astrojs/react';
+
+export default defineConfig({
+	// Mandatory rather than optional: without an explicit `site` the sitemap integration
+	// warns and emits nothing.
+	site: '{{ site_url }}',
+	integrations: [mdx(), react()],
+});

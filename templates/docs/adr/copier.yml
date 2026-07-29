@@ -1,0 +1,20 @@
+_subdirectory: template
+_answers_file: .copier-answers.adr.yml
+
+_scaffold:
+  summary: >-
+    The decision-record template and index under docs/adr, which `base/repo` creates the
+    parent of and leaves empty.
+  requires_bin: [git]
+  after: [base/repo]
+
+# Both become the project's own once written: the index accrues rows and the template
+# accrues local conventions.
+_skip_if_exists:
+  - docs/adr/index.md
+  - docs/adr/0000-template.md
+
+project_name:
+  type: str
+  help: the project name, used in the index heading.
+  default: ""

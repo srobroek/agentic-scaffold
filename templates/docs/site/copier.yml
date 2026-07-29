@@ -1,0 +1,73 @@
+_subdirectory: template
+_answers_file: .copier-answers.site.yml
+
+_scaffold:
+  summary: >-
+    The Astro documentation site under docs/site, plus the .gitignore.d and .mise
+    fragments the aggregating layers fold in.
+  requires_bin: [git]
+  # base/repo creates docs/ and nothing inside it, so this owns its own subtree.
+  after: [base/repo]
+
+# The config and the first page become the project's own once written.
+_skip_if_exists:
+  - docs/site/package.json
+  - docs/site/astro.config.mjs
+  - docs/site/src/content/docs/index.md
+
+project_name:
+  type: str
+  help: the site title, and the docs package name.
+  default: ""
+
+description:
+  type: str
+  help: one line for the site. Empty omits the key rather than writing a blank one.
+  default: ""
+
+# Mandatory, not a convenience. Without an explicit `site:` the Astro sitemap
+# integration warns and emits nothing, so the sitemap is silently absent.
+site_url:
+  type: str
+  help: >-
+    Absolute URL the site is served from, such as https://owner.github.io/repo. Required:
+    without it the sitemap is generated empty and nothing fails.
+
+docs_engine:
+  type: str
+  choices: [starlight, fumadocs]
+  help: >-
+    starlight is the default. fumadocs is for a Notion or Obsidian content source, or docs
+    AI chat; it hydrates the page shell as a React island, sending 860K of client
+    JavaScript against starlight's 564K.
+  default: starlight
+
+node_version:
+  type: str
+  help: node version the site pins. Astro 7 needs 22.12 or later.
+  default: "24"
+
+repo_url:
+  type: str
+  help: >-
+    Repository URL. Non-empty wires the edit link and a source link; empty omits both
+    rather than rendering a dead one.
+  default: ""
+
+sidebar_autogenerate:
+  type: bool
+  help: >-
+    Derive the sidebar from the filesystem. false writes an explicit list, which every new
+    page then has to be added to.
+  default: true
+
+# Derived, because a conditional filename holding a quote breaks jinja compilation: the
+# name is embedded in the generated Python and the quote ends its string literal.
+is_starlight:
+  type: bool
+  default: "{{ docs_engine == 'starlight' }}"
+  when: false
+is_fumadocs:
+  type: bool
+  default: "{{ docs_engine == 'fumadocs' }}"
+  when: false

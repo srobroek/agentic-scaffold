@@ -349,15 +349,23 @@ package.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `docs/site` | `docs/site/{astro.config.mjs,package.json,src/content/docs/}` | `docs_engine`, `site_url` |
+| `docs/site` | `docs/site/{astro.config.mjs,package.json,src/}`, `.gitignore.d/site`, `.mise/conf.d/site.toml`, `.just.d/site.just` | `docs_engine`, `site_url`, `project_name`, `description`, `node_version`, `repo_url`, `sidebar_autogenerate` |
 | `docs/agents` | `docs/agents/**`, the `AGENTS.md` body, the `CLAUDE.md` symlink | none |
-| `docs/adr` | `docs/adr/{0000-template.md,index.md}` | none |
+| `docs/adr` | `docs/adr/{0000-template.md,index.md}` | `project_name` |
 | `docs/deploy-sibling` | the sibling repository's workflow and `.nojekyll` | `pages_repo` |
 | `docs/deploy-split` | the code repository's cross-repository publish workflow | `pages_repo`, `deploy_key_secret` |
 | `docs/api-refs` | `docs/site/scripts/extract-<lang>-api.*`, `gen-api-refs.mjs` | none |
 
-`docs_engine` is `starlight` or `fumadocs`. `site_url` is mandatory: without an
-explicit `site:` the Astro sitemap integration warns and emits nothing.
+`docs_engine` is `starlight` or `fumadocs`, and one renders at a time: the comparison is a
+derived boolean, since a conditional filename holding a quote breaks jinja compilation.
+fumadocs brings React as a real dependency, where starlight needs none.
+
+`site_url` is mandatory. Without an explicit `site:` the Astro sitemap integration warns
+and emits nothing, so the sitemap is silently absent. Verified by building a rendered site:
+with it, `sitemap-index.xml` and a populated `sitemap-0.xml` were produced.
+
+An empty `repo_url` omits the edit link and the source link rather than rendering a dead
+one.
 
 Selecting `docs/api-refs` forces `docs/deploy-split`.
 

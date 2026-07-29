@@ -17,7 +17,9 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
+| `docs/adr` | 1 | 2 |
 | `docs/agents` | 1 | 9 |
+| `docs/site` | 9 | 9 |
 | `host/github` | 6 | 12 |
 | `host/gitlab` | 7 | 10 |
 | `lang/go` | 3 | 11 |
@@ -98,7 +100,7 @@ repomix.config.json
 
 ## `agentic/rtk`
 
-`.rtk/filters.toml`, which compacts the output of tools rtk ships no filter for, plus the recipes that trust it and turn telemetry off.
+`.rtk/filters.toml`, which compacts the output of tools rtk has no filter for, plus the recipes that trust it and turn telemetry off.
 
 Requires `git` on `PATH`.
 
@@ -155,6 +157,23 @@ docs/.gitkeep
 scripts/.gitkeep
 ```
 
+## `docs/adr`
+
+The decision-record template and index under docs/adr, which `base/repo` creates the parent of and leaves empty.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `project_name` | str |  |
+
+Writes:
+
+```
+docs/adr/0000-template.md
+docs/adr/index.md
+```
+
 ## `docs/agents`
 
 steering directories under docs/agents, with generated blocks the steering skill rewrites, plus AGENTS.md and the CLAUDE.md symlink.
@@ -175,6 +194,38 @@ docs/agents/index.md
 docs/agents/quality/index.md
 docs/agents/release/index.md
 docs/agents/testing/index.md
+```
+
+## `docs/site`
+
+The Astro documentation site under docs/site, plus the .gitignore.d and .mise fragments the aggregating layers fold in.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `project_name` | str |  |
+| `description` | str |  |
+| `site_url` | str |  |
+| `docs_engine` | `starlight` | `fumadocs` | `starlight` |
+| `node_version` | str | `24` |
+| `repo_url` | str |  |
+| `sidebar_autogenerate` | bool | `True` |
+| `is_starlight` | bool | `{{ docs_engine == 'starlight' }}` |
+| `is_fumadocs` | bool | `{{ docs_engine == 'fumadocs' }}` |
+
+Writes:
+
+```
+.gitignore.d/site
+.just.d/site.just
+.mise/conf.d/site.toml
+docs/site/{% if is_fumadocs %}astro.config.mjs{% endif %}
+docs/site/{% if is_fumadocs %}package.json{% endif %}
+docs/site/{% if is_starlight %}astro.config.mjs{% endif %}
+docs/site/{% if is_starlight %}package.json{% endif %}
+docs/site/{% if is_starlight %}src{% endif %}/content/docs/index.md
+docs/site/{% if is_starlight %}src{% endif %}/content.config.ts
 ```
 
 ## `host/github`

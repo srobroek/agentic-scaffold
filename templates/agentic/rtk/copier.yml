@@ -3,7 +3,7 @@ _answers_file: .copier-answers.rtk.yml
 
 _scaffold:
   summary: >-
-    `.rtk/filters.toml`, which compacts the output of tools rtk ships no filter for,
+    `.rtk/filters.toml`, which compacts the output of tools rtk has no filter for,
     plus the recipes that trust it and turn telemetry off.
   requires_bin: [git]
   after: [base/repo]

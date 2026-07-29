@@ -1,0 +1,35 @@
+// astro.config.mjs -- rendered by docs/site. Safe to edit; a re-render skips this file
+// once it exists.
+import { defineConfig } from 'astro/config';
+import starlight from '@astrojs/starlight';
+
+export default defineConfig({
+	// Mandatory rather than optional: without an explicit `site` the sitemap integration
+	// warns and emits nothing, so the sitemap is silently absent.
+	site: '{{ site_url }}',
+	integrations: [
+		starlight({
+			title: '{{ project_name | default('Documentation', true) | replace("'", "\\'") }}',
+{%- if description %}
+			description: '{{ description | replace("'", "\\'") }}',
+{%- endif %}
+{%- if repo_url %}
+			editLink: {
+				baseUrl: '{{ repo_url | trim('/') }}/edit/main/docs/site/',
+			},
+			social: [
+				{ icon: 'github', label: 'GitHub', href: '{{ repo_url | trim('/') }}' },
+			],
+{%- endif %}
+{%- if not sidebar_autogenerate %}
+			// Explicit sidebar: every new page has to be added here.
+			sidebar: [
+				{
+					label: 'Start here',
+					items: [{ label: 'Home', link: '/' }],
+				},
+			],
+{%- endif %}
+		}),
+	],
+});

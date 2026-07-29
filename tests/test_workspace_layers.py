@@ -692,6 +692,37 @@ def test_wt_pre_start_runs_the_worktree_recipe(tmp_path: Path) -> None:
 
 
 @needs_just
+def test_the_two_setup_recipes_share_their_steps_verbatim(rendered: Path) -> None:
+    """The two duplicate their logic rather than delegating, because a `just` dependency
+    on a recipe that may not exist is a parse error.
+
+    Duplication drifts, so this pins the parts that must stay identical: the language
+    install discovery, and the probe form. `apm-install` is the one deliberate difference,
+    covered by its own test.
+    """
+    setup = just(rendered, "--show", "setup").stdout
+    worktree = just(rendered, "--show", "setup-worktree").stdout
+
+    # The language installs are discovered the same way in both.
+    discovery = "grep -E '^(rust|python|go|ts)-install$'"
+    assert discovery in setup, "setup no longer discovers language installs this way"
+    assert discovery in worktree, "setup-worktree drifted from setup's discovery"
+
+    # Both probe rather than depend.
+    assert 'just --show "$recipe"' in setup
+    assert 'just --show "$recipe"' in worktree
+
+    # Every recipe setup-worktree probes for is one setup probes for too, so a step can
+    # never reach a worktree without also reaching a clone.
+    probed = re.compile(r"for recipe in ([a-z0-9\- ]+); do")
+    setup_probed = set(probed.search(setup).group(1).split())
+    worktree_probed = set(probed.search(worktree).group(1).split())
+    assert worktree_probed < setup_probed, (
+        f"setup-worktree probes {worktree_probed - setup_probed}, which setup does not"
+    )
+
+
+@needs_just
 def test_setup_probes_rather_than_depends(rendered: Path) -> None:
     """Which recipes exist follows from which layers rendered.
 

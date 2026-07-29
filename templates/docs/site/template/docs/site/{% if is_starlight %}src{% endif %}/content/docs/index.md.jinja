@@ -1,0 +1,11 @@
+---
+title: {{ project_name | default('Documentation', true) }}
+{% if description %}description: {{ description }}
+{% endif %}---
+
+{% if description %}{{ description }}
+{% else %}What this project does, and what a reader needs first.
+{% endif %}
+Replace this page. The sidebar is {% if sidebar_autogenerate %}derived from the files in
+`src/content/docs/`, so a new page appears once it exists{% else %}an explicit list in
+`astro.config.mjs`, so a new page has to be added there{% endif %}.

@@ -1,0 +1,17 @@
+# Decision records
+
+{% if project_name %}Decisions taken in {{ project_name }}, newest last.
+{%- else %}Decisions taken in this project, newest last.
+{%- endif %}
+
+A record captures a decision that was expensive to reach and would otherwise be
+re-litigated: what forced it, what was chosen, and what the choice costs. Something
+obvious in hindsight still earns one when the reasoning is not obvious from the code.
+
+Copy `0000-template.md` to the next number. Numbers are never reused, and a decision that
+no longer holds gets a new record superseding the old rather than an edit, so the history
+of what was believed stays readable.
+
+| ADR | Title | Status |
+|---|---|---|
+| | | |
