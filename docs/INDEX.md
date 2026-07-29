@@ -14,6 +14,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
 | `docs/agents` | 1 | 9 |
+| `lang/rust` | 3 | 14 |
 
 ## `base/gitignore`
 
@@ -81,4 +82,35 @@ docs/agents/index.md
 docs/agents/quality/index.md
 docs/agents/release/index.md
 docs/agents/testing/index.md
+```
+
+## `lang/rust`
+
+Rust tooling: rustfmt, clippy, cargo-deny, cargo-machete, cargo-nextest, plus the CI jobs and the fragments every aggregating layer folds in.
+
+Requires `cargo` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `crate_kind` | `lib` | `bin` | `lib` |
+| `rust_edition` | str | `2024` |
+| `spdx_id` | str | `{{ _external_data.license.license | default('Apache-2.0', true) }}` |
+
+Writes:
+
+```
+.github/actions/setup-rust/action.yml
+.github/quality.d/rust.yml
+.github/security.d/rust.yml
+.github/workflows/wc-lint-rust.yml
+.github/workflows/wc-test-rust.yml
+.gitignore.d/rust
+.gitlab/ci/rust.yml
+.just.d/rust.just
+.mise/conf.d/rust.toml
+.pre-commit.d/rust.yaml
+clippy.toml
+deny.toml
+rust-toolchain.toml
+rustfmt.toml
 ```

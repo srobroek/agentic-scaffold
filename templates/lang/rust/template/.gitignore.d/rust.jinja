@@ -1,0 +1,7 @@
+# rust
+{% if crate_kind == 'lib' -%}
+# A library ignores Cargo.lock; a binary commits it so builds reproduce.
+Cargo.lock
+{%- else -%}
+# A binary commits Cargo.lock, so nothing conditional is ignored here.
+{%- endif %}

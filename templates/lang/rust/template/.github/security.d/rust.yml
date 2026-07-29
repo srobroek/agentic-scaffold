@@ -1,0 +1,10 @@
+# A job fragment the host layer's wc-security.yml folds into its matrix. CodeQL
+# has no Rust analysis, so the entry names what does apply instead.
+codeql:
+  supported: false
+  reason: CodeQL has no Rust extractor; cargo-deny and osv cover the same ground.
+osv:
+  lockfiles: ["Cargo.lock"]
+trivy:
+  mode: fs
+  scanners: ["vuln", "secret"]

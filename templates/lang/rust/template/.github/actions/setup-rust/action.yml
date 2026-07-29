@@ -1,0 +1,13 @@
+name: Setup Rust
+description: Install the pinned toolchain and warm the cargo cache.
+
+runs:
+  using: composite
+  steps:
+    - name: Install the toolchain from rust-toolchain.toml
+      shell: bash
+      run: rustup show active-toolchain || rustup toolchain install
+
+    - uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # v2.8.0
+      with:
+        save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}

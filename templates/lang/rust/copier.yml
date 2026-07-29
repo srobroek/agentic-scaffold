@@ -1,0 +1,38 @@
+_subdirectory: template
+_answers_file: .copier-answers.rust.yml
+
+_scaffold:
+  summary: >-
+    Rust tooling: rustfmt, clippy, cargo-deny, cargo-machete, cargo-nextest, plus
+    the CI jobs and the fragments every aggregating layer folds in.
+  requires_bin: [cargo]
+  after: [base/license, workspace/monorepo]
+
+crate_kind:
+  type: str
+  help: A library ignores Cargo.lock; a binary commits it so builds reproduce.
+  choices: [lib, bin]
+  default: lib
+
+rust_edition:
+  type: str
+  help: Cargo edition.
+  default: "2024"
+
+spdx_id:
+  type: str
+  help: >-
+    SPDX identifier for Cargo.toml's license key. Taken from base/license, which
+    renders first. cargo-deny fails its licence check against the crate itself
+    when this is absent, and cargo init writes no license key.
+  default: "{{ _external_data.license.license | default('Apache-2.0', true) }}"
+
+_external_data:
+  license: .copier-answers.license.yml
+
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/patch_manifest.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ spdx_id }}"
+    "{{ rust_edition }}"

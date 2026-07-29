@@ -1,4 +1,5 @@
 _subdirectory: template
+_answers_file: .copier-answers.repo.yml
 
 _scaffold:
   summary: README, editorconfig, gitattributes, and the docs and scripts directories.
