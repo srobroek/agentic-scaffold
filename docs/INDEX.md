@@ -11,7 +11,7 @@ Design lives in `layers.md`; this file is the inventory.
 | Layer | Questions | Files |
 |---|---|---|
 | `agentic/apm` | 5 | 3 |
-| `agentic/beads` | 7 | 2 |
+| `agentic/beads` | 7 | 3 |
 | `agentic/index` | 2 | 3 |
 | `agentic/rtk` | 0 | 2 |
 | `base/gitignore` | 1 | 0 |
@@ -29,7 +29,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
 | `lang/ts` | 2 | 13 |
-| `quality/hooks` | 3 | 5 |
+| `quality/hooks` | 3 | 6 |
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
 | `release/release-please` | 4 | 4 |
@@ -80,6 +80,7 @@ Writes:
 ```
 .just.d/beads.just
 scripts/bd-dolt-push.sh
+scripts/render_adrs.py
 ```
 
 ## `agentic/index`
@@ -513,6 +514,7 @@ Writes:
 ```
 .just.d/hooks.just
 .mise/conf.d/hooks.toml
+.pre-commit.d/adr.yaml
 .pre-commit.d/beads.yaml
 .pre-commit.d/hygiene.yaml
 scripts/merge_hooks.py

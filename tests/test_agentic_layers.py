@@ -414,6 +414,63 @@ def test_the_database_push_runs_at_pre_push(tmp_path: Path) -> None:
     assert "pre-push" in config["default_install_hook_types"]
 
 
+# --- ADR rendering ---------------------------------------------------------
+
+
+def test_the_adr_fragment_renders_and_writes(tmp_path: Path) -> None:
+    """The only writing hook in the merged config, so it must stage what it writes.
+
+    prek fails a commit when a hook modifies a tracked file and leaves it unstaged,
+    and silently omits a newly written untracked one, so a renderer that does not
+    stage produces either a failed commit or a missing file.
+    """
+    dest = git_repo(tmp_path / "d")
+    render("quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n")
+
+    config = yaml.safe_load((dest / ".pre-commit-config.yaml").read_text())
+    hook = next(
+        h for repo in config["repos"] for h in repo["hooks"] if h["id"] == "render-adrs"
+    )
+    assert hook["stages"] == ["pre-commit"]
+    # A database is not a path: no staged file set reveals that a bead changed.
+    assert hook["always_run"] is True
+    assert "files" not in hook
+
+
+def test_the_adr_hooks_no_op_without_their_tooling(tmp_path: Path) -> None:
+    """Beads is optional tooling, so a clone without bd must still commit.
+
+    The renderer is guarded on its own presence because quality/hooks renders
+    whether or not agentic/beads did, and the linter on `bd` being installed.
+    """
+    dest = git_repo(tmp_path / "d")
+    render("quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n")
+
+    config = yaml.safe_load((dest / ".pre-commit-config.yaml").read_text())
+    hooks = {
+        h["id"]: h for repo in config["repos"] for h in repo["hooks"]
+    }
+    assert "test -x scripts/render_adrs.py" in hooks["render-adrs"]["entry"]
+    assert "command -v bd" in hooks["adr-lint-decisions"]["entry"]
+
+
+def test_beads_ships_the_adr_renderer(tmp_path: Path) -> None:
+    """agentic/beads owns beads-adjacent scripts, the split bd-dolt-push.sh uses.
+
+    A prek `entry:` cannot point into apm_modules/, so the script is vendored into
+    the rendered project rather than referenced from an installed package.
+    """
+    dest = git_repo(tmp_path / "d")
+    render("agentic/beads", dest, "bd_prefix: xy\n")
+
+    script = dest / "scripts" / "render_adrs.py"
+    assert script.is_file()
+    assert script.stat().st_mode & 0o111, "a bare-path entry needs the execute bit"
+    body = script.read_text()
+    assert "VENDORED from srobroek/agentic-packages" in body, "provenance must survive"
+    assert "bd export" in body
+
+
 # --- AGENTS.md ownership ---------------------------------------------------
 
 
