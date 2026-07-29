@@ -8,9 +8,23 @@
 | `SyntaxError` pointing at an unrelated line | a conditional filename containing a quote breaks jinja compilation, because the filename is embedded in generated Python. Use a derived boolean carrying `when: false` |
 | a `yaml`-typed answer rejects its own default | a jinja list renders as a Python repr with single quotes. Append `| tojson` |
 | a conditional path renders partially | each path segment needs its own guard |
+| `.DS_Store` appears in a rendered project | `_subdirectory` stops copier applying its own `DEFAULT_EXCLUDE`. Pass `--exclude` explicitly |
 
 `_external_data` resolves relative to the destination, so a layer can read a
 sibling's answers file. A missing file warns and falls back to the default.
+
+`DEFAULT_EXCLUDE` stops applying once `_subdirectory` is set, verified against
+copier 9.17.0 with a template holding nothing but `_subdirectory: template` and a
+planted `.DS_Store`. Every layer here sets `_subdirectory`, so every layer was
+affected.
+
+The failure hides twice. `.DS_Store` is gitignored, so a template directory
+carrying one shows nothing in `git status`, and the file surfaces only in a
+rendered project. Finder writes one into any directory it displays.
+
+`--exclude` replaces the default set rather than adding to it, so `render.py`
+repeats all eight defaults alongside `.DS_Store` and `._*`.
+`tests/test_render_excludes.py` plants an artifact and asserts it does not render.
 
 ### projen
 

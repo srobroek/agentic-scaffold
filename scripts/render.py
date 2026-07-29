@@ -23,6 +23,26 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = REPO_ROOT / "templates"
 
+# copier 9.17.0 stops applying its own DEFAULT_EXCLUDE once `_subdirectory` is
+# set, and every layer here sets it. A `.DS_Store` Finder wrote into a template
+# directory then renders into the generated project. Because `.DS_Store` is
+# gitignored, such a file never shows up in `git status`, so nothing else here
+# would report it.
+#
+# `--exclude` REPLACES the default set rather than adding to it, so the whole
+# default is repeated, plus the two macOS artifacts.
+EXCLUDE = (
+    "copier.yaml",
+    "copier.yml",
+    "~*",
+    "*.py[co]",
+    "__pycache__",
+    ".git",
+    ".DS_Store",
+    ".svn",
+    "._*",
+)
+
 
 def die(code: int, message: str) -> None:
     print(f"error: {message}", file=sys.stderr)
@@ -90,6 +110,8 @@ def render(layer: str, dest: Path, answers: Path | None, pretend: bool) -> None:
         "--defaults",
         "--overwrite",
     ]
+    for pattern in EXCLUDE:
+        command += ["--exclude", pattern]
     if pretend:
         command.append("--pretend")
     if answers:
