@@ -208,6 +208,24 @@ under a per-seat Enterprise license.
 
 Tests use `tofu test` with `command = plan` and provider mocks.
 
+## Hooks versus CI
+
+A local hook is advisory: `--no-verify` defeats it, and a fresh clone has no
+shims until someone runs `just setup`. A check that must hold therefore runs in
+CI, inside the quality job the gate depends on.
+
+| Runs in CI | Stays a local hook |
+|---|---|
+| the whole hook set, through `prek run --all-files` | formatters and fixers that rewrite files |
+| commit-message checks over the pull request range | anything reading staged state before a commit exists |
+
+The split follows from what each can see. A check that reads committed state runs
+in CI. A check that rewrites, or that needs the index, stays a hook.
+
+prek installs into `.git/hooks` once `core.hooksPath` is set repo-locally, and
+its `pre-push` shim fires from there even where another tool owns the global
+hooks path.
+
 ## Steering
 
 `docs/agents` holds one directory per concern. Each concern has an index and

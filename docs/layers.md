@@ -179,14 +179,17 @@ The agent then reads the rendered layer set and recommends packages against it:
 shell, `steering-infrastructure` for terraform, `speckit` when SpecKit is in use.
 That match is judgement, so it belongs to the agent rather than a template.
 
-`agentic/apm` seeds three marketplaces: `srobroek/agentic-packages`,
-`srobroek/slopvac`, and `srobroek/vibe-hero`.
+`agentic/apm` seeds two marketplaces: `srobroek/agentic-packages` and
+`srobroek/slopvac`.
 
-The repomix and worktrunk marketplaces are not seeded. Both are already wrapped
-as apm packages that carry more: `mcp-repomix` adds a snapshot-refresh hook the
-three-plugin marketplace lacks, and `worktrunk-writer` with `hooks-worktrunk`
-adds writer lifecycle, branch leases, and cross-runtime enforcement over the
-single-plugin marketplace. Seeding them would give two sources for one tool.
+The worktrunk marketplace is not seeded, because `worktrunk-writer` and
+`hooks-worktrunk` already wrap it with writer lifecycle, branch leases, and
+cross-runtime enforcement that the single-plugin marketplace does not carry.
+
+The repomix marketplace is not seeded either, and the reason is that its MCP
+server earns nothing over the CLI. `mcp-repomix`'s own refresh hook shells out to
+`repomix --style xml --output <path> <root>`, so the CLI plus a hook is what does
+the work.
 
 Choosing SpecKit pulls `speckit`, `speckit-beads`, and `steering-speckit`
 together. `speckit-beads` is what connects SpecKit to `bd`.
@@ -199,11 +202,14 @@ bd installs two separate sets. Its git hooks are five 1.3KB shims running
 prek entries, since prek supports all five stages. What made `--skip-hooks`
 necessary was the ambient hook binaries copied in alongside them.
 
-Its agent hooks are four codex lifecycle entries in `.codex/hooks.json` running
-`bd codex-hook` on `SessionStart`, `UserPromptSubmit`, `PreCompact`, and
-`PostCompact`. Those stay as bd writes them, because they reload beads context
-after compaction, which is what makes `AGENTS.md` carrying no beads prose safe.
-`--skip-agents` would remove them and is therefore not used.
+Its agent hooks come in two more sets, both kept as bd writes them. Four codex
+lifecycle entries in `.codex/hooks.json` run `bd codex-hook` on `SessionStart`,
+`UserPromptSubmit`, `PreCompact`, and `PostCompact`. One Claude entry in
+`.claude/settings.json` runs `bd prime --hook-json` on `SessionStart`.
+
+Those hooks reload beads context after compaction, which is what makes an
+`AGENTS.md` carrying no beads prose safe. `--skip-agents` would remove them and
+is therefore not used.
 
 ## iac
 
