@@ -60,3 +60,27 @@ repos:
         pass_filenames: false
         always_run: true
         groups: [beads]
+
+      # The database does not travel with a git push on its own. It moves over
+      # `refs/dolt/data` on the same remote, and `bd hooks run pre-push` pushed nothing
+      # here, so this is what keeps the issues from staying on one machine.
+      #
+      # pre-push rather than pre-commit: a commit is local, so pushing per commit is work
+      # nobody is waiting on, while a git push is the moment the database has to follow.
+      #
+      # `custom.bd-push-command` names a wrapper where the database runs in a container,
+      # because a direct `bd dolt push` hangs there until it times out. Reading the
+      # configured value means the hook works either way.
+      #
+      # Never blocking. A push that fails on an unreachable remote or a missing wrapper
+      # must not stop the git push; `bd dolt push` is recoverable by running it again.
+      # A script rather than an inline `bash -c`: the message names the command to rerun,
+      # and quoting that inside a YAML string inside a shell string does not survive.
+      - id: bd-dolt-push
+        name: bd (push the issue database)
+        entry: scripts/bd-dolt-push.sh
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+        groups: [beads]

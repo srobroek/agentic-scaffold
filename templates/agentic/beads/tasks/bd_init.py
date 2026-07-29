@@ -95,6 +95,32 @@ def agents_template(dest: Path) -> str:
     return str(candidate) if candidate.is_file() else ""
 
 
+def derive_sync_remote(dest: Path) -> str:
+    """Turn the git origin into a Dolt remote URL.
+
+    The database travels over `refs/dolt/data` on the same remote the code lives on, so
+    the URL is the git origin's with a `git+` scheme prefix. Without that prefix bd reads
+    it as a plain remote rather than one over the git transport.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(dest), "remote", "get-url", "origin"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return ""
+
+    url = result.stdout.strip()
+    if not url:
+        return ""
+    # A scp-style address is not a URL, so it is normalised first: git@host:owner/repo.
+    if url.startswith("git@"):
+        host, _, path = url.partition(":")
+        url = f"ssh://{host}/{path}"
+    return url if url.startswith("git+") else f"git+{url}"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dest", type=Path)
@@ -102,6 +128,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dolt-sync", default="git-origin", choices=["git-origin", "local-only"])
     parser.add_argument("--auto-export", action="store_true")
     parser.add_argument("--agents-template", default="")
+    parser.add_argument("--sync-remote", default="")
+    parser.add_argument("--dolt-auto-commit", default="")
+    parser.add_argument("--push-command", default="")
     args = parser.parse_args(argv)
 
     dest = args.dest
@@ -122,8 +151,25 @@ def main(argv: list[str] | None = None) -> int:
         # A missing remote is the desired end state, so a failure here is not one.
         run(["bd", "dolt", "remote", "remove", "origin"], dest, required=False)
 
-    if args.auto_export and (code := run(["bd", "config", "set", "export.auto", "true"], dest)):
+    # Every repository with beads sets sync.remote, surveyed across five. The
+    # `git+ssh://` or `git+https://` prefix is what marks it a Dolt remote over the git
+    # transport rather than a git remote, so a bare URL would be read as the wrong kind.
+    remote = args.sync_remote or (
+        derive_sync_remote(dest) if args.dolt_sync == "git-origin" else ""
+    )
+    if remote and (code := run(["bd", "config", "set", "sync.remote", remote], dest)):
         return code
+
+    settings = [
+        ("export.auto", "true" if args.auto_export else ""),
+        ("dolt.auto-commit", args.dolt_auto_commit),
+        # A direct `bd dolt push` hangs where the database runs in a container. Setting
+        # this makes beads' own automatic push go through the wrapper instead.
+        ("custom.bd-push-command", args.push_command),
+    ]
+    for key, value in settings:
+        if value and (code := run(["bd", "config", "set", key, value], dest)):
+            return code
 
     move_gitignore_lines(dest)
     return 0

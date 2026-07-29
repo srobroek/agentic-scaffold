@@ -11,7 +11,7 @@ Design lives in `layers.md`; this file is the inventory.
 | Layer | Questions | Files |
 |---|---|---|
 | `agentic/apm` | 5 | 3 |
-| `agentic/beads` | 3 | 1 |
+| `agentic/beads` | 7 | 1 |
 | `agentic/index` | 3 | 4 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
@@ -23,7 +23,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
 | `lang/ts` | 2 | 13 |
-| `quality/hooks` | 3 | 5 |
+| `quality/hooks` | 3 | 6 |
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
 | `release/release-please` | 4 | 4 |
@@ -63,7 +63,11 @@ Requires `git`, `bd` on `PATH`.
 |---|---|---|
 | `bd_prefix` | str |  |
 | `bd_dolt_sync` | `git-origin` | `local-only` | `git-origin` |
+| `bd_sync_remote` | str |  |
 | `bd_auto_export` | bool | `False` |
+| `bd_dolt_auto_commit` | `False` | `on` | `batch` | `on` |
+| `bd_push_command` | str |  |
+| `bd_sync_hook` | `pre-push` | `pre-commit` | `none` | `pre-push` |
 
 Writes:
 
@@ -359,6 +363,7 @@ Writes:
 .mise/conf.d/hooks.toml
 .pre-commit.d/beads.yaml
 .pre-commit.d/hygiene.yaml
+scripts/bd-dolt-push.sh
 scripts/merge_hooks.py
 ```
 

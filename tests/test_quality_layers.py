@@ -249,13 +249,26 @@ def test_bd_gets_one_prek_entry_per_git_hook(rendered: Path) -> None:
 
 def test_a_bd_entry_is_guarded_so_a_clone_without_bd_still_commits(rendered: Path) -> None:
     """beads is optional tooling. Without the guard every commit fails for anyone
-    who does not have bd installed."""
+    who does not have bd installed.
+
+    The guard lives wherever the entry does: inline for the five event shims, and inside
+    the script for the database push, whose message has quoting an inline entry cannot
+    carry.
+    """
     for repo in config(rendered)["repos"]:
         for hook in repo["hooks"]:
-            if hook["id"].startswith("bd-"):
-                assert "command -v bd" in hook["entry"], f"{hook['id']} is unguarded"
-                # Forwards git's own hook arguments; prepare-commit-msg needs them.
-                assert '"$@"' in hook["entry"]
+            if not hook["id"].startswith("bd-"):
+                continue
+
+            entry = hook["entry"]
+            if entry.endswith(".sh"):
+                body = (rendered / entry).read_text()
+                assert "command -v bd" in body, f"{hook['id']}'s script is unguarded"
+                continue
+
+            assert "command -v bd" in entry, f"{hook['id']} is unguarded"
+            # Forwards git's own hook arguments; prepare-commit-msg needs them.
+            assert '"$@"' in entry
 
 
 # --- the merge -------------------------------------------------------------

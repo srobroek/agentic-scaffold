@@ -26,7 +26,11 @@ apm_cli_version: "0.25.0"
 BEADS_ANSWERS = """\
 bd_prefix: demo
 bd_dolt_sync: local-only
+bd_sync_remote: ""
 bd_auto_export: false
+bd_dolt_auto_commit: "on"
+bd_push_command: ""
+bd_sync_hook: pre-push
 """
 
 
@@ -229,6 +233,35 @@ def test_the_layer_never_skips_the_agent_hooks() -> None:
     assert "--skip-agents" not in " ".join(body["_tasks"])
 
 
+@needs_bd
+def test_beads_is_tracked_rather_than_stealthed(beads: Path) -> None:
+    """`--stealth` writes `.beads/` into `.git/info/exclude`, so the database is local.
+
+    A scaffolded repository shares its issues, and `bd init` auto-detects a fork and
+    offers exclusion on its own, so this asserts the end state rather than the flag.
+    agentic-packages is stealthed that way: its `.beads/` is excluded and untracked.
+    """
+    exclude = beads / ".git" / "info" / "exclude"
+    if exclude.is_file():
+        assert "beads" not in exclude.read_text(), ".beads was excluded from git"
+
+    tracked = subprocess.run(
+        ["git", "-C", str(beads), "ls-files", ".beads/"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert ".beads/config.yaml" in tracked, "the beads config is untracked"
+
+
+def test_the_layer_never_passes_stealth() -> None:
+    """Checked against the argv the task builds, not a comment naming the flag."""
+    assert "--stealth" not in bd_command()
+
+    body = yaml.safe_load((TEMPLATES / "agentic" / "beads" / "copier.yml").read_text())
+    assert "--stealth" not in " ".join(body["_tasks"])
+
+
 def test_the_layer_always_skips_the_git_hooks() -> None:
     """quality/hooks owns those five events as prek entries."""
     assert "--skip-hooks" in bd_command()
@@ -243,6 +276,147 @@ def test_a_non_git_destination_is_refused(tmp_path: Path) -> None:
 
     assert result.returncode == 3
     assert "not a git repository" in result.stderr
+
+
+# --- beads configuration ---------------------------------------------------
+
+
+@needs_bd
+def test_the_sync_remote_is_derived_from_the_git_origin(tmp_path: Path) -> None:
+    """`sync.remote` is the one property every repository with beads sets.
+
+    Surveyed across agentic-packages, claudebroker, platevault, skymath, and slopvac.
+    The `git+` prefix is what marks it a Dolt remote over the git transport; without it
+    bd reads the URL as a plain remote.
+    """
+    dest = git_repo(tmp_path / "d")
+    subprocess.run(
+        ["git", "-C", str(dest), "remote", "add", "origin", "git@github.com:srobroek/demo.git"],
+        check=True,
+    )
+
+    # git-origin is the answer that derives it; local-only deliberately does not.
+    answers = BEADS_ANSWERS.replace("bd_dolt_sync: local-only", "bd_dolt_sync: git-origin")
+    assert render("agentic/beads", dest, answers).returncode == 0
+
+    result = subprocess.run(
+        ["bd", "config", "get", "sync.remote"],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    # The scp-style address is normalised to a URL before the prefix is added.
+    assert result.stdout.strip() == "git+ssh://git@github.com/srobroek/demo.git"
+
+
+@needs_bd
+def test_an_explicit_sync_remote_wins(tmp_path: Path) -> None:
+    dest = git_repo(tmp_path / "d")
+    explicit = "git+https://gitlab.com/group/thing.git"
+
+    render(
+        "agentic/beads",
+        dest,
+        BEADS_ANSWERS.replace('bd_sync_remote: ""', f'bd_sync_remote: "{explicit}"'),
+    )
+
+    result = subprocess.run(
+        ["bd", "config", "get", "sync.remote"],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == explicit
+
+
+@needs_bd
+@pytest.mark.parametrize(
+    ("answer", "key", "expected"),
+    [
+        ("bd_auto_export: true", "export.auto", "true"),
+        ("bd_dolt_auto_commit: batch", "dolt.auto-commit", "batch"),
+        ("bd_push_command: dbd", "custom.bd-push-command", "dbd"),
+    ],
+)
+def test_each_surveyed_property_reaches_bd(
+    answer: str, key: str, expected: str, tmp_path: Path
+) -> None:
+    """Each of these is set in a real repository, so each is an answer here.
+
+    export.auto in slopvac, dolt.auto-commit in platevault, and the push command where
+    the database runs in a container.
+    """
+    dest = git_repo(tmp_path / "d")
+    field = answer.split(":")[0]
+    answers = "\n".join(
+        answer if line.startswith(field) else line for line in BEADS_ANSWERS.splitlines()
+    )
+
+    assert render("agentic/beads", dest, answers + "\n").returncode == 0
+
+    result = subprocess.run(
+        ["bd", "config", "get", key], cwd=dest, capture_output=True, text=True, check=True
+    )
+    assert result.stdout.strip() == expected
+
+
+def test_the_database_push_hook_never_blocks_a_git_push() -> None:
+    """A push failing on an unreachable remote must not stop the git push.
+
+    `bd dolt push` is recoverable by running it again, and blocking would make an
+    offline commit-and-push impossible.
+    """
+    script = (
+        TEMPLATES
+        / "quality"
+        / "hooks"
+        / "template"
+        / "scripts"
+        / "bd-dolt-push.sh"
+    ).read_text()
+
+    # Every exit is 0, and the failure branch reports rather than propagating.
+    assert "exit 0" in script
+    assert "exit 1" not in script
+    assert script.rstrip().endswith("exit 0")
+
+
+def test_the_database_push_reads_the_configured_push_command() -> None:
+    """A direct `bd dolt push` hangs where the database runs in a container.
+
+    The wrapper is named by `custom.bd-push-command`, so the hook reads it rather than
+    assuming `bd`.
+    """
+    script = (
+        TEMPLATES / "quality" / "hooks" / "template" / "scripts" / "bd-dolt-push.sh"
+    ).read_text()
+
+    assert "custom.bd-push-command" in script
+    # `bd config get` prints "<key> (not set)" rather than failing, so both are handled.
+    assert "not set" in script
+    # And a configured wrapper that is absent is skipped rather than run.
+    assert "command -v" in script
+
+
+def test_the_database_push_runs_at_pre_push(tmp_path: Path) -> None:
+    """A commit is local, so pushing per commit is work nobody waits on.
+
+    A git push is the moment the database has to follow.
+    """
+    dest = git_repo(tmp_path / "d")
+    render("quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n")
+
+    config = yaml.safe_load((dest / ".pre-commit-config.yaml").read_text())
+    hook = next(
+        h
+        for repo in config["repos"]
+        for h in repo["hooks"]
+        if h["id"] == "bd-dolt-push"
+    )
+    assert hook["stages"] == ["pre-push"]
+    assert "pre-push" in config["default_install_hook_types"]
 
 
 # --- AGENTS.md ownership ---------------------------------------------------

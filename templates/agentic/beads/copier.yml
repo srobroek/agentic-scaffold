@@ -26,12 +26,52 @@ bd_dolt_sync:
     the database survive a reclone. local-only keeps it on this machine.
   default: git-origin
 
+# `sync.remote` is the one property every repository with beads sets, surveyed across
+# five: agentic-packages, claudebroker, platevault, skymath, slopvac. It carries a
+# `git+ssh://` or `git+https://` prefix, which is what marks it as a Dolt remote over
+# the git transport rather than a git remote.
+bd_sync_remote:
+  type: str
+  help: >-
+    Dolt remote the database pushes to, shaped `git+ssh://git@host/owner/repo.git` or
+    `git+https://host/owner/repo.git`. Empty derives it from the git origin.
+  default: ""
+
 bd_auto_export:
   type: bool
   help: >-
     Export .beads/issues.jsonl after writes. A viewer such as bv needs it; the Dolt
-    database stays the source of truth either way.
+    database stays the source of truth either way. Set in slopvac.
   default: false
+
+# `batch` defers Dolt commits to `bd dolt commit`, so a run of writes becomes one
+# commit rather than one per write. Set in platevault.
+bd_dolt_auto_commit:
+  type: str
+  choices: [off, "on", batch]
+  help: >-
+    Dolt commit policy. `on` commits after each write, `batch` defers to
+    `bd dolt commit`, `off` leaves the working set alone.
+  default: "on"
+
+# A direct `bd dolt push` hangs on a machine where the database runs in a container:
+# the guard reports "will hang until it times out" and names a wrapper. Setting this
+# makes the beads package's own automatic push go through the wrapper too.
+bd_push_command:
+  type: str
+  help: >-
+    Command the automatic push runs instead of `bd`, for a machine where the database
+    lives in a container. Empty leaves `bd` in charge.
+  default: ""
+
+bd_sync_hook:
+  type: str
+  choices: [pre-push, pre-commit, none]
+  help: >-
+    When the database is pushed. pre-push is the default: a commit is local, so pushing
+    per commit is work nobody is waiting on, while a git push is the moment the
+    database has to travel with it.
+  default: pre-push
 
 # `--skip-hooks` is not an answer. bd's five git hooks are reproduced as prek
 # entries by quality/hooks, and letting bd install its own repoints
@@ -49,4 +89,7 @@ _tasks:
     "{{ _copier_conf.dst_path }}"
     --prefix "{{ bd_prefix }}"
     --dolt-sync "{{ bd_dolt_sync }}"
+    --sync-remote "{{ bd_sync_remote }}"
+    --dolt-auto-commit "{{ bd_dolt_auto_commit }}"
+    --push-command "{{ bd_push_command }}"
     {% if bd_auto_export %}--auto-export{% endif %}

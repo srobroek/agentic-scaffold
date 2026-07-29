@@ -334,7 +334,7 @@ Selecting `docs/api-refs` forces `docs/deploy-split`.
 | Layer | Writes | Variables |
 |---|---|---|
 | `agentic/apm` | `apm.yml`, `.just.d/apm.just`, `.gitignore.d/apm` | `apm_packages`, `apm_target`, `apm_cli_version` |
-| `agentic/beads` | `.beads/` through `bd init --skip-hooks`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_dolt_sync`, `bd_auto_export` |
+| `agentic/beads` | `.beads/` through `bd init --skip-hooks`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_dolt_sync`, `bd_sync_remote`, `bd_auto_export`, `bd_dolt_auto_commit`, `bd_push_command` |
 | `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_full_pack`, `index_extra_ignores` |
 | `agentic/marketplace` | nothing; it reports recommended installs | none |
 
@@ -415,6 +415,17 @@ It renders after `docs/agents`, because bd appends a marked
 symlink alone. With neither present it writes its own beads-only file instead, which
 would then be what the repository's agents read first.
 
+The properties it sets come from surveying every repository here that uses beads.
+`sync.remote` is the only one all five set, and it carries a `git+ssh://` or
+`git+https://` prefix, which is what marks it a Dolt remote over the git transport
+rather than a plain one. An empty answer derives it from the git origin, normalising an
+scp-style address first. `export.auto` is set in slopvac, `dolt.auto-commit: batch` in
+platevault, and `repos.additional` in skymath for cross-repository hydration.
+
+`metrics.*` and `no-git-ops` are set in the user's own `~/.config/bd/config.yaml`, so no
+layer writes them. `metadata.json` holds bd's generated `project_id` and database name,
+which are per-clone rather than per-template.
+
 bd also appends four ignore patterns to the root `.gitignore` under a header with no
 end marker. `base/gitignore` rebuilds that file from `.gitignore.d/`, so the task
 moves those lines into a fragment; left in place they survive until the next render
@@ -425,6 +436,40 @@ bd installs two separate sets. Its git hooks are five 1.3KB shims running
 `pre-push`, and `prepare-commit-msg`; `quality/hooks` reproduces those as local
 prek entries, since prek supports all five stages. What made `--skip-hooks`
 necessary was the ambient hook binaries copied in alongside them.
+
+What each event earns, from bd's own git-integration reference:
+
+| Event | What it does |
+|---|---|
+| `pre-commit` | exports `.beads/issues.jsonl` when `export.auto` is set, so it is committed alongside the change |
+| `prepare-commit-msg` | adds an `Executed-By:` trailer when an agent made the commit |
+| `post-merge` | imports JSONL as a legacy fallback; with `sync.remote` set, `bd dolt pull` is the real sync |
+| `post-checkout` | runs chained hooks |
+| `pre-push` | runs chained hooks |
+
+None of them pushes the database. Every workflow in bd's documentation runs
+`bd dolt push` by hand before `git push`, and running each event directly produced no
+output and no push. The issues would therefore stay on one machine.
+
+`quality/hooks` adds `scripts/bd-dolt-push.sh` at `pre-push` to close that. A commit is
+local, so a git push is the moment the database has to follow; pushing per commit would be
+work nobody is waiting on.
+
+It never blocks. An unreachable remote or a missing wrapper reports and exits 0, since
+`bd dolt push` is recoverable by running it again and blocking would make an offline
+push impossible. With no `sync.remote` configured it exits before doing anything.
+
+bd's own `dolt.auto-push` stays off. It pushes after a write on a five-minute debounce,
+which leaves a window where the remote is behind and nothing reports it, and its
+documentation warns that concurrent pushes to a git-protocol remote "can corrupt or
+strand remote history" with more than one writer. It also ignores
+`custom.bd-push-command`, so on a machine needing the wrapper it would hang every write
+until its timeout. The hook pushes at the one moment that matters instead.
+
+The push command is read from `custom.bd-push-command` rather than assumed to be `bd`.
+Where the database runs in a container a direct `bd dolt push` hangs until it times out,
+and that key names the wrapper that works. `custom.*` is bd's namespace for user-defined
+keys, so this is a local convention rather than something bd reads itself.
 
 Its agent hooks come in two more sets, both kept as bd writes them. Four codex
 lifecycle entries in `.codex/hooks.json` run `bd codex-hook` on `SessionStart`,
