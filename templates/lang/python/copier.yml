@@ -24,3 +24,9 @@ python_framework:
   help: Picks the dependency set and the entrypoint scaffold.
   choices: [none, fastapi, django, flask]
   default: none
+
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/split_init.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ python_layout }}"

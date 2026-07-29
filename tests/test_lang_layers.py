@@ -141,3 +141,66 @@ def test_every_language_layer_is_covered_here() -> None:
     """A new lang/* layer must be added to ANSWERS, or it ships untested."""
     on_disk = {p.parent.name for p in TEMPLATES.rglob("copier.yml")}
     assert on_disk == set(ANSWERS), f"untested language layers: {on_disk - set(ANSWERS)}"
+
+
+# --- lang/python's __init__ split ------------------------------------------
+
+
+def uv_init(path: Path) -> None:
+    """A real `uv init --lib`, so the test sees what a user would."""
+    subprocess.run(
+        ["uv", "init", "--lib", "--name", "demo", "-q"],
+        cwd=path,
+        check=True,
+        capture_output=True,
+    )
+
+
+def test_the_init_body_moves_into_core(tmp_path: Path) -> None:
+    """`uv init --lib` fills __init__.py, which non-empty-init-module rejects."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    uv_init(dest)
+    assert "def hello" in (dest / "src" / "demo" / "__init__.py").read_text()
+
+    render("lang/python", dest, ANSWERS["python"])
+
+    init = (dest / "src" / "demo" / "__init__.py").read_text()
+    core = (dest / "src" / "demo" / "core.py").read_text()
+    assert "def hello" not in init
+    assert "from demo.core import hello" in init
+    assert "def hello" in core
+
+
+def test_splitting_the_init_is_idempotent(tmp_path: Path) -> None:
+    dest = tmp_path / "d"
+    dest.mkdir()
+    uv_init(dest)
+    render("lang/python", dest, ANSWERS["python"])
+    first = (dest / "src" / "demo" / "__init__.py").read_text()
+
+    render("lang/python", dest, ANSWERS["python"])
+
+    assert (dest / "src" / "demo" / "__init__.py").read_text() == first
+
+
+def test_an_existing_core_is_not_clobbered(tmp_path: Path) -> None:
+    dest = tmp_path / "d"
+    dest.mkdir()
+    uv_init(dest)
+    core = dest / "src" / "demo" / "core.py"
+    core.write_text('"""Mine."""\n\n\ndef existing() -> None:\n    pass\n')
+
+    result = render("lang/python", dest, ANSWERS["python"])
+
+    assert result.returncode == 0
+    assert "existing" in core.read_text()
+    assert "already exists" in result.stdout
+
+
+def test_the_init_ignore_is_gone(tmp_path: Path) -> None:
+    """The split removes the need for it, and an unused ignore hides a real finding."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("lang/python", dest, ANSWERS["python"])
+    assert "non-empty-init-module" not in (dest / "ruff.toml").read_text()

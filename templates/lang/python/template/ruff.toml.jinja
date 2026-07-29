@@ -24,14 +24,11 @@ convention = "google"
 
 [lint.per-file-ignores]
 # A specific rule goes by NAME, not code: `preview = true` above turns on RUF201,
-# which rejects "S101" here. A group prefix such as ANN is still accepted.
+# which rejects "S101" here. A group prefix such as ANN is still accepted, and
+# `ruff check --fix` rewrites a code to its name for you.
 # A test asserts, and a bare assert is the point.
 "tests/**" = ["assert", "ANN"]
 
-# uv init writes a function into src/<pkg>/__init__.py, which the default
-# lint.flake8-no-pep420 view of a package rejects. Selecting nothing here would
-# fail on the scaffold before a line is written.
-"**/__init__.py" = ["non-empty-init-module"]
 
 [format]
 quote-style = "double"

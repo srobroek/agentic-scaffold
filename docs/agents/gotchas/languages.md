@@ -32,12 +32,20 @@ scaffold writes.
 (`rule-codes-in-selectors`), new in ruff 0.16. That rule rejects a specific rule
 code inside `lint.per-file-ignores`, so `"tests/**" = ["S101"]` fails the very
 config that selected it. Use the rule name, `assert`. A group prefix such as `ANN`
-is still accepted; only specific codes are rejected.
+or `S` in `select` is still accepted; only specific codes are rejected.
+
+`ruff check --fix` rewrites a code to its name, so the repair costs nothing:
+`["S101"]` becomes `["assert"]` in place. The rule reads a configuration file
+rather than source, which is why it fires with no Python involved.
 
 A wrong selector name is a **warning**, not an error: `Unknown rule selector
 'flake8-annotations'` printed while `ruff check` still reported "All checks
 passed". Read the warnings, or an ignore silently covers nothing.
 
 `uv init --lib` writes a function into `src/<pkg>/__init__.py`, which
-`non-empty-init-module` rejects. Without a per-file ignore the scaffold fails
-before a line of real code exists.
+`non-empty-init-module` rejects, so the scaffold fails its own lint before a line
+of real code exists.
+
+A per-file ignore would silence it. The layer moves the body into `core.py` and
+leaves an `__init__.py` that re-exports, which is the convention the rule exists to
+encourage. An ignore would also hide the finding in code written later.
