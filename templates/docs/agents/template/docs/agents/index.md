@@ -16,3 +16,14 @@ touched.
 
 <!-- BEGIN GENERATED: index -->
 <!-- END GENERATED: index -->
+
+## Using the recipes
+
+Add a package with `just add <name> <lang>`. Creating a member directory by hand
+skips the workspace-manifest registration and the fragment wiring.
+
+Run `just docs:agents` after changing any configuration a generated block reads.
+CI fails on drift.
+
+Run `just check` before claiming a change works. A tree that renders is not a
+project that builds.
