@@ -1,0 +1,38 @@
+_subdirectory: template
+_answers_file: .copier-answers.index.yml
+
+_scaffold:
+  summary: >-
+    repomix.config.json, so the directory map and the full pack are reproducible
+    from committed patterns rather than from a wrapper script's arguments.
+  requires_bin: [git]
+  after: [base/repo]
+
+index_languages:
+  type: yaml
+  help: >-
+    Glob patterns for the languages this repository holds, derived from the lang/*
+    layers that rendered. Path filtering is the only lever that works: the content
+    flags measured between 0 and a 10.9 percent increase.
+  default:
+    - "**/*.md"
+    - "**/*.toml"
+    - "**/*.yaml"
+    - "**/*.yml"
+    - "**/*.sh"
+
+index_full_pack:
+  type: bool
+  help: >-
+    Whether to configure a second, contents-bearing pack. It is a grep target
+    only: 6.3 million tokens against the map's 20 thousand. Worth it for a
+    repository that greps constantly; `rg` over the live tree answers the same
+    questions without a stale 26MB artefact.
+  default: false
+
+index_extra_ignores:
+  type: yaml
+  help: >-
+    Repository-shaped ignores on top of the defaults. Which directories hold
+    fixtures or generated output differs per repository, so this is not derivable.
+  default: []

@@ -10,12 +10,33 @@ Design lives in `layers.md`; this file is the inventory.
 
 | Layer | Questions | Files |
 |---|---|---|
+| `agentic/index` | 3 | 3 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
 | `docs/agents` | 1 | 9 |
 | `lang/rust` | 3 | 14 |
 | `workspace/worktrunk` | 6 | 2 |
+
+## `agentic/index`
+
+repomix.config.json, so the directory map and the full pack are reproducible from committed patterns rather than from a wrapper script's arguments.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `index_languages` | yaml | `['**/*.md', '**/*.toml', '**/*.yaml', '**/*.yml', '**/*.sh']` |
+| `index_full_pack` | bool | `False` |
+| `index_extra_ignores` | yaml | `[]` |
+
+Writes:
+
+```
+.gitignore.d/index
+.just.d/index.just
+repomix.config.json
+```
 
 ## `base/gitignore`
 

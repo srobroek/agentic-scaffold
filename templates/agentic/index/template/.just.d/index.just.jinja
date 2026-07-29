@@ -1,0 +1,19 @@
+# Agent index recipes, imported by the root justfile.
+
+# Rebuild the directory map that answers "what exists and where"
+[group('index')]
+map:
+    repomix
+
+{% if index_full_pack %}
+# Rebuild the contents pack. A grep target only: never read it whole
+[group('index')]
+map-full:
+    repomix --output repomix-full.xml --config repomix.config.json \
+      --no-directory-structure
+
+{% endif %}
+# Rebuild the code graph
+[group('index')]
+graph:
+    graphify update .

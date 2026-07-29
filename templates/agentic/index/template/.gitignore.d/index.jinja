@@ -1,0 +1,14 @@
+# Agent index artefacts: regenerable, large, and each one feeds the next. An
+# unignored artefact gets packed into the following artefact, which measured 38
+# percent of one repository's whole pack.
+repomix-map.xml
+{% if index_full_pack %}repomix-full.xml
+{% endif %}graphify-out/
+.serena/
+
+# repomix's default output names, used when --output is omitted. Two of these,
+# 40MB together, were committed by accident during a tuning sweep.
+/repomix-output.xml
+/repomix-output.md
+/repomix-output.txt
+/repomix.xml

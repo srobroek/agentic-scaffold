@@ -1,0 +1,52 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "output": {
+    "filePath": "repomix-map.xml",
+    "style": "xml",
+    "files": false,
+    "fileSummary": false
+  },
+  "include": [
+{%- for pattern in index_languages %}
+    "{{ pattern }}"{{ "," if not loop.last }}
+{%- endfor %}
+  ],
+  "ignore": {
+    "customPatterns": [
+      "**/CHANGELOG.md",
+      "**/*.lock",
+      "**/*.lock.yaml",
+      "**/*.lock.json",
+      "**/pnpm-lock.yaml",
+      "**/bun.lock",
+      "**/Cargo.lock",
+      "**/uv.lock",
+      "**/package-lock.json",
+      "**/poetry.lock",
+      "**/go.sum",
+      "**/.claude-plugin/marketplace.json",
+      "**/.agents/plugins/marketplace.json",
+      "**/assets/seed/**",
+      "**/fixtures/**",
+      "**/testdata/**",
+      "**/*.snap",
+      "**/messages/*.json",
+      "**/locales/**",
+      "**/i18n/**",
+      "**/bindings/index.ts",
+      "**/*.generated.*",
+      "**/generated/**",
+      "**/.agents/skills/**",
+      "**/.specify/extensions/**",
+      "**/graphify-out/**",
+      "**/.serena/**",
+      "**/repomix*.xml",
+      "**/*.min.js",
+      "**/*.min.css",
+      "**/*.map"{{ "," if index_extra_ignores }}
+{%- for pattern in index_extra_ignores %}
+      "{{ pattern }}"{{ "," if not loop.last }}
+{%- endfor %}
+    ]
+  }
+}

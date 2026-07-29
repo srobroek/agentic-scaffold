@@ -53,14 +53,23 @@ exclude = [
   # diverge from the branch it was taken from rather than share it.
   ".beads/dolt/",
 ]
-{% if dev_server %}
-[list]
-# hash_port maps a branch to 10000-19999, stable for a given branch, so two
-# worktrees never contend for one port. Dimmed in `wt list` when nothing listens.
-url = "http://localhost:{{ '{{' }} branch | hash_port }}"
 
 [post-start]
+# copy-ignored already warmed the map; this refreshes it for the new branch.
+# No staleness gate: a pack is 1.3 to 3.2 seconds, repomix has no cache, and
+# post-start runs once per worktree, so deferring amortises nothing.
+repomix-map = "repomix"
+{% if dev_server %}
 # Tethered, so the process tree dies with the worktree rather than holding the
 # port after `wt merge` removes it.
 dev = "wt step tether -- env PORT={{ '{{' }} branch | hash_port }} {{ dev_command }}"
 {% endif %}
+{% if dev_server %}
+
+[list]
+# hash_port maps a branch to 10000-19999, stable for a given branch, so two
+# worktrees never contend for one port. Dimmed in `wt list` when nothing listens.
+url = "http://localhost:{{ '{{' }} branch | hash_port }}"
+{% endif %}
+
+

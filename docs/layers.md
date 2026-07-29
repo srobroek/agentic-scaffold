@@ -212,6 +212,7 @@ Selecting `docs/api-refs` forces `docs/deploy-split`.
 |---|---|---|
 | `agentic/apm` | `apm.yml` | `apm_packages`, `apm_target` |
 | `agentic/beads` | `.beads/` through `bd init --skip-agents --skip-hooks`, plus `hooks/` in `.beads/.gitignore` | `bd_prefix` |
+| `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_full_pack`, `index_extra_ignores` |
 | `agentic/marketplace` | nothing; it reports recommended installs | none |
 
 No per-harness configuration file. `agentic/marketplace` runs last.
@@ -221,6 +222,27 @@ The agent then reads the rendered layer set and recommends packages against it:
 `language-rust` and `rust-quality` for a rust layer, `mcp-tauri` for a Tauri
 shell, `steering-infrastructure` for terraform, `speckit` when SpecKit is in use.
 That match is judgement, so it belongs to the agent rather than a template.
+
+`agentic/index` commits the patterns to `repomix.config.json`, which repomix reads
+natively. They are then visible to anyone reading the repository.
+
+Path filtering is the only lever that works. Measured against a 1,269-file
+repository, the include and ignore pair cut a pack by 30.7 percent. The content
+flags did not: `--remove-comments` takes 13.6 percent but deletes every `//` and
+`#`, so safety notes and invariants go with them; `--compress` takes 21 percent
+against the 70 its documentation claims, and grows comment-dense files;
+`--remove-empty-lines`, `--no-file-summary`, and `--truncate-base64` take nothing;
+`--style json` and `--parsable-style` make the output 10 percent larger.
+
+Two artefacts, and they differ by 311 times. `repomix-map.xml` carries no file
+contents and is 20 thousand tokens: read it. A contents pack is 6.3 million
+tokens, roughly six context windows, so it is only ever a grep target and is
+opt-in.
+
+Every index artefact is ignored, including repomix's own default output names.
+An unignored artefact is packed into the next one, which measured 38 percent of one
+repository's whole pack, and `graphify update` has no output flag so it writes into
+the tree regardless.
 
 `agentic/apm` seeds two marketplaces: `srobroek/agentic-packages` and
 `srobroek/slopvac`.
