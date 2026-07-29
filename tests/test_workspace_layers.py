@@ -630,16 +630,65 @@ def test_add_works_without_the_release_layer(tmp_path: Path) -> None:
 
 
 @needs_just
-def test_setup_is_the_one_entry_point(rendered: Path) -> None:
-    """`wt`'s blocking pre-start runs `just setup` per worktree, and its default answer
-    names this recipe, so it has to exist even with no other layer rendered."""
+def test_setup_covers_a_fresh_clone(rendered: Path) -> None:
     assert just(rendered, "--show", "setup").returncode == 0
 
-    body = (rendered / "justfile").read_text()
-    # mise first: it supplies the interpreters and binaries the later steps call.
-    assert "mise install" in body
+    body = just(rendered, "--show", "setup").stdout
+    # Trust before install: an untrusted config is skipped, and `mise install` then reads
+    # nothing while reporting success. Compared on the command lines, since the recipe's
+    # own comments mention installing too.
+    commands = [
+        line.strip() for line in body.splitlines() if line.strip().startswith("mise ")
+    ]
+    assert commands, "setup runs no mise command"
+    assert commands[0].startswith("mise trust"), f"trust is not first: {commands}"
     for recipe in ("hooks-install", "rtk-setup", "apm-install"):
         assert recipe in body, f"setup never reaches {recipe}"
+
+
+@needs_just
+def test_setup_worktree_never_reinstalls_what_a_copy_provides(rendered: Path) -> None:
+    """`.worktreeinclude` copies `apm_modules/`, and a fresh `apm install` is slow."""
+    body = just(rendered, "--show", "setup-worktree").stdout
+
+    assert "apm-install" not in body, "a worktree reinstalls the copied apm tree"
+    # What a copy cannot provide: a new directory is untrusted, a worktree's $GIT_DIR
+    # differs, and rtk trusts an absolute path per file.
+    assert "mise trust" in body
+    for recipe in ("hooks-install", "rtk-setup"):
+        assert recipe in body, f"setup-worktree never reaches {recipe}"
+
+
+@needs_just
+def test_setup_worktree_refreshes_the_language_dependencies(rendered: Path) -> None:
+    """The user config excludes `.venv/` and `target/`, and an exclude beats an include,
+    so those cannot be copied whatever `.worktreeinclude` says.
+
+    Warm the refresh is close to free anyway: uv sync 43ms, cargo fetch 0.55s, go mod
+    download 15ms.
+    """
+    body = just(rendered, "--show", "setup-worktree").stdout
+    assert "-install$" in body or "install$" in body, "no language install is discovered"
+
+
+@needs_just
+def test_wt_pre_start_runs_the_worktree_recipe(tmp_path: Path) -> None:
+    """The default answer decides what a new worktree runs, and it must not be `setup`."""
+    dest = tmp_path / "wt"
+    dest.mkdir()
+    render(
+        "workspace/worktrunk",
+        dest,
+        'forge_platform: github\nforge_hostname: ""\nsetup_command: "just setup-worktree"\n'
+        "dev_server: false\nworktree_includes: []\n",
+    )
+    body = (dest / ".config" / "wt.toml").read_text()
+    assert "just setup-worktree" in body
+
+    # And the copied trees are what make the short list correct.
+    include = (dest / ".worktreeinclude").read_text()
+    assert "apm_modules/" in include
+    assert "node_modules/" in include
 
 
 @needs_just
@@ -647,14 +696,12 @@ def test_setup_probes_rather_than_depends(rendered: Path) -> None:
     """Which recipes exist follows from which layers rendered.
 
     A dependency on one that never rendered is a parse error that breaks every recipe in
-    the file, so setup asks `just --show` instead. Here nothing else rendered, so it must
-    still run cleanly.
+    the file, so setup asks `just --show` instead. Here nothing else rendered, so both
+    must still run cleanly.
     """
-    result = just(rendered, "setup")
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    # And it says what it skipped rather than failing silently.
-    assert "setup" not in result.stderr or "not on PATH" in result.stderr
+    for recipe in ("setup", "setup-worktree"):
+        result = just(rendered, recipe)
+        assert result.returncode == 0, result.stdout + result.stderr
 
 
 @needs_just

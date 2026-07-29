@@ -242,15 +242,31 @@ The aggregate recipes probe rather than depend. `check` and `each <phase>` ask
 one runs. A `needs:`-style dependency on a recipe no fragment provided is a parse
 error, which is why `check` probes `hooks-all` rather than depending on it.
 
-`setup` is the one entry point, and probes the same way: the toolchain through mise, then
-each language's `deps`, then `hooks-install`, `rtk-setup`, and `apm-install`. Ordered by
-what the next step needs, since mise supplies the interpreters the rest call.
+A fresh clone and a linked worktree need different work, so there are two recipes.
 
-It is also what `wt`'s blocking pre-start runs per worktree, which `setup_command`
-defaults to. `hooks-install` passes `prek install --git-dir "$(git rev-parse
---absolute-git-dir)"`, resolved per checkout, so a linked worktree installs into its own
-hooks directory. A worktree's `$GIT_DIR` is `.git/worktrees/<name>/`, which is where git
-looks for its hooks, so shims in the primary would never fire there.
+`setup` is for a clone: `mise trust` then `mise install`, each rendered language's
+`<lang>-install`, then `hooks-install`, `rtk-setup`, and `apm-install`. Trust comes first
+because an untrusted config is skipped, after which `mise install` reads nothing and
+reports success.
+
+`setup-worktree` is what `wt`'s blocking pre-start runs, and `setup_command` defaults to
+it. It never runs `apm-install`: `.worktreeinclude` copies `apm_modules/` and
+`node_modules/` from the primary, and a fresh `apm install` is slow. What it does run is
+what a copy cannot provide, plus the language installs.
+
+| Step | Why a worktree needs it |
+|---|---|
+| `mise trust` | a new directory is untrusted, and an untrusted config is skipped |
+| `<lang>-install` | the user config excludes `.venv/` and `target/`, and an exclude beats an include, so those cannot be copied |
+| `hooks-install` | a worktree's `$GIT_DIR` is `.git/worktrees/<name>/`, where git looks for its hooks, so shims in the primary never fire |
+| `rtk-setup` | rtk records an absolute path per filter file, so this copy needs its own trust |
+
+The language installs are close to free when a copy warmed them, well under a second for
+each of uv, cargo, and go. They earn their place by catching a branch whose lockfile
+moved, where the copied tree would otherwise build stale.
+
+Both recipes probe with `just --show` rather than declaring dependencies, since a
+dependency on a recipe no layer rendered is a parse error.
 
 `--git-dir` replaced a `core.hooksPath` override. prek declines to install while an
 ambient global hooksPath is set, which a machine-wide hook manager leaves behind, and it

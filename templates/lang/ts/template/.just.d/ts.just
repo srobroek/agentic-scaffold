@@ -36,3 +36,11 @@ ts-dead:
 [group('ts')]
 ts-cov:
     bun test --coverage
+
+# `--frozen-lockfile` fails rather than updating the lockfile, so CI and a developer
+# install the same tree.
+
+# Install the locked dependencies into node_modules
+[group('ts')]
+ts-install:
+    bun install --frozen-lockfile

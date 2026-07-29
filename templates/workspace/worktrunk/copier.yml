@@ -32,7 +32,7 @@ setup_command:
     user config's mise trust, and after copy-ignored has warmed the caches.
     Derived from the language layers: uv sync, bun install, cargo fetch, go mod
     download, or a just recipe wrapping them.
-  default: "just setup"
+  default: "just setup-worktree"
 
 dev_server:
   type: bool

@@ -32,6 +32,10 @@ default:
 #
 # Ordered by what the next step needs. mise supplies the interpreters and binaries, so
 # it is first; hooks need the toolchain the shims call.
+#
+# `setup` is for a fresh clone. `setup-worktree` is what `wt`'s blocking pre-start runs,
+# and it is deliberately the shorter list: `.worktreeinclude` copies `apm_modules/`,
+# `.venv`, and `node_modules` from the primary, so a worktree does not reinstall them.
 
 # Install the toolchain, the dependencies, and the hook shims
 [group('all')]
@@ -40,21 +44,53 @@ setup:
     set -euo pipefail
     if command -v mise >/dev/null 2>&1; then
       echo "==> toolchain"
+      # Trust first: without it mise may skip the config or fail unable to prompt, and
+      # then `mise install` reads nothing and reports success.
+      mise trust --yes
       mise install --yes
     else
       echo "mise is not on PATH; skipping the toolchain" >&2
     fi
 
-    # Per language, so a member's dependencies install with the language that needs
-    # them. `deps` exists only where a lang/* layer provides one.
-    for name in rust python go ts; do
-      if just --show "$name-deps" >/dev/null 2>&1; then
-        echo "==> $name-deps"
-        just "$name-deps"
-      fi
+    for recipe in $(just --summary 2>/dev/null | tr ' ' '\n' | grep -E '^(rust|python|go|ts)-install$' || true); do
+      echo "==> $recipe"
+      just "$recipe"
     done
 
     for recipe in hooks-install rtk-setup apm-install; do
+      if just --show "$recipe" >/dev/null 2>&1; then
+        echo "==> $recipe"
+        just "$recipe"
+      fi
+    done
+
+# What a copy cannot provide, plus a dependency refresh in case this branch moved a
+# lockfile. Measured warm: uv sync 43ms, cargo fetch 0.55s, go mod download 15ms, so the
+# refresh is close to free and a stale copied tree is the thing it prevents.
+#
+#   mise trust      a new directory is untrusted, and an untrusted config is skipped
+#   hooks-install   a worktree's $GIT_DIR is `.git/worktrees/<name>/`, which is where git
+#                   looks for its hooks, so shims in the primary never fire here
+#   rtk-setup       rtk records an absolute path per filter file, so this copy is a
+#                   different path and needs its own trust
+#
+# `apm-install` is never run here. `apm_modules/` is copied, and a fresh install is slow.
+
+# Prepare a linked worktree, after copy-ignored has warmed the caches
+[group('all')]
+setup-worktree:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v mise >/dev/null 2>&1; then
+      mise trust --yes
+    fi
+
+    for recipe in $(just --summary 2>/dev/null | tr ' ' '\n' | grep -E '^(rust|python|go|ts)-install$' || true); do
+      echo "==> $recipe"
+      just "$recipe"
+    done
+
+    for recipe in hooks-install rtk-setup; do
       if just --show "$recipe" >/dev/null 2>&1; then
         echo "==> $recipe"
         just "$recipe"

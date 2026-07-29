@@ -33,3 +33,11 @@ rust-machete:
 [group('rust')]
 rust-cov:
     cargo llvm-cov nextest --all-features --lcov --output-path lcov.info
+
+# Fetches into the shared cargo registry cache, so a warm run is 0.55s. `cargo build`
+# would also fetch, but this separates a network failure from a compile failure.
+
+# Fetch the locked dependencies
+[group('rust')]
+rust-install:
+    cargo fetch --locked

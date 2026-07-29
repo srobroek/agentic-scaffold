@@ -495,7 +495,7 @@ Requires `git` on `PATH`.
 |---|---|---|
 | `forge_platform` | `github` | `gitlab` | `gitea` | `azure-devops` | `github` |
 | `forge_hostname` | str |  |
-| `setup_command` | str | `just setup` |
+| `setup_command` | str | `just setup-worktree` |
 | `dev_server` | bool | `False` |
 | `dev_command` | str | `just dev` |
 | `worktree_includes` | yaml | `[]` |
