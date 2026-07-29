@@ -149,8 +149,22 @@ carries the root config and the repository-wide hygiene hooks alone.
 | `workspace/just` | `justfile` carrying one `import` per `.just.d/*.just` | none |
 | `workspace/moon` | `.moon/workspace.yml` | `members` |
 | `workspace/devcontainer` | `.devcontainer/devcontainer.json` | none |
+| `workspace/worktrunk` | `.config/wt.toml`, `.worktreeinclude` | `forge_platform`, `forge_hostname`, `worktree_includes` |
 
 `workspace/monorepo` owns `just add`.
+
+`workspace/worktrunk` sets `pre-merge = "just check"`, so a merge runs the same
+gate CI does and cannot land what CI would reject. A project-defined command is
+approved once and re-prompts when edited, so that line changing is visible.
+
+`.worktreeinclude` names what a new worktree copies from the primary checkout. It
+narrows rather than adds: a path is copied only when it is both gitignored and
+listed. An exclude beats an include, and project excludes combine with the user's,
+so a path the user config excludes cannot be recovered here.
+
+Only `template-append` is honoured from a project `[commit.generation]`. The
+command and the main template stay in user config, since they name which agent CLI
+the developer has.
 
 ## release
 

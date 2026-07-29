@@ -1,0 +1,20 @@
+# What a new worktree copies from the primary checkout.
+#
+# Gitignore-style patterns. This narrows rather than adds: a path is copied only
+# when it is both gitignored and listed here. The user config runs
+# `wt step copy-ignored --require-include`, so without this file nothing copies
+# and a new worktree starts cold.
+#
+# Name what is expensive to rebuild or impossible to recreate. Leave out anything
+# a `just setup` can produce.
+#
+# An exclude beats an include, in this project's config and in the user's. The
+# user config excludes `.venv/`, `venv/`, `target/`, and `.cargo/config.toml`, so
+# listing any of those here copies nothing.
+
+# Local environment, which cannot be regenerated.
+.env
+.env.local
+{% for pattern in worktree_includes %}
+{{ pattern }}
+{%- endfor %}

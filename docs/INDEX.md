@@ -15,6 +15,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/repo` | 3 | 5 |
 | `docs/agents` | 1 | 9 |
 | `lang/rust` | 3 | 14 |
+| `workspace/worktrunk` | 3 | 2 |
 
 ## `base/gitignore`
 
@@ -113,4 +114,23 @@ clippy.toml
 deny.toml
 rust-toolchain.toml
 rustfmt.toml
+```
+
+## `workspace/worktrunk`
+
+Worktrunk project config and .worktreeinclude, so a fresh worktree starts warm and the pre-merge gate runs this repository's own checks.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `forge_platform` | `github` | `gitlab` | `gitea` | `azure-devops` | `github` |
+| `forge_hostname` | str |  |
+| `worktree_includes` | yaml | `[]` |
+
+Writes:
+
+```
+.config/wt.toml
+.worktreeinclude
 ```

@@ -1,0 +1,34 @@
+_subdirectory: template
+_answers_file: .copier-answers.worktrunk.yml
+
+_scaffold:
+  summary: >-
+    Worktrunk project config and .worktreeinclude, so a fresh worktree starts warm
+    and the pre-merge gate runs this repository's own checks.
+  requires_bin: [git]
+  after: [base/repo, workspace/just]
+
+_skip_if_exists:
+  - .worktreeinclude
+
+forge_platform:
+  type: str
+  help: >-
+    Named explicitly because it cannot be detected from an SSH alias or a
+    self-hosted host.
+  choices: [github, gitlab, gitea, azure-devops]
+  default: github
+
+forge_hostname:
+  type: str
+  help: >-
+    API host for a self-hosted forge. Leave empty for github.com or gitlab.com.
+  default: ""
+
+worktree_includes:
+  type: yaml
+  help: >-
+    Gitignore-style patterns naming what a new worktree copies from the primary
+    checkout. It narrows rather than adds: a path must be both gitignored and
+    listed here. Derived from the language layers that rendered.
+  default: []

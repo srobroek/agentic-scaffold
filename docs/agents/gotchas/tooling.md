@@ -104,3 +104,18 @@ still exits 0, so a wrapper looked like it passed while linting nothing.
 
 Use `while IFS= read -r line; do ... done < <(...)` instead, and give any wrapper
 a test asserting its exit code rather than trusting its output.
+
+### worktrunk copy-ignored
+
+An exclude beats an include. Verified by listing `target/` and `.venv/` in both
+`.worktreeinclude` and `[step.copy-ignored] exclude`: a dry-run into a second
+worktree copied only `.env`.
+
+Project and user excludes combine, so a path the user config excludes cannot be
+brought back by a project `.worktreeinclude`. The default user config excludes
+`.venv/`, `venv/`, `target/`, and `.cargo/config.toml`, which are the paths most
+worth copying, so naming them in `.worktreeinclude` achieves nothing.
+
+`--require-include` makes the whole step a no-op without a `.worktreeinclude`, and
+the user config passes it. A repository with no such file starts every worktree
+cold.
