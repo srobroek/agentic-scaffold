@@ -1,0 +1,41 @@
+{#-
+  .just.d/package.just -- imported by the root justfile.
+
+  Rendered as .jinja for the pinned CLI version in the `:=` assignment. The recipe
+  bodies are wrapped in `{% raw %}` because just shares jinja's `{{ }}`.
+-#}
+# Marketplace recipes, contributed by agentic/package and imported by the root justfile.
+#
+# apm pack builds the marketplace catalogs from apm.yml. It is not a copier task: it
+# needs uvx and may reach the network, so a render runs none of this.
+
+apm := "uvx --from apm-cli@{{ apm_cli_version }} apm"
+{% raw %}
+# Rebuild the marketplace catalogs from apm.yml
+[group('package')]
+marketplace-build:
+    {{ apm }} pack --offline
+
+# --dry-run is load-bearing on --check-clean. Without it the run regenerates the
+# catalogs before diffing, so it overwrites the drift it is meant to catch and always
+# passes. With it the gate regenerates to a temp path, exits non-zero on a difference,
+# and leaves the working tree untouched. Verified against apm 0.26.0.
+
+# Fail when a committed marketplace catalog is stale
+[group('package')]
+marketplace-check:
+    {{ apm }} pack --offline --check-clean --dry-run
+
+# --check-versions confirms every package version renders under the configured
+# tagPattern. It does NOT verify the tag exists, so it catches a misaligned pattern
+# rather than an unreleased version.
+
+# Fail when a package version does not fit the tag pattern
+[group('package')]
+marketplace-versions:
+    {{ apm }} pack --offline --check-versions --dry-run
+
+# Build the package artifacts, then check nothing drifted
+[group('package')]
+package: marketplace-build marketplace-check
+{% endraw %}

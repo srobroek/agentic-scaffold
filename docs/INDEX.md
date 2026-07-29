@@ -13,6 +13,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `agentic/apm` | 5 | 3 |
 | `agentic/beads` | 7 | 2 |
 | `agentic/index` | 2 | 3 |
+| `agentic/package` | 15 | 9 |
 | `agentic/rtk` | 0 | 2 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
@@ -99,6 +100,44 @@ Writes:
 .gitignore.d/index
 .just.d/index.just
 repomix.config.json
+```
+
+## `agentic/package`
+
+A self-publishing agentic-package repo: the root apm.yml with a marketplace block, one package under packages/<name> carrying a skill, the per-package plugin manifests apm pack does not generate, and the release-please config whose tag shape the marketplace resolves against.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `project_name` | str |  |
+| `package_name` | str |  |
+| `description` | str |  |
+| `author` | str |  |
+| `owner` | str |  |
+| `category` | `productivity` | `learning` | `security` | `documentation` | `testing` | `workflow` | `language` | `productivity` |
+| `package_tags` | yaml | `['skill']` |
+| `marketplace_outputs` | `claude,codex` | `claude` | `claude,codex` |
+| `deploy_kiro` | bool | `True` |
+| `apm_cli_version` | str | `0.26.0` |
+| `resolved_package` | str | `{{ package_name or project_name }}` |
+| `resolved_owner` | str | `{{ owner or (author | lower | replace(' ', '-')) }}` |
+| `resolved_description` | str | `{{ description or ('The ' + (package_name or project_name) + ' package. Replace this description before publishing.') }}` |
+| `output_list` | yaml | `{{ marketplace_outputs.split(',') }}` |
+| `build_codex` | bool | `{{ 'codex' in marketplace_outputs.split(',') }}` |
+
+Writes:
+
+```
+.gitignore.d/package
+.just.d/package.just
+.release-please-manifest.json
+apm.yml
+packages/{{ package_name }}/.apm/skills/{{ package_name }}/SKILL.md
+packages/{{ package_name }}/.claude-plugin/plugin.json
+packages/{{ package_name }}/apm.yml
+packages/{{ package_name }}/{% if build_codex %}.codex-plugin{% endif %}/plugin.json
+release-please-config.json
 ```
 
 ## `agentic/rtk`

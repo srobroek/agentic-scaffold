@@ -1,0 +1,9 @@
+# apm resolves dependencies into apm_modules/, a lockfile-driven artefact rebuilt on
+# install, so committing it would vendor every dependency.
+apm_modules/
+
+# apm pack writes bundle archives here. The marketplace catalogs it also writes
+# (.claude-plugin/marketplace.json, .agents/plugins/marketplace.json) are committed
+# on purpose, so a fresh clone resolves the marketplace with no build step; the build
+# directory is the throwaway part.
+build/

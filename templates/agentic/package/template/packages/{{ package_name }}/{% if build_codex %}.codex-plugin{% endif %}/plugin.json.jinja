@@ -1,0 +1,17 @@
+{#-
+  packages/<name>/.codex-plugin/plugin.json -- the Codex plugin manifest.
+
+  Rendered only when the codex marketplace output is built, hence the conditional
+  filename. Same shape as the Claude manifest: Codex reads `skills` in place and
+  has no native dependency field, so a bundle's composition stays an apm concern.
+-#}
+{
+  "name": "{{ resolved_package }}",
+  "version": "0.1.0",
+  "description": "{{ resolved_description }}",
+  "author": {
+    "name": "{{ author }}"
+  },
+  "license": "{{ apm_license | default('Apache-2.0', true) }}",
+  "skills": "./.apm/skills"
+}

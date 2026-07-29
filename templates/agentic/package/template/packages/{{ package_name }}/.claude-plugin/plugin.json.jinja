@@ -1,0 +1,18 @@
+{#-
+  packages/<name>/.claude-plugin/plugin.json -- the Claude plugin manifest.
+
+  Committed and rendered statically, because `apm pack` writes only the repo-root
+  marketplace.json and never a per-package manifest. Claude's `/plugin install`
+  reads this file at the marketplace entry's `source:` path, so its absence means a
+  package that lists but does not install. Verified against apm 0.26.0.
+-#}
+{
+  "name": "{{ resolved_package }}",
+  "version": "0.1.0",
+  "description": "{{ resolved_description }}",
+  "author": {
+    "name": "{{ author }}"
+  },
+  "license": "{{ apm_license | default('Apache-2.0', true) }}",
+  "skills": "./.apm/skills"
+}

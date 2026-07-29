@@ -1,0 +1,43 @@
+{#-
+  release-please-config.json -- how a merge to the default branch cuts a release.
+
+  The tag shape here IS what the marketplace's tagPattern resolves against:
+  include-component-in-tag + tag-separator "--" make release-please tag
+  <component>--v<version>, and apm.yml's build.tagPattern is '{name}--v{version}'
+  to match. Change one and the other has to change with it.
+-#}
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "separate-pull-requests": false,
+  "tag-separator": "--",
+  "include-component-in-tag": true,
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "refactor", "section": "Refactors" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "chore", "section": "Chores", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "ci", "section": "CI/CD", "hidden": true }
+  ],
+  "packages": {
+    ".": {
+      "release-type": "simple",
+      "component": "{{ resolved_owner }}-{{ project_name }}",
+      "changelog-path": "CHANGELOG.md",
+      "exclude-paths": ["packages"],
+      "extra-files": [
+        { "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }
+      ]
+    },
+    "packages/{{ resolved_package }}": {
+      "release-type": "simple",
+      "component": "{{ resolved_package }}",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        { "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }
+      ]
+    }
+  }
+}

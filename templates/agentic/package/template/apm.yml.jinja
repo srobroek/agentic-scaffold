@@ -1,0 +1,54 @@
+{#-
+  apm.yml -- the root manifest. This repo is its own marketplace: it publishes the
+  package under packages/, rather than consuming packages like agentic/apm's apm.yml.
+-#}
+name: {{ project_name }}
+version: 0.1.0
+description: >-
+  {{ resolved_description }}
+author: {{ author }}
+license: {{ apm_license | default('Apache-2.0', true) }}
+
+# Where compiled skills and steering deploy. This is a different axis from
+# marketplace.outputs below: a target receives the compiled skill, an output is a
+# discovery catalog. claude and codex are both; kiro is a target only, because apm
+# ships no kiro marketplace mapper. codex appears here only when its catalog is
+# built, so a claude-only marketplace deploys to claude and kiro but not codex.
+targets:
+- claude
+{%- if build_codex %}
+- codex
+{%- endif %}
+{%- if deploy_kiro %}
+- kiro
+{%- endif %}
+
+includes: auto
+
+marketplace:
+  owner:
+    name: {{ resolved_owner }}
+    url: https://github.com/{{ resolved_owner }}
+  # claude writes .claude-plugin/marketplace.json; codex writes
+  # .agents/plugins/marketplace.json. These two are the only outputs apm can build.
+  outputs:
+{%- for output in output_list %}
+    {{ output }}: {}
+{%- endfor %}
+  versioning:
+    strategy: tag_pattern
+  build:
+    # Must match what release-please tags. release-please-config.json sets
+    # include-component-in-tag: true and tag-separator: --, so a release tags
+    # <name>--v<version>, and a consumer resolves the package against that shape.
+    tagPattern: '{name}--v{version}'
+  packages:
+    - name: {{ resolved_package }}
+      source: ./packages/{{ resolved_package }}
+      # Mandatory whenever the codex output is built: apm refuses the build without
+      # a category on every package.
+      category: {{ category }}
+      tags:
+{%- for tag in package_tags %}
+        - {{ tag }}
+{%- endfor %}

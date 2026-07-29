@@ -395,12 +395,52 @@ workflow to report a status.
 | Layer | Writes | Variables |
 |---|---|---|
 | `agentic/apm` | `apm.yml`, `.just.d/apm.just`, `.gitignore.d/apm` | `apm_packages`, `apm_target`, `apm_cli_version` |
+| `agentic/package` | `apm.yml` with a marketplace block, `packages/<name>/{apm.yml, .apm/skills, plugin manifests}`, `release-please-config.json` + manifest, `.just.d/package.just`, `.gitignore.d/package` | `project_name`, `package_name`, `category`, `marketplace_outputs`, `deploy_kiro`, `apm_cli_version` |
 | `agentic/beads` | `.beads/` through `bd init --skip-hooks`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_dolt_sync`, `bd_sync_remote`, `bd_auto_export`, `bd_dolt_auto_commit`, `bd_push_command` |
 | `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_extra_ignores` |
 | `agentic/rtk` | `.rtk/filters.toml`, `.just.d/rtk.just` | none |
 | `agentic/marketplace` | nothing; it reports recommended installs | none |
 
 No per-harness configuration file. `agentic/marketplace` runs last.
+
+### `agentic/apm` versus `agentic/package`
+
+Both own `apm.yml`, so a repository takes one, never both. `agentic/apm` writes a
+consumer's manifest, a `dependencies` block naming packages to install.
+`agentic/package` writes a publisher's manifest, a `marketplace` block, and the
+repository becomes its own marketplace. The `agentic-repo` profile, the 17-repo shape with no language layer,
+is where `agentic/package` belongs.
+
+The layer scaffolds the single-package shape shared by break-stuff and clerk: one
+package under `packages/<name>`, published from the repository root. It grows to many
+packages by hand.
+
+### What apm requires, measured against 0.26.0
+
+- Marketplace outputs are **claude and codex only**. `apm targets` also lists kiro, and
+  the layer deploys the skill there, but `marketplace.outputs` has no kiro mapper and
+  rejects the key. Deploy target and marketplace output are different axes: `targets:`
+  names where a compiled skill lands, `outputs:` names which discovery catalog is built.
+- The codex output requires `category` on every package, so it is a mandatory question
+  rather than a free-text one.
+- `apm pack` writes the repository-root catalogs, and none of the per-package
+  `.claude-plugin/plugin.json` or `.codex-plugin/plugin.json`. Claude's `/plugin install`
+  reads the per-package manifest at the catalog's `source:` path, so the layer renders
+  those statically; without them a package lists but does not install.
+- Each package needs its own `apm.yml`, or `apm pack --check-versions` reports it as
+  `no_apm_yml`.
+- `tagPattern` must match what release-please tags. The shipped
+  `release-please-config.json` sets `include-component-in-tag: true` and
+  `tag-separator: "--"`, which tags `<component>--v<version>`, so the marketplace's
+  `tagPattern` is `'{name}--v{version}'`. Change one config and the other has to
+  change with it.
+
+Like `agentic/apm`, this layer runs no `apm pack` at render time: it needs uvx and may
+reach the network, so `just marketplace-build` performs it against a pinned CLI. The
+`marketplace-check` recipe passes `--check-clean --dry-run`, not `--check-clean` alone,
+because without `--dry-run` the run regenerates the catalogs before diffing and so can
+never report drift. `--check-versions` confirms only that a version renders under the
+pattern; it does not verify the tag exists.
 
 `agentic/apm` writes the manifest but runs no install. `apm install` reaches the
 network and needs uvx, so it would fail a render that had otherwise succeeded;
@@ -605,7 +645,7 @@ workspace/monorepo     monorepo: the root manifest, then the generator per membe
 lang/*
 host/{github,gitlab}
 release/*  iac/*  docs/*
-agentic/{apm,beads}
+agentic/{apm|package,beads}
 quality/hooks
 workspace/just
 base/gitignore
