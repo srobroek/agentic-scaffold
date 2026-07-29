@@ -80,3 +80,6 @@ hardest.
 A pack is also cheap: 1.4s for 1,269 files, 3.6s for 4,107. Anything built on the
 assumption that a pack is expensive, such as gating it behind a clean-tree check
 and a detached re-exec, is solving a problem that is not there.
+
+repomix does not cache. Running it twice with identical arguments took 1.83s then
+1.35s for the same token count, so a second pack costs the same as the first.

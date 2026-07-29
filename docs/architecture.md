@@ -208,6 +208,26 @@ under a per-seat Enterprise license.
 
 Tests use `tofu test` with `command = plan` and provider mocks.
 
+## Structural tool
+
+A repository names one structural tool in `docs/agents/index.md`, either repomix
+or gitnexus, with the invocation scoped by `--include` for that profile.
+
+No snapshot is stored. A pack costs 1.4s for 1,269 files and 3.6s for 4,107, and
+every stored form needs a fetch step the reader has to know about, which a fresh
+clone does not.
+
+Prose is the weakest of the surfaces that keep the tool in use:
+
+| Surface | Cost | Survives compaction |
+|---|---|---|
+| `docs/agents/index.md` naming the tool | none | no |
+| `SessionStart` comparing HEAD against the snapshot marker | about 5ms | yes |
+| `PreToolUse` on `Grep\|Glob` surfacing a reminder | none | yes |
+
+The reminder never denies the call. grep is the right tool for an exact-text
+lookup, so blocking it would be wrong.
+
 ## Hooks versus CI
 
 A local hook is advisory: `--no-verify` defeats it, and a fresh clone has no
