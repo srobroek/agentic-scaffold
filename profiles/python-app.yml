@@ -1,0 +1,43 @@
+# python-app -- a Python application or service. The framework answer is asked rather than
+# derived, per rules/choices.md: "FastAPI service" selects fastapi, and only two frameworks
+# fitting equally makes it a question.
+name: python-app
+summary: A Python application or service.
+
+generator: uv init
+
+layers:
+  - base/license
+  - base/repo
+  - lang/python
+  - lang/api
+  - host/github
+  - release/release-please
+  - docs/agents
+  - docs/adr
+  - agentic/apm
+  - agentic/beads
+  - agentic/index
+  - container/image
+  - quality/hooks
+  - workspace/just
+  - base/gitignore
+  - agentic/marketplace
+
+answers:
+  license: agpl-3.0-only
+  python_version: "3.13"
+  python_layout: src
+  release_type: python
+  # A service has a contract, so lang/api renders and the container ships it.
+  container_language: python
+  container_runtime_base: distroless
+
+# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# command needing generator output (cargo build, go build, a projen synth) would fail
+# for the absence of a manifest rather than for anything a layer got wrong. The agent
+# runs the generator, and `just check` proves the layer set.
+build:
+  - just api-lint
+  - just container-lint
+  - just just-check

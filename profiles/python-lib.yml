@@ -1,0 +1,35 @@
+# python-lib -- a Python library. 10 of 54 repositories are python.
+name: python-lib
+summary: A Python library, published to PyPI.
+
+generator: uv init --lib
+
+layers:
+  - base/license
+  - base/repo
+  - lang/python
+  - host/github
+  - release/release-please
+  - docs/agents
+  - docs/adr
+  - agentic/apm
+  - agentic/beads
+  - agentic/index
+  - quality/hooks
+  - workspace/just
+  - base/gitignore
+  - agentic/marketplace
+
+answers:
+  license: mpl-2.0
+  python_version: "3.13"
+  python_layout: src
+  python_framework: none
+  release_type: python
+
+# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# command needing generator output (cargo build, go build, a projen synth) would fail
+# for the absence of a manifest rather than for anything a layer got wrong. The agent
+# runs the generator, and `just check` proves the layer set.
+build:
+  - just just-check

@@ -1,0 +1,36 @@
+# go-lib -- a Go library. 1 of 54 repositories is go, so this profile is thin by evidence
+# rather than by neglect.
+name: go-lib
+summary: A Go library, consumed by module path.
+
+generator: go mod init <path>
+
+layers:
+  - base/license
+  - base/repo
+  - lang/go
+  - host/github
+  - release/release-please
+  - docs/agents
+  - docs/adr
+  - agentic/apm
+  - agentic/beads
+  - agentic/index
+  - quality/hooks
+  - workspace/just
+  - base/gitignore
+  - agentic/marketplace
+
+answers:
+  license: mpl-2.0
+  go_version: "1.26"
+  # A library commits no vendor tree: a consumer resolves its own module graph.
+  go_vendor: false
+  release_type: go
+
+# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# command needing generator output (cargo build, go build, a projen synth) would fail
+# for the absence of a manifest rather than for anything a layer got wrong. The agent
+# runs the generator, and `just check` proves the layer set.
+build:
+  - just just-check

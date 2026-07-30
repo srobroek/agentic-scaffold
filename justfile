@@ -61,6 +61,39 @@ fix:
 test:
     {{ py }} pytest -q
 
+# Validate every profile against templates/
+profiles:
+    {{ py }} scripts/profiles.py
+
+# Render one profile into a destination and run its build
+render-profile profile dest:
+    {{ py }} scripts/render_profile.py {{ profile }} {{ dest }} --build
+
+# A tree that renders is not a project that builds, which is the failure class every
+# porting defect fell into: each rendered cleanly and failed only when the real tool read
+# the result. This renders every profile and runs each one's own build.
+#
+# The generator is not run, so a build here asserts only what the layers produce.
+
+# Render and build every profile
+profiles-build:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    scratch=$(mktemp -d)
+    trap 'rm -rf "$scratch"' EXIT
+    failed=0
+    for path in profiles/*.yml; do
+      name=$(basename "$path" .yml)
+      if ! {{ py }} scripts/render_profile.py "$name" "$scratch/$name" --build; then
+        failed=$((failed + 1))
+      fi
+    done
+    if [ "$failed" -gt 0 ]; then
+      echo "$failed profile(s) failed" >&2
+      exit 1
+    fi
+    echo "every profile rendered and built"
+
 # Everything CI runs
-check: lint index-check test
+check: lint index-check profiles test
     @echo "ok"

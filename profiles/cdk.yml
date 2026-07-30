@@ -1,0 +1,39 @@
+# cdk -- an AWS CDK application. projen owns the CDK and TypeScript build surface; the
+# layers own CI, hooks, agentic, release, and licence.
+name: cdk
+summary: An AWS CDK application, owned by projen.
+
+# `projen new` writes a ts-node task and the synth that would replace it is the thing that
+# fails under TypeScript 7, so the bootstrap installs tsx and runs .projenrc.ts through it
+# once directly. `just cdk-bootstrap-projen` does exactly that.
+generator: projen new awscdk-app-ts
+
+layers:
+  - base/license
+  - base/repo
+  - lang/ts
+  - host/github
+  - release/release-please
+  - docs/agents
+  - docs/adr
+  - iac/cdk
+  - agentic/apm
+  - agentic/beads
+  - agentic/index
+  - quality/hooks
+  - workspace/just
+  - base/gitignore
+  - agentic/marketplace
+
+answers:
+  license: agpl-3.0-only
+  node_version: "24"
+  ts_typeaware: true
+  # github: false in .projenrc.ts, so the host layer's reusable workflows are the only CI.
+
+# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# command needing generator output (cargo build, go build, a projen synth) would fail
+# for the absence of a manifest rather than for anything a layer got wrong. The agent
+# runs the generator, and `just check` proves the layer set.
+build:
+  - just just-check

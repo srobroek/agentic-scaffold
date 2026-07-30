@@ -9,7 +9,21 @@ _scaffold:
   requires_bin: [just]
   # Aggregates what every other layer contributed, so it renders late. Only
   # base/gitignore and agentic/marketplace follow it.
-  after: [lang/*, quality/hooks, agentic/index]
+  # Every layer that contributes a `.just.d/*.just` fragment, because this one writes the
+  # import block from that directory: a contributor rendering afterwards leaves the block
+  # stale and `just just-check` fails. workspace/moon was missed once, and the
+  # render-every-profile check caught it in rust-gui rather than a unit test.
+  after:
+    - lang/*
+    - quality/hooks
+    - agentic/index
+    - agentic/speckit
+    - workspace/monorepo
+    - workspace/moon
+    - iac/*
+    - container/*
+    - release/*
+    - docs/site
 
 # Every render rebuilds the justfile, so a new layer's fragment reaches the import
 # block. Project-specific recipes belong in a fragment of their own, which

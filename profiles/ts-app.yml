@@ -1,0 +1,48 @@
+# ts-app -- a TypeScript application. 7 of 54 repositories are ts.
+#
+# better-t-stack generates the project and already writes biome.json and tsconfig.json, so
+# lang/ts guards both with _skip_if_exists and contributes only its fragments and CI jobs.
+name: ts-app
+summary: A TypeScript web application.
+
+# create-json, not the flag form: --yes rejects any stack flag, and addonOptions has no
+# flag equivalent.
+generator: create-better-t-stack create-json
+
+layers:
+  - base/license
+  - base/repo
+  - lang/ts
+  - lang/api
+  - host/github
+  - release/release-please
+  - docs/agents
+  - docs/adr
+  - docs/site
+  - docs/deploy-sibling
+  - agentic/apm
+  - agentic/beads
+  - agentic/index
+  - container/image
+  - quality/hooks
+  - workspace/just
+  - base/gitignore
+  - agentic/marketplace
+
+answers:
+  license: agpl-3.0-only
+  node_version: "24"
+  ts_typeaware: true
+  release_type: node
+  container_language: ts
+  container_runtime_base: distroless
+  docs_engine: starlight
+  # starlight is off as a better-t-stack addon, because docs/site supersedes it.
+
+# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# command needing generator output (cargo build, go build, a projen synth) would fail
+# for the absence of a manifest rather than for anything a layer got wrong. The agent
+# runs the generator, and `just check` proves the layer set.
+build:
+  - just api-lint
+  - just just-check

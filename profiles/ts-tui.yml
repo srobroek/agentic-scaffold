@@ -1,0 +1,36 @@
+# ts-tui -- a terminal application on opentui. Same generator as ts-app with one addon, so
+# it differs from that profile only in the addon and in having no docs site.
+name: ts-tui
+summary: A TypeScript terminal application.
+
+generator: create-better-t-stack create-json with the opentui addon
+
+layers:
+  - base/license
+  - base/repo
+  - lang/ts
+  - host/github
+  - release/release-please
+  - docs/agents
+  - docs/adr
+  - agentic/apm
+  - agentic/beads
+  - agentic/index
+  - quality/hooks
+  - workspace/just
+  - base/gitignore
+  - agentic/marketplace
+
+answers:
+  license: agpl-3.0-only
+  node_version: "24"
+  ts_typeaware: true
+  release_type: node
+  # A terminal application publishes no site, so docs/site is absent rather than off.
+
+# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# command needing generator output (cargo build, go build, a projen synth) would fail
+# for the absence of a manifest rather than for anything a layer got wrong. The agent
+# runs the generator, and `just check` proves the layer set.
+build:
+  - just just-check

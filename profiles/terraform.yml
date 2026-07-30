@@ -1,0 +1,37 @@
+# terraform -- an infrastructure-only repository. No generator: OpenTofu has no
+# `init`-style scaffolder, so the layer writes the whole tree.
+name: terraform
+summary: An OpenTofu infrastructure repository.
+
+generator: none
+
+layers:
+  - base/license
+  - base/repo
+  - host/github
+  - docs/agents
+  - docs/adr
+  - iac/terraform
+  - agentic/apm
+  - agentic/beads
+  - agentic/index
+  - quality/hooks
+  - workspace/just
+  - base/gitignore
+  - agentic/marketplace
+
+answers:
+  license: agpl-3.0-only
+  environments: [dev, prod]
+  aws_region: eu-west-1
+  # quality/hooks renders after iac/* here, because iac/terraform contributes a
+  # .pre-commit.d fragment and the merge would otherwise leave it out.
+
+# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# command needing generator output (cargo build, go build, a projen synth) would fail
+# for the absence of a manifest rather than for anything a layer got wrong. The agent
+# runs the generator, and `just check` proves the layer set.
+build:
+  - just tf-validate
+  - just tf-test
+  - just just-check

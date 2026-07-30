@@ -293,15 +293,49 @@ def test_the_recipes_render_with_the_pinned_cli(package: Path) -> None:
     render("workspace/just", package)
     fragment = (package / ".just.d" / "package.just").read_text()
     assert "apm-cli@0.26.0" in fragment
-    # The gate recipe carries --dry-run, without which --check-clean cannot fail.
-    assert "--check-clean --dry-run" in fragment
 
     listing = subprocess.run(
         ["just", "--list"], cwd=package, capture_output=True, text=True, check=False
     )
     assert listing.returncode == 0, listing.stderr
-    for recipe in ("marketplace-build", "marketplace-check", "package"):
+    for recipe in ("package-build", "package-check", "package-versions"):
         assert recipe in listing.stdout
+
+
+def test_the_check_recipe_cannot_repair_what_it_checks(package: Path) -> None:
+    """`--check-clean` without `--dry-run` regenerates before diffing, so it overwrites the
+    drift it is meant to catch and always passes. Verified against apm 0.26.0: exit 4 with
+    the flag on a hand-edited catalog, exit 0 and a silently repaired file without it.
+    """
+    render("workspace/just", package)
+    fragment = (package / ".just.d" / "package.just").read_text()
+    for line in fragment.splitlines():
+        stripped = line.strip()
+        if "--check-clean" in stripped and not stripped.startswith("#"):
+            assert "--dry-run" in stripped, f"the gate can repair what it checks: {stripped!r}"
+
+
+def test_no_catalog_is_written_at_render_time(package: Path) -> None:
+    """The catalogs are committed, but `apm pack` needs uvx and may reach the network, so it
+    cannot be a copier task. A fresh render therefore has none, and `just package-build`
+    produces them.
+    """
+    assert not (package / ".claude-plugin" / "marketplace.json").exists()
+    assert not (package / ".agents" / "plugins" / "marketplace.json").exists()
+
+
+def test_the_catalogs_are_not_gitignored(package: Path) -> None:
+    """They are committed generated artefacts, which is what lets a consumer resolve the
+    marketplace from a clone with no build step. agentic-packages and break-stuff both
+    track them."""
+    fragment = (package / ".gitignore.d" / "package").read_text()
+    patterns = [
+        line.strip() for line in fragment.splitlines() if line.strip() and not line.startswith("#")
+    ]
+    assert not any("marketplace.json" in p for p in patterns)
+    assert not any(p.startswith(".claude-plugin") for p in patterns)
+    # The archive directory is the throwaway part.
+    assert "build/" in patterns
 
 
 @needs_just

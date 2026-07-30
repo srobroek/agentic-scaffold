@@ -3,7 +3,7 @@
 apm_modules/
 
 # apm pack writes bundle archives here. The marketplace catalogs it also writes
-# (.claude-plugin/marketplace.json, .agents/plugins/marketplace.json) are committed
-# on purpose, so a fresh clone resolves the marketplace with no build step; the build
-# directory is the throwaway part.
+# (.claude-plugin/marketplace.json, .agents/plugins/marketplace.json) are COMMITTED, which
+# is what lets a consumer resolve the marketplace from a clone with no build step; the
+# archive directory is the throwaway part.
 build/

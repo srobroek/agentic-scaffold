@@ -6,7 +6,12 @@ _scaffold:
     An OpenAPI contract with vacuum for linting and oasdiff for breaking-change
     detection, plus the CI jobs and fragments the aggregating layers fold in.
   requires_bin: [git]
-  after: [base/license, host/github, host/gitlab]
+  # Before the host layer, like every other lang/* layer: this contributes
+  # .github/workflows/wc-lint-api.yml and a .github/quality.d fragment that the host
+  # layer's matrix discovers, so the host has to render after it rather than before.
+  # `job_timeout_minutes` is threaded by the agent and carries a default, so it is not a
+  # reason to invert the order.
+  after: [base/license]
 
 # The spec becomes the project's the moment an endpoint is described.
 _skip_if_exists:

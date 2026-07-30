@@ -1,0 +1,37 @@
+# ts-lib -- a TypeScript library. `bun init` rather than better-t-stack: the stack
+# generator produces an application, and a library needs none of its framework choices.
+name: ts-lib
+summary: A TypeScript library, published to npm.
+
+generator: bun init
+
+layers:
+  - base/license
+  - base/repo
+  - lang/ts
+  - host/github
+  - release/release-please
+  - docs/agents
+  - docs/adr
+  - agentic/apm
+  - agentic/beads
+  - agentic/index
+  - quality/hooks
+  - workspace/just
+  - base/gitignore
+  - agentic/marketplace
+
+answers:
+  license: mpl-2.0
+  node_version: "24"
+  ts_framework: none
+  # Type-aware oxlint rules need TypeScript 7.
+  ts_typeaware: true
+  release_type: node
+
+# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# command needing generator output (cargo build, go build, a projen synth) would fail
+# for the absence of a manifest rather than for anything a layer got wrong. The agent
+# runs the generator, and `just check` proves the layer set.
+build:
+  - just just-check

@@ -1,0 +1,40 @@
+# go-app -- a Go binary or service. A go monorepo is one module with a directory per
+# member, so there is no workspace manifest to render even when it has several commands.
+name: go-app
+summary: A Go application or service.
+
+generator: go mod init <path>
+
+layers:
+  - base/license
+  - base/repo
+  - lang/go
+  - host/github
+  - release/release-please
+  - docs/agents
+  - docs/adr
+  - agentic/apm
+  - agentic/beads
+  - agentic/index
+  - container/image
+  - quality/hooks
+  - workspace/just
+  - base/gitignore
+  - agentic/marketplace
+
+answers:
+  license: agpl-3.0-only
+  go_version: "1.26"
+  go_vendor: false
+  release_type: go
+  # CGO is disabled in the build stage, so the runtime can be distroless static.
+  container_language: go
+  container_runtime_base: distroless
+
+# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# command needing generator output (cargo build, go build, a projen synth) would fail
+# for the absence of a manifest rather than for anything a layer got wrong. The agent
+# runs the generator, and `just check` proves the layer set.
+build:
+  - just container-lint
+  - just just-check

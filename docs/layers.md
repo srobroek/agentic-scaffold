@@ -515,12 +515,25 @@ packages by hand.
   `tagPattern` is `'{name}--v{version}'`. Change one config and the other has to
   change with it.
 
-Like `agentic/apm`, this layer runs no `apm pack` at render time: it needs uvx and may
-reach the network, so `just marketplace-build` performs it against a pinned CLI. The
-`marketplace-check` recipe passes `--check-clean --dry-run`, not `--check-clean` alone,
-because without `--dry-run` the run regenerates the catalogs before diffing and so can
-never report drift. `--check-versions` confirms only that a version renders under the
-pattern; it does not verify the tag exists.
+The catalogs are committed generated artefacts, which is what `srobroek/agentic-packages`
+and `srobroek/break-stuff` both do: both track `.claude-plugin/marketplace.json` and
+`.agents/plugins/marketplace.json`, regenerate them on a pull request and fail on drift
+without committing, and regenerate and commit at release. Committing them is what lets a
+consumer resolve the marketplace from a clone with no build step.
+
+`srobroek/speckit-conductor` commits neither, because the repository is the package rather
+than a marketplace over several. A single-package bundle drops the fragment.
+
+`apm pack` cannot be a copier task, since it needs uvx and may reach the network, so
+`just package-build` performs it against a pinned CLI. `just package-check` is the
+pull-request gate and passes `--check-clean --dry-run`, not `--check-clean` alone: without
+`--dry-run` the run regenerates before diffing and so can never report drift.
+`--check-versions` confirms only that a version renders under the pattern; it does not
+verify the tag exists.
+
+Registering a marketplace with a runtime is a separate matter. `apm marketplace add` writes
+to `~/.claude/plugins/`, which is machine-global, so `agentic/marketplace` reports the
+command rather than any layer running it.
 
 `agentic/apm` writes the manifest but runs no install. `apm install` reaches the
 network and needs uvx, so it would fail a render that had otherwise succeeded;
@@ -853,6 +866,35 @@ leaves a dirty tree and passes on the rerun.
 
 A profile states this order directly. 34 layers with a fixed order need no
 dependency solver.
+
+## Profiles
+
+`profiles/*.yml` names, per shape, its layer set in render order, its generator, the
+answers fixed or derived for it, and the commands that prove a rendered tree builds.
+`profiles/README.md` carries the format and the survey counts.
+
+Thirteen shapes, matching the generator table in `../docs/architecture.md`.
+`scripts/profiles.py` validates every one against `templates/`, and `just profiles-build`
+renders each into a temporary directory and runs its own build.
+
+That check earns its cost. A tree that renders is not a project that builds, and it caught
+two ordering bugs no unit test did:
+
+- `lang/api` declared `after: host/github` while `host/github` declares `after: lang/*`,
+  a cycle no profile could satisfy. Every other language layer renders before the host,
+  because the host's matrix discovers the fragments they contribute.
+- `rust-gui` put `workspace/moon` after `workspace/just`, so the justfile's import block
+  never learned about `.just.d/moon.just`. The rendered tree then failed
+  `just just-check`.
+
+The second is why the validator checks aggregation separately from each layer's own
+`after`. A contributor has to precede its aggregator, and `workspace/just` cannot express
+that by naming every present and future contributor in its own list.
+
+A build command asserts only what the layers produce. `render_profile.py` does not run the
+generator, since `cargo new` and `create-better-t-stack` reach the network or need a
+toolchain the machine may lack, so `cargo build` there would fail for a missing manifest
+rather than for anything a layer got wrong.
 
 ## Contribution points
 

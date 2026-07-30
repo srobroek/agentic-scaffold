@@ -1,0 +1,50 @@
+# rust-gui -- a Tauri desktop application. 3 of 54 repositories are rust plus ts, and all
+# three are Tauri, which is why this is a profile rather than an answer to rust-app.
+#
+# It is a monorepo by construction: the shell is a ts package under apps/ and the core is a
+# crate under crates/, so the workspace layer is not optional here.
+name: rust-gui
+summary: A Tauri desktop application, Rust core with a TypeScript shell.
+
+# Two generators in sequence. create-tauri-app runs at apps/<name> after the workspace
+# root exists, because a monorepo renders the root manifest first: `cargo init .` would
+# write a [package] root and no [workspace] section would ever be written.
+generator: cargo new
+generator_then: create-tauri-app at apps/<name>
+
+layers:
+  - base/license
+  - base/repo
+  - workspace/monorepo
+  - lang/rust
+  - lang/ts
+  - host/github
+  - release/release-please
+  - docs/agents
+  - docs/adr
+  - agentic/apm
+  - agentic/beads
+  - agentic/index
+  - quality/hooks
+  - workspace/moon
+  - workspace/just
+  - base/gitignore
+  - agentic/marketplace
+
+answers:
+  license: agpl-3.0-only
+  layout: rust
+  members: "crates/*"
+  crate_kind: bin
+  rust_edition: "2024"
+  release_type: rust
+  # The shell needs no starlight: docs/site supersedes it, and the addon is off by default.
+  ts_framework: none
+
+# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# command needing generator output (cargo build, go build, a projen synth) would fail
+# for the absence of a manifest rather than for anything a layer got wrong. The agent
+# runs the generator, and `just check` proves the layer set.
+build:
+  - just moon-check
+  - just just-check

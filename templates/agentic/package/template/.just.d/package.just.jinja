@@ -4,38 +4,51 @@
   Rendered as .jinja for the pinned CLI version in the `:=` assignment. The recipe
   bodies are wrapped in `{% raw %}` because just shares jinja's `{{ }}`.
 -#}
-# Marketplace recipes, contributed by agentic/package and imported by the root justfile.
+# Package recipes, contributed by agentic/package and imported by the root justfile.
 #
-# apm pack builds the marketplace catalogs from apm.yml. It is not a copier task: it
-# needs uvx and may reach the network, so a render runs none of this.
+# The marketplace catalogs ARE committed generated artefacts, which is the pattern
+# srobroek/agentic-packages and srobroek/break-stuff both follow: `.claude-plugin/
+# marketplace.json` and `.agents/plugins/marketplace.json` are tracked, a pull request
+# regenerates them and fails on drift without committing, and a release regenerates and
+# commits. Committing them is what lets a consumer resolve the marketplace from a clone
+# with no build step.
+#
+# Registering a marketplace with a runtime is a separate matter and is not here:
+# `apm marketplace add` writes to ~/.claude/plugins/, which is machine-global, so
+# `agentic/marketplace` reports it rather than any layer doing it.
+#
+# A single-package bundle needs no catalog at all -- srobroek/speckit-conductor commits
+# neither file, because the repository IS the package. Delete this fragment in that case.
 
 apm := "uvx --from apm-cli@{{ apm_cli_version }} apm"
 {% raw %}
-# Rebuild the marketplace catalogs from apm.yml
+# Rebuild the catalogs from apm.yml. Run this at release, and whenever a package or the
+# marketplace block changes, then commit the result.
 [group('package')]
-marketplace-build:
+package-build:
     {{ apm }} pack --offline
 
-# --dry-run is load-bearing on --check-clean. Without it the run regenerates the
-# catalogs before diffing, so it overwrites the drift it is meant to catch and always
-# passes. With it the gate regenerates to a temp path, exits non-zero on a difference,
-# and leaves the working tree untouched. Verified against apm 0.26.0.
+# --dry-run is load-bearing on --check-clean. Without it the run regenerates the catalogs
+# before diffing, so it overwrites the drift it is meant to catch and always passes. With
+# it the gate regenerates to a temp path, exits non-zero on a difference, and leaves the
+# tree untouched. Verified against apm 0.26.0: exit 4 on a hand-edited catalog with the
+# flag, exit 0 and a silently repaired file without it.
 
-# Fail when a committed marketplace catalog is stale
+# Fail when a committed catalog is stale. This is the pull-request gate.
 [group('package')]
-marketplace-check:
+package-check:
     {{ apm }} pack --offline --check-clean --dry-run
 
-# --check-versions confirms every package version renders under the configured
-# tagPattern. It does NOT verify the tag exists, so it catches a misaligned pattern
-# rather than an unreleased version.
+# --check-versions confirms every version renders under the configured tagPattern. It does
+# NOT verify the tag exists, so it catches a misaligned pattern rather than an unreleased
+# version: a package at 5.0.0 with no v5.0.0 tag anywhere reported `[matches]` and exited 0.
 
 # Fail when a package version does not fit the tag pattern
 [group('package')]
-marketplace-versions:
+package-versions:
     {{ apm }} pack --offline --check-versions --dry-run
 
-# Build the package artifacts, then check nothing drifted
+# Regenerate, then confirm nothing else drifted
 [group('package')]
-package: marketplace-build marketplace-check
+package: package-build package-check
 {% endraw %}
