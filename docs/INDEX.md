@@ -16,6 +16,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `agentic/marketplace` | 0 | 0 |
 | `agentic/package` | 15 | 9 |
 | `agentic/rtk` | 0 | 2 |
+| `agentic/speckit` | 4 | 2 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
@@ -165,6 +166,26 @@ Writes:
 ```
 .just.d/rtk.just
 .rtk/filters.toml
+```
+
+## `agentic/speckit`
+
+Declares the speckit-conductor package, contributes the gitignore fragment its setup script would otherwise append to a generated file, and adds the recipes that run the bootstrap. The scaffolding itself belongs to the package's own setup skill.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `speckit_locator` | str | `srobroek/speckit-conductor#>=3.0.0 <4.0.0` |
+| `speckit_integration` | `claude` | `codex` | `claude` |
+| `speckit_script_flavor` | `sh` | `ps` | `sh` |
+| `specify_cli_version` | str | `0.12.0` |
+
+Writes:
+
+```
+.gitignore.d/speckit
+.just.d/speckit.just
 ```
 
 ## `base/gitignore`

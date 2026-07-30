@@ -1,0 +1,87 @@
+{#- .just.d/speckit.just -- bodies inside `{% raw %}`, since just shares jinja's `{{ }}`. -#}
+# SpecKit recipes, contributed by agentic/speckit.
+#
+# The bootstrap is not a copier task. It runs `specify init`, reaches a catalog over the
+# network to install twelve extensions, and calls `bd init`, so a render that had
+# otherwise succeeded would fail on it. The package's own `speckit-setup` skill owns the
+# steps; these recipes are the entry point that names the pinned versions.
+
+specify_pin := "{{ specify_cli_version }}"
+speckit_integration := "{{ speckit_integration }}"
+speckit_script := "{{ speckit_script_flavor }}"
+{% raw %}
+# The script is idempotent, so re-running it is the fix for a partial state rather than
+# a hand-repair. It lives inside the installed skill rather than at the repo root, so the
+# path below is the deployed one and requires `just apm-install` first.
+
+# Bootstrap SpecKit: scaffold, extensions, and the beads phase DAG
+[group('speckit')]
+speckit-setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    script=".claude/skills/speckit-setup/scripts/setup-speckit.sh"
+    if [ ! -x "$script" ]; then
+      script=".agents/skills/speckit-setup/scripts/setup-speckit.sh"
+    fi
+    if [ ! -x "$script" ]; then
+      echo "the speckit-conductor skill is not installed; run 'just apm-install' first" >&2
+      exit 1
+    fi
+    bash "$script" --integration {{ speckit_integration }} --script {{ speckit_script }}
+
+# Re-scaffold .specify/ even when it already exists
+[group('speckit')]
+speckit-resetup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    script=".claude/skills/speckit-setup/scripts/setup-speckit.sh"
+    [ -x "$script" ] || script=".agents/skills/speckit-setup/scripts/setup-speckit.sh"
+    bash "$script" --integration {{ speckit_integration }} --script {{ speckit_script }} --force
+
+# Install the CLI the bootstrap needs
+[group('speckit')]
+speckit-cli:
+    uv tool install --force "specify-cli=={{ specify_pin }}"
+
+# The setup script hardcodes twelve extensions and exits 0 even when one could not be
+# installed: a custom-source failure warns on stderr and `continue`s, so a network hiccup
+# leaves a partially provisioned SpecKit that reported success. `agent-assign` is the one
+# that matters, because the DAG hard-blocks /speckit.implement without it.
+#
+# So the set is verified against what actually landed rather than against the exit code.
+
+# Fail when a required SpecKit extension did not install
+[group('speckit')]
+speckit-verify-extensions:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v specify >/dev/null 2>&1; then
+      echo "specify is not installed; run 'just speckit-cli' first" >&2
+      exit 1
+    fi
+    installed=$(specify extension list 2>/dev/null || true)
+    missing=""
+    for ext in agent-assign cleanup critique fix-findings iterate qa \
+               retro review roadmap security-review status-report tinyspec; do
+      printf '%s' "$installed" | grep -q "$ext" || missing="$missing $ext"
+    done
+    if [ -n "$missing" ]; then
+      echo "missing SpecKit extension(s):$missing" >&2
+      echo "re-run 'just speckit-setup'; the script skips an unreachable source rather than failing" >&2
+      exit 1
+    fi
+    echo "all twelve SpecKit extensions are installed"
+
+# Where the current feature sits in the phase DAG
+[group('speckit')]
+speckit-status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The poured molecule is the only statement of step order, so this reads beads rather
+    # than a tasks.md. There is no tasks.md: the package's guard denies writing one.
+    if ! command -v bd >/dev/null 2>&1; then
+      echo "bd is not installed, so there is no molecule to report" >&2
+      exit 1
+    fi
+    bd mol list 2>/dev/null || echo "no molecule poured yet; start with /speckit.specify"
+{% endraw %}

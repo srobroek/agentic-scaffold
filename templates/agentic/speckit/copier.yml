@@ -1,0 +1,56 @@
+_subdirectory: template
+_answers_file: .copier-answers.speckit.yml
+
+_scaffold:
+  summary: >-
+    Declares the speckit-conductor package, contributes the gitignore fragment its setup
+    script would otherwise append to a generated file, and adds the recipes that run the
+    bootstrap. The scaffolding itself belongs to the package's own setup skill.
+  requires_bin: [git]
+  # agentic/beads first: the formula is installed into `.beads/formulas/`, and the guard
+  # is inert without a workspace, so a repo with no `.beads/` gets a SpecKit that reports
+  # it cannot provision the DAG. base/gitignore aggregates the fragment below, so it
+  # follows this.
+  after: [agentic/apm, agentic/beads]
+
+# One locator, not three. `speckit`, `speckit-beads`, and `steering-speckit` were merged
+# upstream and extracted to srobroek/speckit-conductor, so the layer names a single
+# dependency and the version range is the only thing to keep current.
+speckit_locator:
+  type: str
+  help: >-
+    APM locator for the conductor bundle. Pinned by default: apm warns on an unpinned
+    dependency, and an unpinned formula can change the phase DAG under a running feature.
+  default: "srobroek/speckit-conductor#>=3.0.0 <4.0.0"
+
+speckit_integration:
+  type: str
+  choices: [claude, codex]
+  help: >-
+    Which agent integration `specify init` records as primary. It decides where the
+    /speckit.* commands are rendered; the other runtime still receives the skills.
+  default: claude
+
+# The upstream script defaults to `sh`. Nothing here uses PowerShell, and a `ps` flavour
+# would put a second script language in a repository whose recipes are all bash.
+speckit_script_flavor:
+  type: str
+  choices: [sh, ps]
+  help: Script flavour `specify init` scaffolds.
+  default: sh
+
+specify_cli_version:
+  type: str
+  help: >-
+    specify-cli version the recipe pins. The setup skill requires 0.12.0 or later, and an
+    unpinned CLI changes which extensions exist.
+  default: "0.12.0"
+
+# apm.yml belongs to agentic/apm and carries a `_skip_if_exists`, so the locator is added
+# by an idempotent edit rather than by rendering the file. `apm install` is not run here:
+# it reaches the network, which would fail a render that had otherwise succeeded.
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/add_locator.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ speckit_locator }}"

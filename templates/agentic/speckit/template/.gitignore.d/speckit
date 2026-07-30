@@ -1,0 +1,10 @@
+# SpecKit artefacts.
+#
+# The upstream setup script appends this entry to the ROOT .gitignore directly. That file
+# is rebuilt from .gitignore.d/ by base/gitignore, so an appended line is dropped on the
+# next render and the artefact starts showing up in `git status`. Carrying it as a
+# fragment is what makes it survive, the same fix agentic/beads applies to bd's own
+# appended block.
+
+# Regenerated on every /speckit.status-report run.
+specs/**/spec-status.md

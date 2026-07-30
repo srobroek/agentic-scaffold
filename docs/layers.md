@@ -5,7 +5,7 @@ date: 2026-07-29
 
 # Layers
 
-33 layers and roughly 77 variables, from 30 packages and 247 questions. Every
+34 layers and roughly 81 variables, from 30 packages and 247 questions. Every
 variable listed here is asked or derived; anything absent is fixed in the layer
 per `../rules/choices.md`.
 
@@ -478,6 +478,7 @@ workflow to report a status.
 | `agentic/beads` | `.beads/` through `bd init --skip-hooks`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_dolt_sync`, `bd_sync_remote`, `bd_auto_export`, `bd_dolt_auto_commit`, `bd_push_command` |
 | `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_extra_ignores` |
 | `agentic/rtk` | `.rtk/filters.toml`, `.just.d/rtk.just` | none |
+| `agentic/speckit` | `.gitignore.d/speckit`, `.just.d/speckit.just`, and the locator added to `apm.yml` | `speckit_locator`, `speckit_integration`, `speckit_script_flavor`, `specify_cli_version` |
 | `agentic/marketplace` | nothing; `tasks/recommend.py` reports what to register and install | none |
 
 No per-harness configuration file. `agentic/marketplace` runs last.
@@ -589,12 +590,34 @@ nothing over the CLI. `mcp-repomix`'s own refresh hook shells out to
 files or 3.6s for 4,107. No snapshot is stored: `docs/agents/index.md` names the
 tool and the invocation, scoped with `--include`.
 
-Choosing SpecKit pulls `speckit`, `speckit-beads`, and `steering-speckit`
-together. `speckit-beads` is what connects SpecKit to `bd`. Those three are being
-merged upstream into one package and then extracted to `srobroek/speckit-conductor`.
-Once that is merged, this becomes a single locator. Nothing here hardcodes them,
-because `apm_packages` is a free-form locator list, so the change is this sentence and
-the test fixture rather than template logic.
+### `agentic/speckit`
+
+That merge happened: `speckit`, `speckit-beads`, and `steering-speckit` are now one
+package at `srobroek/speckit-conductor`, so the layer names a single pinned locator.
+
+The layer is thin, because the package's own `speckit-setup` skill does the scaffolding.
+Rendering a `.specify/` tree here would fork what `specify init` produces. It exists for
+three things a skill installed under `apm_modules/` cannot do:
+
+- The setup script appends `specs/**/spec-status.md` to the root `.gitignore`, and
+  `base/gitignore` rebuilds that file from `.gitignore.d/`, so the entry is dropped on the
+  next render. The layer carries it as a fragment instead, the same fix `agentic/beads`
+  applies to bd's own appended block.
+- `apm.yml` belongs to `agentic/apm` and is skip-guarded, so the locator is added by an
+  idempotent edit. The `[]` placeholder that layer writes for an empty list is replaced
+  rather than appended to, since a list cannot hold both.
+- The script hardcodes twelve extensions and exits 0 when one could not be installed: a
+  custom-source failure warns on stderr and continues. `agent-assign` is the one that
+  matters, because the DAG hard-blocks `/speckit.implement` without it, so
+  `just speckit-verify-extensions` checks the installed set rather than the exit code.
+
+Renders after `agentic/beads`. The formula installs into `.beads/formulas/` and the guard
+is inert without a workspace, so a repository with no `.beads/` gets a SpecKit that cannot
+provision its phase DAG.
+
+The bootstrap is not a copier task. It runs `specify init`, reaches a catalog over the
+network for the extensions, and calls `bd init`, so a render that had otherwise succeeded
+would fail on it.
 
 Holding architecture decisions as beads is a separate package, `adr-as-beads`: a
 `decision` bead is the record and `.pre-commit.d/adr.yaml` renders it to
@@ -775,6 +798,7 @@ lang/*
 host/{github,gitlab}
 release/*  iac/*  docs/*
 agentic/{apm|package,beads}
+agentic/speckit        when SpecKit is in use: needs the beads workspace
 quality/hooks
 workspace/just
 workspace/moon         monorepo only: the member graph, after every member exists
@@ -827,7 +851,7 @@ leaves a dirty tree and passes on the rerun.
 
 `agentic/marketplace` reads the finished tree.
 
-A profile states this order directly. 33 layers with a fixed order need no
+A profile states this order directly. 34 layers with a fixed order need no
 dependency solver.
 
 ## Contribution points
