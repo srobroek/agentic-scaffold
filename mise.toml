@@ -8,7 +8,10 @@ prek = "latest"
 # The structural linters `just lint-config` runs over this repository's own configuration.
 # The layers put these in a generated project's CI; a scaffold that does not run them on
 # itself is a scaffold whose own YAML and workflows are unchecked.
-yamllint = "1.38.1"
+# 1.38.0, not 1.38.1: that version does not exist on PyPI. CI failed on
+# `Failed to install pipx:yamllint@1.38.1` while `just lint-config` passed locally, because a
+# python install had an unrelated yamllint 1.37.1 earlier on PATH.
+yamllint = "1.38.0"
 taplo = "0.10.0"
 actionlint = "1.7.12"
 zizmor = "1.28.0"
@@ -24,6 +27,9 @@ opentofu = "1.12.5"
 tflint = "0.64.0"
 vacuum = "0.30.0"
 hadolint = "2.14.0"
+# `latest`, deliberately, unlike everything else in this block. trivy's findings come from a
+# vulnerability database rather than from its own behaviour, and no test here asserts a
+# specific finding, so a pin would only mean an older scanner.
 trivy = "latest"
 "npm:@moonrepo/cli" = "2.4.6"
 "ubi:oasdiff/oasdiff" = "1.26.1"
