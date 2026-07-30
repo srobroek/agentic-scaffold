@@ -82,15 +82,17 @@ def cdk(tmp_path: Path) -> Path:
 
 
 @pytest.fixture(scope="session")
-def synthesised(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def _synth_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """A rendered app taken through the documented bootstrap.
 
     `projen new` writes a ts-node task and the synth that would replace it is the thing
     that fails, so tsx is installed first and the projenrc is run directly through it.
 
-    Session-scoped: the npm install and the synth cost about 40 seconds, and every test
-    reading this fixture only reads. The one test that mutates it re-synths afterwards,
-    which is idempotent.
+    Session-scoped, because the npm install and the synth cost about 40 seconds. Handed to a
+    test through `synthesised`, which copies it: two tests mutate the tree, and a shared
+    mutable directory raced under `-n auto`. One worker installed typescript@7 and re-synthed
+    while another read, and projen's `install:ci` task then ran `npm ci` against a lockfile
+    mid-write.
     """
     cdk = tmp_path_factory.mktemp("cdk-synth")
     subprocess.run(["git", "init", "-q", str(cdk)], check=True)
@@ -103,6 +105,18 @@ def synthesised(tmp_path_factory: pytest.TempPathFactory) -> Path:
     synth = run(cdk, "npx", "tsx", ".projenrc.ts")
     assert synth.returncode == 0, synth.stdout[-2000:] + synth.stderr[-2000:]
     return cdk
+
+
+@pytest.fixture
+def synthesised(_synth_root: Path, tmp_path: Path) -> Path:
+    """A private copy of the synthesised tree.
+
+    The expensive part happens once per session; the copy is cheap against it and is what
+    makes a mutating test safe in parallel.
+    """
+    target = tmp_path / "synth"
+    shutil.copytree(_synth_root, target, symlinks=True)
+    return target
 
 
 # --- what the projenrc must say --------------------------------------------

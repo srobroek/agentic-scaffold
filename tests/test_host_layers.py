@@ -822,3 +822,23 @@ def test_the_check_flag_changes_nothing(rendered: Path) -> None:
     # apply_settings returns before building the PATCH when checking.
     assert "if check or not differences:" in body
     assert "return differences" in body
+
+
+def test_every_pinned_action_matches_its_version_comment(rendered: Path) -> None:
+    """A comment naming a version the SHA does not point at is worse than no comment.
+
+    zizmor's `ref-version-mismatch` audit is a NETWORK audit, so an `--offline` run reports
+    none of these. Three shipped pins had a lying comment when the offline flag was dropped,
+    including `dorny/paths-filter` at a v3.0.2 SHA under a `# v4.0.2` comment, and an
+    annotated tag's SHA where the commit was needed.
+
+    Checked here by shape rather than by resolving each tag: the network call belongs to
+    zizmor, which the linter test above runs without --offline.
+    """
+    import re
+
+    pattern = re.compile(r"uses:\s+(\S+)@([0-9a-f]{40})(?:\s+#\s*(\S+))?")
+    for workflow in sorted((rendered / ".github" / "workflows").glob("*.yml")):
+        for action, sha, tag in pattern.findall(workflow.read_text()):
+            assert tag, f"{workflow.name}: {action}@{sha[:12]} carries no version comment"
+            assert tag.startswith("v"), f"{workflow.name}: {action} comment {tag!r} is not a tag"

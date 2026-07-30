@@ -5,6 +5,14 @@ just = "latest"
 "cargo:gitnr" = "latest"
 prek = "latest"
 
+# The structural linters `just lint-config` runs over this repository's own configuration.
+# The layers put these in a generated project's CI; a scaffold that does not run them on
+# itself is a scaffold whose own YAML and workflows are unchecked.
+yamllint = "1.38.1"
+taplo = "0.10.0"
+actionlint = "1.7.12"
+zizmor = "1.28.0"
+
 # The tests render a layer and run the real tool against the result, which is what catches a
 # defect a template read cannot. A test skips rather than failing when its tool is absent,
 # so an unpinned toolchain here means a green run that checked less than it appears to.

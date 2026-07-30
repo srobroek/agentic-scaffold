@@ -643,6 +643,13 @@ Renders after `agentic/beads`. The formula installs into `.beads/formulas/` and 
 is inert without a workspace, so a repository with no `.beads/` gets a SpecKit that cannot
 provision its phase DAG.
 
+Pinned to `>=4.0.0 <5.0.0`. v4 is two breaking changes worth having: it dropped
+`speckit-implement-task` and `speckit-research`, which the formula referenced zero times,
+and it fixed a DAG that stalled permanently at step 3 because `bd gate check` does not see a
+human gate. Each gate step now carries a condition and the formula takes an `autonomous`
+variable, so an unattended pour filters the gates out and runs to completion. Verified that v4
+installs and deploys exactly the two surviving agents.
+
 The bootstrap is not a copier task. It runs `specify init`, reaches a catalog over the
 network for the extensions, and calls `bd init`, so a render that had otherwise succeeded
 would fail on it.
@@ -940,6 +947,20 @@ without repairing it, so the gate cannot destroy a hand edit and pass on the rer
 
 Adding a language adds `quality/<lang>.md` and one index row. No existing file grows, which
 is the property `docs/steering.md` asks for.
+
+## Linting this repository
+
+`just lint` covers the python and the prose. `just lint-config` covers the structural
+surface: yamllint, taplo, JSON parsing, actionlint, and zizmor.
+
+Both run in `just check`. The layers put these tools in a generated project's CI, and a
+scaffold that does not run them on itself has 87 unchecked YAML files and a workflow nobody
+audits, which is what this repository had until the gate existed.
+
+They skip `templates/`. A `.jinja` file is deliberately not valid YAML, TOML, or JSON: it
+holds jinja delimiters, and a conditional filename is not a path a parser accepts. The layer
+tests cover those instead, by rendering the template and running the real parser against the
+result.
 
 ## Running the tests
 

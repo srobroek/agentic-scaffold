@@ -176,7 +176,7 @@ Requires `git` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
-| `speckit_locator` | str | `srobroek/speckit-conductor#>=3.0.0 <4.0.0` |
+| `speckit_locator` | str | `srobroek/speckit-conductor#>=4.0.0 <5.0.0` |
 | `speckit_integration` | `claude` | `codex` | `claude` |
 | `speckit_script_flavor` | `sh` | `ps` | `sh` |
 | `specify_cli_version` | str | `0.12.0` |

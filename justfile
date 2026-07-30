@@ -46,11 +46,55 @@ index-check:
 # templates/ carries python too: copier tasks and the scripts a layer ships into
 # the generated project. Linting scripts/ alone let an unformatted one through.
 
+# A .jinja file is deliberately not valid YAML, TOML, or JSON: it holds `{% raw %}{{ }}{% endraw %}` and
+# `{% raw %}{% if %}{% endraw %}`, and a conditional filename is not a path a parser accepts. So the
+# structural linters run over the repository's OWN configuration and skip templates/,
+# which the layer tests cover instead by rendering and parsing the result.
+
 # Lint the scripts and the prose
 lint:
     {{ py }} ruff check scripts templates
     {{ py }} ruff format --check scripts templates
     {{ py }} scripts/lint_prose.py
+
+# Lint this repository's own YAML, TOML, JSON, and workflows
+lint-config:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Without a project .yamllint the defaults flag 80-column lines and a missing document
+    # start, neither of which is a rule here.
+    files=$(git ls-files '*.yml' '*.yaml' | grep -v '^templates/' || true)
+    if [ -n "$files" ]; then
+      echo "$files" | xargs yamllint -f parsable         -d "{extends: relaxed, rules: {line-length: disable, document-start: disable}}"
+    fi
+
+    toml=$(git ls-files '*.toml' | grep -v '^templates/' || true)
+    if [ -n "$toml" ]; then
+      echo "$toml" | xargs taplo lint
+    fi
+
+    # Parsed rather than linted: a JSON syntax error is the only failure mode, and every
+    # committed .json here is either generated or a tool's own schema-checked config.
+    json=$(git ls-files '*.json' | grep -v '^templates/' || true)
+    if [ -n "$json" ]; then
+      echo "$json" | xargs -n1 python3 -c 'import json,sys; json.load(open(sys.argv[1]))'
+    fi
+
+    # This repository ships one workflow, and the layers ship many. actionlint reads only
+    # what is rendered here; a template's workflow is checked by its layer's tests, which
+    # render it and run actionlint against the result.
+    if [ -d .github/workflows ]; then
+      actionlint
+      # zizmor audits for the credential and injection patterns actionlint does not model.
+      #
+      # NOT --offline. Its network audits are the ones that matter most here: ref-version-mismatch
+      # resolves each pinned SHA against the tag its comment claims, and that audit found three
+      # pins whose comment lied, including a SHA pointing at v3.0.2 under a `# v4.0.2` comment.
+      # An offline run reports none of them. With no token it degrades to the offline set rather
+      # than failing, so this works either way.
+      zizmor --min-severity medium .github/workflows
+    fi
 
 # Fix what lint can fix
 fix:
@@ -107,5 +151,5 @@ profiles-build:
     echo "every profile rendered and built"
 
 # Everything CI runs
-check: lint index-check profiles test
+check: lint lint-config index-check profiles test
     @echo "ok"

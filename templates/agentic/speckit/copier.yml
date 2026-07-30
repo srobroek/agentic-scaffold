@@ -21,7 +21,7 @@ speckit_locator:
   help: >-
     APM locator for the conductor bundle. Pinned by default: apm warns on an unpinned
     dependency, and an unpinned formula can change the phase DAG under a running feature.
-  default: "srobroek/speckit-conductor#>=3.0.0 <4.0.0"
+  default: "srobroek/speckit-conductor#>=4.0.0 <5.0.0"
 
 speckit_integration:
   type: str
