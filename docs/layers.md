@@ -573,7 +573,28 @@ files or 3.6s for 4,107. No snapshot is stored: `docs/agents/index.md` names the
 tool and the invocation, scoped with `--include`.
 
 Choosing SpecKit pulls `speckit`, `speckit-beads`, and `steering-speckit`
-together. `speckit-beads` is what connects SpecKit to `bd`.
+together. `speckit-beads` is what connects SpecKit to `bd`. Those three are being
+merged upstream into one package and then extracted to `srobroek/speckit-conductor`.
+Once that is merged, this becomes a single locator. Nothing here hardcodes them,
+because `apm_packages` is a free-form locator list, so the change is this sentence and
+the test fixture rather than template logic.
+
+Holding architecture decisions as beads is a separate package, `adr-as-beads`: a
+`decision` bead is the record and `.pre-commit.d/adr.yaml` renders it to
+`docs/adr/NNNN-title.md`. That fragment renders unconditionally and no-ops without
+`bd`, so a repository that has not adopted it pays nothing.
+
+The renderer also rewrites the row block in `docs/adr/index.md`, between two markers.
+Without that the index `docs/adr` ships keeps its placeholder row while numbered files
+accumulate beside it, so the first artefact a reader opens reports no decisions. Only
+the rows are generated: the prose above them is the project's, a hand-written record
+takes a row below the block, and an index with no markers is left untouched rather than
+injected into, because `docs/adr` may not have rendered at all.
+
+A rendered record opens with its frontmatter. A leading HTML comment pushes `---` off
+line one, and a parser then reads the block as body text, so `status`, `date`, and
+`bead` go invisible to anything indexing the records; the provenance note follows the
+block instead.
 
 `agentic/beads` runs `bd init --skip-hooks` and keeps everything else bd writes.
 Neither flag is an answer: `--skip-hooks` is always passed and `--skip-agents` never

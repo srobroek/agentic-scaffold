@@ -1,0 +1,62 @@
+# .pre-commit.d/adr.yaml -- render MADR files from beads decision beads.
+#
+# A decision is held as a beads `decision` bead; the file under docs/adr/ is a
+# projection of it. This renders every CLOSED decision, so the choice is readable in
+# a pull request by someone who has no beads installed.
+#
+# WHY PRE-COMMIT AND NOT CI. The bead is written during the work and lives in the
+# local Dolt store, unpushed at commit time. `refs/dolt/data` is versioned
+# independently of git commits -- measured a full day out of step with main on the
+# upstream repository -- so CI has no notion of "the database as of this commit" and a
+# --check gate there diffs against a moving target. Reading the local store needs no
+# sync authority, unlike `bd dolt pull`, which the beads doctrine forbids from any
+# lifecycle hook.
+#
+# THIS FRAGMENT WRITES. Every other hook in the merged config is read-only, so note
+# the mechanic: prek FAILS a commit when a hook modifies a tracked file and leaves it
+# unstaged, and silently omits a newly written untracked one. The renderer therefore
+# stages what it writes, which is what makes the ADR land in the same commit as the
+# work that motivated the decision.
+#
+# always_run, and no `files:` pattern, because a database is not a path: nothing in a
+# staged file set reveals that a decision bead changed. The renderer exits fast when
+# nothing moved.
+#
+# Both entries are guarded and non-blocking on absent tooling. `render_adrs.py`
+# exits 0 with no `bd`, no database, or no decisions, and the `bd lint` guard skips
+# when bd is missing -- beads is optional tooling rather than a build dependency, and
+# a clone by someone without it must still be able to commit.
+#
+# The script is shipped by `agentic/beads`, which owns beads-adjacent scripts, the
+# same split `bd-dolt-push.sh` uses. Guarded on its presence, because this layer
+# renders whether or not that one did.
+repos:
+  - repo: local
+    hooks:
+      - id: render-adrs
+        name: render ADR files from decision beads
+        entry: bash -c 'test -x scripts/render_adrs.py || exit 0; exec python3 scripts/render_adrs.py' --
+        language: system
+        stages: [pre-commit]
+        pass_filenames: false
+        always_run: true
+        groups: [beads]
+
+      # NOT named `bd-*`: that prefix is reserved for the `bd hooks run` event shims,
+      # and an invariant test requires those to forward git's own arguments. `bd lint`
+      # takes ISSUE IDS positionally, so forwarding a staged file set would be wrong
+      # rather than merely redundant.
+      #
+      # `bd lint` enforces `## Decision`, `## Rationale`, and
+      # `## Alternatives Considered` on a decision bead and exits 1 when one is
+      # missing. An ADR without a rejected alternative is a description rather than a
+      # decision, so this is the rule worth gating. Native to bd: its own help text
+      # omits the decision type, but the rules are enforced.
+      - id: adr-lint-decisions
+        name: decision beads state a rationale and a rejected alternative
+        entry: bash -c 'command -v bd >/dev/null || exit 0; bd lint --type decision --status all' --
+        language: system
+        stages: [pre-commit]
+        pass_filenames: false
+        always_run: true
+        groups: [beads]

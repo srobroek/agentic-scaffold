@@ -17,6 +17,12 @@ dev = [
 
 [tool.ruff]
 line-length = 100
+# Vendored verbatim from another repository, which lints it under its own rule set.
+# Reformatting a copy to satisfy this one breaks byte-fidelity with the source, so the
+# next re-sync would silently revert the change -- and the copy's own header says not to
+# edit it. Excluded rather than annotated, because the `noqa` codes the source needs are
+# themselves unused-noqa findings here.
+extend-exclude = ["templates/agentic/beads/template/scripts/render_adrs.py"]
 
 [tool.ruff.lint]
 preview = true
