@@ -23,6 +23,9 @@ PROFILES = REPO_ROOT / "profiles"
 TEMPLATES = REPO_ROOT / "templates"
 VALIDATOR = REPO_ROOT / "scripts" / "profiles.py"
 
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+import profiles  # noqa: E402  -- needs the path above
+
 # Named in docs/architecture.md's generator table. A profile missing here is a shape the
 # architecture claims to support and does not.
 EXPECTED = {
@@ -127,6 +130,19 @@ def test_a_profile_owns_one_apm_yml(path: Path) -> None:
     assert not {"agentic/apm", "agentic/package"} <= layers
 
 
+@pytest.mark.parametrize("path", profile_paths(), ids=ids(profile_paths()))
+def test_a_layer_that_needs_another_gets_it(path: Path) -> None:
+    """`after` orders two layers a profile already named, and says nothing about one being
+    absent. docs/api-refs renders scripts under docs/site and generates pages the code repo
+    has to push, so without docs/site it writes into a directory no build reads, and under
+    docs/deploy-sibling the build runs where the extractors cannot."""
+    layers = set(load(path)["layers"])
+    for layer, needed in profiles.REQUIRES.items():
+        if layer not in layers:
+            continue
+        assert set(needed) <= layers, f"{path.stem}: {layer} without {set(needed) - layers}"
+
+
 def test_every_architecture_shape_has_a_profile() -> None:
     """docs/architecture.md's generator table is the list, so a shape it names and this set
     omits is a shape the architecture claims and cannot render."""
@@ -209,6 +225,21 @@ def test_the_validator_rejects_a_bad_order(tmp_path: Path) -> None:
     result = validator_against(directory)
     assert result.returncode == 1
     assert "base/gitignore" in result.stderr
+
+
+def test_the_validator_rejects_a_missing_requirement(tmp_path: Path) -> None:
+    """No committed profile selects docs/api-refs yet, so the rule holds vacuously across the
+    set and this is the only thing proving it fires at all."""
+    directory = copied_profiles(
+        tmp_path,
+        {
+            "zz-needs.yml": "name: zz-needs\nsummary: probe\ngenerator: none\n"
+            "layers:\n  - base/repo\n  - docs/site\n  - docs/api-refs\nbuild:\n  - true\n"
+        },
+    )
+    result = validator_against(directory)
+    assert result.returncode == 1
+    assert "docs/deploy-split" in result.stderr
 
 
 def test_the_largest_shape_needs_no_language_layer() -> None:

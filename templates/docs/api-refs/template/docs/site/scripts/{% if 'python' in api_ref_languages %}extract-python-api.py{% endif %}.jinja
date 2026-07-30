@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""Extract the public Python API as the IR gen-api-refs.mjs reads.
+
+A STUB. It emits a valid empty IR, so the harness runs and the freshness gate is meaningful
+before any extraction exists. Fill in `groups` using griffe.
+
+griffe rather than inspect: it reads the source statically, so importing the package is not
+required and a module with an import-time side effect cannot run during a docs build. It also
+resolves an alias to its target, which is what makes a symbol re-exported through
+`__init__.py` appear where a consumer imports it from.
+
+    uv run --with griffe python docs/site/scripts/extract-python-api.py
+
+The orchestrator invokes this through `uv run`, so the project's own lockfile decides the
+interpreter and griffe's version rather than whatever is first on PATH. Add griffe to the
+project's dev dependencies once real extraction exists, so the version is pinned like every
+other tool here.
+
+`__all__` is the authority on what is public when a module defines it. Without one, a name
+not starting with an underscore is public, which is the convention griffe follows.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+
+# The shape gen-api-refs.mjs expects. Every symbol needs a non-empty `doc`, or the
+# orchestrator fails rather than rendering a blank entry.
+IR = {
+    "language": "python",
+    "groups": [],
+}
+
+if __name__ == "__main__":
+    json.dump(IR, sys.stdout, indent=2)

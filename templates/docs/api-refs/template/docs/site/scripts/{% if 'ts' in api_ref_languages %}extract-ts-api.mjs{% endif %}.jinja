@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+/**
+ * Extract the public TypeScript API as the IR gen-api-refs.mjs reads.
+ *
+ * A STUB. It emits a valid empty IR, so the harness runs and the freshness gate is meaningful
+ * before any extraction exists. Fill in `groups` from typedoc's JSON.
+ *
+ *   npx typedoc --json target/api.json --excludePrivate --excludeInternal <entry>
+ *
+ * typedoc rather than the TypeScript compiler API directly: it already resolves a declaration
+ * to its documented form and follows a re-export to its source, both of which are most of the
+ * work. Its JSON schema is stable across minor versions, unlike rustdoc's.
+ *
+ * `--excludeInternal` honours the `@internal` tag, which is how a symbol that must be exported
+ * for another module's sake stays out of a reference page. A symbol exported only for a test
+ * belongs behind that tag rather than in the IR.
+ *
+ * typedoc's `kindString` distinguishes an interface from a type alias from a class, which is
+ * the natural grouping for `groups[].title`.
+ */
+
+// The shape gen-api-refs.mjs expects. Every symbol needs a non-empty `doc`, or the
+// orchestrator fails rather than rendering a blank entry.
+const ir = {
+  language: "ts",
+  groups: [],
+};
+
+process.stdout.write(JSON.stringify(ir, null, 2));

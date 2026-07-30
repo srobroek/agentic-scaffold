@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+/**
+ * Extract the public Rust API as the IR gen-api-refs.mjs reads.
+ *
+ * A STUB. It emits a valid empty IR, so the harness runs and the freshness gate is meaningful
+ * before any extraction exists. Fill in `groups` from rustdoc's JSON.
+ *
+ * WHAT THIS COSTS, before you start. rustdoc's JSON output is UNSTABLE and nightly-only:
+ * `cargo rustdoc -- --output-format json -Z unstable-options` needs a nightly toolchain, and
+ * its schema changes between nightlies without a deprecation. So a working extractor has to
+ * pin an exact nightly, and that pin becomes a thing the project maintains:
+ *
+ *   cargo +nightly-YYYY-MM-DD rustdoc -p <crate> -- \
+ *     --output-format json -Z unstable-options
+ *
+ * The scaffold ships no pin, because the right nightly is whichever one the extractor was
+ * written against. Record it in rust-toolchain.toml beside the stable channel, and in
+ * docs/agents/quality/rust.md so the next reader knows why a second toolchain exists.
+ *
+ * The JSON lands at target/doc/<crate>.json. Its `index` maps id to item, `paths` maps id to
+ * a path plus kind, and only items whose `visibility` is `"public"` belong in the IR. A
+ * re-export appears as an `Import` item pointing at the id it re-exports, which is how a
+ * `pub use` reaches the surface a consumer actually sees.
+ */
+
+// The shape gen-api-refs.mjs expects. Replace `groups` with real extraction; every symbol
+// needs a non-empty `doc`, or the orchestrator fails rather than rendering a blank entry.
+const ir = {
+  language: "rust",
+  groups: [],
+};
+
+process.stdout.write(JSON.stringify(ir, null, 2));

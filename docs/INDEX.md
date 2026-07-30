@@ -23,6 +23,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `container/image` | 8 | 8 |
 | `docs/adr` | 1 | 2 |
 | `docs/agents` | 1 | 11 |
+| `docs/api-refs` | 2 | 6 |
 | `docs/deploy-sibling` | 3 | 1 |
 | `docs/deploy-split` | 4 | 1 |
 | `docs/site` | 9 | 9 |
@@ -304,6 +305,28 @@ docs/agents/quality/index.md
 docs/agents/release/index.md
 docs/agents/testing/index.md
 scripts/gen_steering.py
+```
+
+## `docs/api-refs`
+
+The API reference harness: an orchestrator that renders an IR to MDX, a freshness gate, and one extractor stub per rendered language with the IR contract documented.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `api_ref_languages` | yaml | `[]` |
+| `api_ref_section` | str | `reference` |
+
+Writes:
+
+```
+.just.d/api-refs.just
+docs/site/scripts/check-api-refs-fresh.sh
+docs/site/scripts/gen-api-refs.mjs
+docs/site/scripts/{% if 'python' in api_ref_languages %}extract-python-api.py{% endif %}
+docs/site/scripts/{% if 'rust' in api_ref_languages %}extract-rust-api.mjs{% endif %}
+docs/site/scripts/{% if 'ts' in api_ref_languages %}extract-ts-api.mjs{% endif %}
 ```
 
 ## `docs/deploy-sibling`

@@ -44,6 +44,15 @@ REQUIRED_KEYS = ("name", "summary", "generator", "layers", "build")
 # Both own apm.yml, so a repository is either a package publisher or a package consumer.
 EXCLUSIVE = (("agentic/apm", "agentic/package"),)
 
+# A layer that cannot function without another. Distinct from `after`, which orders two layers
+# a profile already named and says nothing about one being absent.
+REQUIRES = {
+    # The reference pages are generated in the code repo from its own source, so the code repo
+    # is what has to build and push them. deploy-sibling builds where the site lives, which is
+    # the one place the extractors cannot run.
+    "docs/api-refs": ("docs/site", "docs/deploy-split"),
+}
+
 
 def layer_exists(layer: str) -> bool:
     return (TEMPLATES / layer / "copier.yml").is_file()
@@ -136,6 +145,13 @@ def check_one(path: Path) -> list[str]:
     for first, second in EXCLUSIVE:
         if first in layers and second in layers:
             problems.append(f"names both {first} and {second}, which own the same apm.yml")
+
+    for layer, needed in REQUIRES.items():
+        if layer not in layers:
+            continue
+        for requirement in needed:
+            if requirement not in layers:
+                problems.append(f"names {layer}, which cannot work without {requirement}")
 
     # A layer that contributes to an aggregated directory has to precede the layer that
     # aggregates it, or the generated file is stale the moment the render finishes. A

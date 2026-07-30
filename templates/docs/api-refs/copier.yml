@@ -1,0 +1,32 @@
+_subdirectory: template
+_answers_file: .copier-answers.api-refs.yml
+
+_scaffold:
+  summary: >-
+    The API reference harness: an orchestrator that renders an IR to MDX, a freshness gate,
+    and one extractor stub per rendered language with the IR contract documented.
+  requires_bin: [git]
+  # The site owns docs/site/, and extraction reads the language toolchains, so both precede
+  # this. Selecting this layer forces docs/deploy-split, which is recorded in
+  # docs/architecture.md rather than enforced here: a layer cannot require a sibling.
+  after: [docs/site, lang/*]
+
+# Each becomes the project's the moment it extracts a real symbol.
+_skip_if_exists:
+  - docs/site/scripts/extract-rust-api.mjs
+  - docs/site/scripts/extract-python-api.py
+  - docs/site/scripts/extract-ts-api.mjs
+
+# Which extractors to write. Derived by the agent from the rendered lang/* layers rather
+# than asked, the same way index_languages is.
+api_ref_languages:
+  type: yaml
+  help: >-
+    Languages to write an extractor stub for. Each gets docs/site/scripts/extract-<lang>-api
+    and one page under the reference section.
+  default: []
+
+api_ref_section:
+  type: str
+  help: Directory under the site's content root that the generated pages land in.
+  default: reference

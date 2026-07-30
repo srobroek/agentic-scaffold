@@ -492,7 +492,7 @@ artefact.
 | `docs/adr` | `docs/adr/{0000-template.md,index.md}` | `project_name` |
 | `docs/deploy-sibling` | `.github/workflows/pages.yml`, which builds and deploys in place | `pages_repo`, `default_branch`, `job_timeout_minutes` |
 | `docs/deploy-split` | `.github/workflows/docs-publish.yml`, which pushes the built output across | `pages_repo`, `deploy_key_secret`, `default_branch`, `job_timeout_minutes` |
-| `docs/api-refs` | `docs/site/scripts/extract-<lang>-api.*`, `gen-api-refs.mjs` | none |
+| `docs/api-refs` | `docs/site/scripts/{gen-api-refs.mjs,check-api-refs-fresh.sh,extract-<lang>-api.*}`, `.just.d/api-refs.just` | `api_ref_languages`, `api_ref_section` |
 
 `docs_engine` is `starlight` or `fumadocs`, and one renders at a time: the comparison is a
 derived boolean, since a conditional filename holding a quote breaks jinja compilation.
@@ -505,9 +505,38 @@ with it, `sitemap-index.xml` and a populated `sitemap-0.xml` were produced.
 An empty `repo_url` omits the edit link and the source link rather than rendering a dead
 one.
 
-Selecting `docs/api-refs` forces `docs/deploy-split`.
+Selecting `docs/api-refs` forces `docs/deploy-split`. The generated pages live in the code
+repo, so the repo that holds the source is the one that has to build and push them.
 
-Each writes its own workflow. Pages deployment needs `pages: write` and `id-token: write`,
+`api-refs` ships the harness and one stub per language, not working extractors. An extractor
+is where a language's whole toolchain leaks in, and none of it generalises:
+
+| Language | Constraint the stub records |
+|---|---|
+| rust | rustdoc's JSON is nightly-only and its schema changes between nightlies, so any pin the scaffold shipped would be the wrong one |
+| python | griffe reads statically, which is what lets it document a module whose import has a side effect |
+| ts | typedoc needs `--excludeInternal`, or it publishes everything a package exports for its own tests |
+
+The prior art this replaced ran to 2,622 lines, carrying one project's `packages/python`
+layout and one project's nightly pin. Each stub emits valid empty IR, so the harness is
+testable before an extractor exists.
+
+`gen-api-refs.mjs` owns the page shape. An extractor owns one language and communicates only
+through the IR documented in that file's header. A symbol whose `doc` is empty fails the run,
+since a reference page with empty descriptions reads as complete while documenting nothing.
+Every missing doc is collected and reported at once, because fixing them one run at a time is
+the slowest possible order.
+
+`check-api-refs-fresh.sh` checks two things:
+
+- **Staleness.** `--check` renders to memory and writes nothing, so the gate cannot repair the
+  drift it reports and pass on a rerun.
+- **Determinism.** The generator runs twice and the outputs are compared. A renderer that
+  iterates a hash map or embeds a timestamp makes every commit carry a reference diff, which
+  makes the staleness check meaningless. With no extractor yet this step exits early, since a
+  directory no render created is not evidence of nondeterminism.
+
+Each deploy layer writes its own workflow. Pages deployment needs `pages: write` and `id-token: write`,
 which the gate does not carry, and both are scoped to the deploy job rather than the whole
 workflow.
 

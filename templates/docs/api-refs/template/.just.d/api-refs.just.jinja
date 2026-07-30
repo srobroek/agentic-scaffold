@@ -1,0 +1,29 @@
+{#- .just.d/api-refs.just -- bodies in `{% raw %}`, since just shares jinja's `{{ }}`. -#}
+# API reference recipes, contributed by docs/api-refs.
+#
+# The orchestrator owns the page shape and one extractor owns each language. Extraction needs
+# the language toolchains, which is why selecting this layer forces the split deploy topology:
+# the code repository builds the pages and pushes them to the sibling.
+
+api_ref_section := "{{ api_ref_section }}"
+{% raw %}
+# Regenerate every API reference page from the source
+[group('docs')]
+api-refs:
+    API_REF_SECTION={{ api_ref_section }} node docs/site/scripts/gen-api-refs.mjs
+
+# Fail when a page is stale or the generator is not deterministic
+[group('docs')]
+api-refs-check:
+    API_REF_SECTION={{ api_ref_section }} bash docs/site/scripts/check-api-refs-fresh.sh
+
+# What an extractor emits, for checking the IR shape by eye
+[group('docs')]
+api-refs-ir lang:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{ lang }}" in
+      python) uv run --quiet docs/site/scripts/extract-python-api.py ;;
+      *) node "docs/site/scripts/extract-{{ lang }}-api.mjs" ;;
+    esac
+{% endraw %}
