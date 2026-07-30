@@ -220,6 +220,36 @@ under a per-seat Enterprise license.
 
 Tests use `tofu test` with `command = plan` and provider mocks.
 
+## Containers
+
+Multi-stage always, so the toolchain that builds never ships.
+
+distroless is the runtime base. Measured against the same static Go binary:
+
+| Base | Size | HIGH or CRITICAL | Shell |
+|---|---|---|---|
+| `distroless/static-debian12:nonroot` | 9.58MB | 12 | none |
+| `alpine:3.22` | 16.8MB | 12 | yes, and uid 0 |
+| `debian:stable-slim` | 143MB | 34 | yes |
+
+The shell is the deciding column rather than the size. `docker run --entrypoint sh`
+failed outright on distroless and returned `uid=0(root)` on alpine, so a compromised
+process there gets both root and a shell. alpine is the choice when a shell is genuinely
+needed to debug; debian when a dependency needs glibc and a full userland.
+
+`static` requires a statically linked binary, which is why the compiled build stages set
+`CGO_ENABLED=0`. An interpreted language takes the matching distroless variant instead,
+since `static` carries no interpreter.
+
+Build, scan, then push, in that order. An image already in a registry can be pulled by
+anything watching it, so a scan that runs after the push reports a vulnerability that has
+already shipped. The build loads into the local daemon rather than pushing, the scan reads
+it there, and the push is a separate step gated on the scan passing.
+
+A Dockerfile that already exists is never replaced, because whichever framework
+generated it owns it. The layer contributes the lint, the CI, and the ignore file around
+whatever is there.
+
 ## Structural tool
 
 A repository names one structural tool in `docs/agents/index.md`, either repomix

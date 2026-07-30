@@ -1,0 +1,43 @@
+{#- .just.d/container.just -- bodies inside `{% raw %}`, since just shares jinja's `{{ }}`. -#}
+# Container recipes, contributed by container/image.
+
+image_name := "{{ project_name | default('app', true) }}"
+image_registry := "{{ registry }}"
+trivy_severity := "{{ trivy_severity }}"
+{% raw %}
+# Build the image locally
+[group('container')]
+container-build tag="dev":
+    docker build -t {{ image_name }}:{{ tag }} .
+
+# hadolint reads the Dockerfile itself; trivy config reads it for misconfiguration. The
+# two find different things, so both run.
+
+# Lint the Dockerfile
+[group('container')]
+container-lint:
+    hadolint Dockerfile
+
+# Scanning happens BEFORE a push, never after. An image already in the registry can be
+# pulled by anything watching it, so a scan that runs afterwards reports a vulnerability
+# that has already shipped.
+
+# Scan the built image for vulnerabilities
+[group('container')]
+container-scan tag="dev":
+    trivy image --severity {{ trivy_severity }} --exit-code 1 {{ image_name }}:{{ tag }}
+
+# Build, lint, and scan
+[group('container')]
+container: container-lint container-build container-scan
+
+# Run the image locally
+[group('container')]
+container-run tag="dev":
+    docker run --rm -it {{ image_name }}:{{ tag }}
+
+# What the image actually contains, layer by layer
+[group('container')]
+container-layers tag="dev":
+    docker history --no-trunc {{ image_name }}:{{ tag }}
+{% endraw %}

@@ -1,0 +1,75 @@
+_subdirectory: template
+_answers_file: .copier-answers.container.yml
+
+_scaffold:
+  summary: >-
+    A multi-stage Dockerfile on a distroless runtime, hadolint at commit time, and a CI
+    job that builds the image and scans it before it is pushed.
+  requires_bin: [git]
+  # host/* owns the workflow surface, and the language layer decides the build stage, so
+  # both precede this.
+  after: [lang/*, host/github, host/gitlab]
+
+# A Dockerfile a framework generated or a person tuned is not this layer's to replace.
+# This is the answer to the bead's second open question: whoever wrote the file owns it,
+# and the layer contributes the CI and hooks around whatever is there.
+_skip_if_exists:
+  - Dockerfile
+  - .dockerignore
+
+project_name:
+  type: str
+  help: Image name, used as the local tag and the registry path's last segment.
+  default: ""
+
+container_language:
+  type: str
+  choices: [rust, python, go, ts]
+  help: >-
+    Which build stage to write. It decides the builder image and whether the runtime can
+    be distroless static or needs an interpreter.
+
+# The measured policy. Against the same static Go binary: distroless static is 9.58MB
+# with 12 HIGH or CRITICAL findings, alpine 16.8MB with 12, and debian stable-slim 143MB
+# with 34. distroless also carries no shell at all, where `docker run --entrypoint sh`
+# succeeded as uid 0 on alpine, so a compromised process there gets both root and a
+# shell.
+container_runtime_base:
+  type: str
+  choices:
+    - distroless
+    - alpine
+    - debian
+  help: >-
+    Runtime base. distroless is the default: smallest, fewest findings, and no shell for
+    a compromise to use. alpine when a shell is genuinely needed for debugging; debian
+    when a dependency needs glibc and a full userland.
+  default: distroless
+
+registry:
+  type: str
+  help: >-
+    Registry the image is pushed to. ghcr.io needs no separate credential, since the
+    workflow's own token authenticates it.
+  default: ghcr.io
+
+expose_port:
+  type: int
+  help: Port the service listens on. 0 writes no EXPOSE, for a batch job or a CLI.
+  default: 8080
+
+trivy_severity:
+  type: str
+  help: Severities that fail the image scan.
+  default: "HIGH,CRITICAL"
+
+hadolint_version:
+  type: str
+  help: hadolint version the mise fragment pins.
+  default: "2.14.0"
+
+# Derived, because a conditional filename holding a quote breaks jinja compilation.
+is_compiled:
+  type: bool
+  default: "{{ container_language in ['rust', 'go'] }}"
+  when: false

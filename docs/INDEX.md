@@ -19,6 +19,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
+| `container/image` | 8 | 8 |
 | `docs/adr` | 1 | 2 |
 | `docs/agents` | 1 | 9 |
 | `docs/deploy-sibling` | 3 | 1 |
@@ -210,6 +211,36 @@ Writes:
 README.md
 docs/.gitkeep
 scripts/.gitkeep
+```
+
+## `container/image`
+
+A multi-stage Dockerfile on a distroless runtime, hadolint at commit time, and a CI job that builds the image and scans it before it is pushed.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `project_name` | str |  |
+| `container_language` | `rust` | `python` | `go` | `ts` |  |
+| `container_runtime_base` | `distroless` | `alpine` | `debian` | `distroless` |
+| `registry` | str | `ghcr.io` |
+| `expose_port` | int | `8080` |
+| `trivy_severity` | str | `HIGH,CRITICAL` |
+| `hadolint_version` | str | `2.14.0` |
+| `is_compiled` | bool | `{{ container_language in ['rust', 'go'] }}` |
+
+Writes:
+
+```
+.dockerignore
+.github/security.d/container.yml
+.github/workflows/wc-container.yml
+.gitlab/ci/container.yml
+.just.d/container.just
+.mise/conf.d/container.toml
+.pre-commit.d/container.yaml
+Dockerfile
 ```
 
 ## `docs/adr`

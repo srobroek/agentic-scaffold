@@ -1,0 +1,101 @@
+{#-
+  Dockerfile -- multi-stage, so the toolchain that builds never ships.
+-#}
+# syntax=docker/dockerfile:1
+
+{% if container_language == 'rust' -%}
+FROM rust:1-slim AS build
+WORKDIR /src
+# Manifests first: a layer keyed on them survives a source-only change, so a rebuild
+# after editing code does not refetch the dependency tree.
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/src/target \
+    cargo build --release --locked && \
+    cp target/release/{{ project_name | default('app', true) }} /app
+{%- elif container_language == 'go' -%}
+FROM golang:1-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum* ./
+RUN go mod download
+COPY . .
+# CGO off, so the binary is static and can run on a base with no libc at all.
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /app ./...
+{%- elif container_language == 'python' -%}
+FROM python:3.13-slim AS build
+# uv rather than pip: it resolves from the lockfile the repository already commits.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+WORKDIR /src
+COPY pyproject.toml uv.lock ./
+# --frozen fails rather than resolving, so an out-of-date lockfile is caught here rather
+# than producing an image nobody can reproduce.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
+COPY . .
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-dev
+{%- else -%}
+FROM oven/bun:1-alpine AS build
+WORKDIR /src
+COPY package.json bun.lock* ./
+RUN bun install --frozen-lockfile
+COPY . .
+RUN bun run build
+{%- endif %}
+
+{% if container_runtime_base == 'distroless' and is_compiled -%}
+# distroless static: 9.58MB against alpine's 16.8MB and debian stable-slim's 143MB for
+# the same binary, with 12 HIGH or CRITICAL findings against 12 and 34. It also carries
+# NO SHELL: `docker run --entrypoint sh` failed here and succeeded as uid 0 on alpine,
+# so a compromised process gets neither root nor a shell to use.
+#
+# `static` requires a static binary, which is why CGO is disabled above. A dynamically
+# linked binary needs `base-debian12` instead.
+FROM gcr.io/distroless/static-debian12:nonroot
+{%- elif container_runtime_base == 'distroless' -%}
+# The interpreted runtimes need their interpreter, so this is the language variant rather
+# than `static`. Still no shell and still non-root.
+FROM gcr.io/distroless/{{ 'python3-debian12' if container_language == 'python' else 'nodejs22-debian12' }}:nonroot
+{%- elif container_runtime_base == 'alpine' -%}
+# alpine carries a shell and defaults to root, so the user is created explicitly below.
+FROM alpine:3.22
+RUN adduser -D -u 10001 app
+{%- else -%}
+# debian, for a dependency that needs glibc and a full userland. 143MB and 34 HIGH or
+# CRITICAL findings measured, so this is the deliberate choice rather than the default.
+FROM debian:stable-slim
+RUN useradd --uid 10001 --create-home app
+{%- endif %}
+
+WORKDIR /app
+
+{% if is_compiled -%}
+COPY --from=build /app /app/bin
+{%- elif container_language == 'python' -%}
+COPY --from=build /src /app
+# The virtualenv's interpreter, not the system one.
+ENV PATH="/app/.venv/bin:$PATH"
+{%- else -%}
+COPY --from=build /src/dist /app/dist
+COPY --from=build /src/node_modules /app/node_modules
+{%- endif %}
+
+{% if expose_port -%}
+# Documentation rather than a firewall: EXPOSE publishes nothing on its own, and the
+# orchestrator decides what is reachable.
+EXPOSE {{ expose_port }}
+{%- endif %}
+
+{% if container_runtime_base != 'distroless' -%}
+# distroless:nonroot already runs as uid 65532, so USER is set only where the base
+# defaults to root.
+USER app
+{%- endif %}
+
+{% if is_compiled -%}
+ENTRYPOINT ["/app/bin"]
+{%- elif container_language == 'python' -%}
+ENTRYPOINT ["python", "-m", "{{ (project_name | default('app', true)) | replace('-', '_') }}"]
+{%- else -%}
+ENTRYPOINT ["node", "dist/index.js"]
+{%- endif %}

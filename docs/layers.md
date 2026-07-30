@@ -5,7 +5,7 @@ date: 2026-07-29
 
 # Layers
 
-32 layers and roughly 72 variables, from 30 packages and 247 questions. Every
+33 layers and roughly 77 variables, from 30 packages and 247 questions. Every
 variable listed here is asked or derived; anything absent is fixed in the layer
 per `../rules/choices.md`.
 
@@ -688,6 +688,21 @@ Those hooks reload beads context after compaction, which is what makes an
 `AGENTS.md` carrying no beads prose safe. `--skip-agents` would remove them and
 is therefore not used.
 
+## container
+
+| Layer | Writes | Variables |
+|---|---|---|
+| `container/image` | `Dockerfile`, `.dockerignore`, `.just.d/container.just`, the mise, hook, CI, and security fragments | `container_language`, `container_runtime_base`, `registry`, `expose_port`, `trivy_severity` |
+
+`docs/architecture.md` carries the measured base image policy and the build-scan-push
+order. The layer's own `Dockerfile` repeats the measurement beside the `FROM` line, so the
+reason for the base is where the choice is made.
+
+Only hadolint runs at commit time. Building an image takes minutes and needs a daemon, so
+the build and the image scan are CI. `trivy` runs twice against different things: `config`
+mode reads the Dockerfile in the language-blind security workflow, and `image` mode reads
+the built image in this layer's own job.
+
 ## iac
 
 | Layer | Writes | Variables |
@@ -812,7 +827,7 @@ leaves a dirty tree and passes on the rerun.
 
 `agentic/marketplace` reads the finished tree.
 
-A profile states this order directly. 32 layers with a fixed order need no
+A profile states this order directly. 33 layers with a fixed order need no
 dependency solver.
 
 ## Contribution points

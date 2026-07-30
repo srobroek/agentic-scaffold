@@ -1,0 +1,27 @@
+{#- .gitlab/ci/container.yml -- every key prefixed `container`, since glob merge order is not deterministic. -#}
+container-lint:
+  image: hadolint/hadolint:latest-debian
+  stage: lint
+  script:
+    - hadolint Dockerfile
+
+container-build:
+  image: docker:cli
+  stage: build
+  services:
+    - docker:dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" .
+    # Scan before any push, for the same reason the GitHub job does: a pushed image can
+    # already have been pulled.
+    - |
+      docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+        aquasec/trivy:latest image --severity {{ trivy_severity }} --exit-code 1 \
+        "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "{{ default_branch | default('main', true) }}" ]; then
+        echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+        docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+      fi

@@ -1,0 +1,122 @@
+name: Container
+
+# Contributed by container/image. Build, scan, then push, in that order: an image already
+# in a registry can be pulled by anything watching it, so a scan that ran after the push
+# would report a vulnerability that has already shipped.
+
+on:
+  workflow_call:
+    inputs:
+      push:
+        description: >-
+          Whether to push after a clean scan. The caller passes true only on the default
+          branch; a pull request builds and scans without publishing.
+        required: false
+        type: boolean
+        default: false
+      severity:
+        required: false
+        type: string
+        default: "{{ trivy_severity }}"
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: Build and scan
+    runs-on: ubuntu-latest
+    timeout-minutes: {{ job_timeout_minutes | default(20, true) }}
+    permissions:
+      contents: read
+      # Only needed for the push, and a called workflow cannot hold more than its caller
+      # granted, so the caller must grant it too.
+      packages: write
+      # The scan uploads SARIF to the security tab.
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # The default leaves GITHUB_TOKEN in .git/config, where any later step can read
+          # it. zizmor reports the default as a finding.
+          persist-credentials: false
+
+      - name: Install tools
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          cache: true
+
+      - name: Lint the Dockerfile
+        run: just container-lint
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Derive the tags
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: {{ registry }}/${{ '{{' }} github.repository }}
+
+      # Loaded into the local daemon rather than pushed, so the scan below has something
+      # to read. `push: false` regardless of the input: the push is a separate step that
+      # runs only after the scan passes.
+      - name: Build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ '{{' }} steps.meta.outputs.tags }}
+          labels: ${{ '{{' }} steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Reports without failing so the SARIF always uploads; the step after it is what
+      # fails the job.
+      - name: Scan the image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ '{{' }} fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: sarif
+          output: trivy-image.sarif
+          severity: ${{ '{{' }} inputs.severity }}
+          exit-code: "0"
+
+      - name: Upload results
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        if: always()
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+
+      - name: Fail on findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ '{{' }} fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: table
+          severity: ${{ '{{' }} inputs.severity }}
+          exit-code: "1"
+
+      # Reached only when the scan above passed, because a failing step ends the job.
+      - name: Log in to the registry
+        if: inputs.push
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: {{ registry }}
+          username: ${{ '{{' }} github.actor }}
+          password: ${{ '{{' }} secrets.GITHUB_TOKEN }}
+
+      # A second build rather than a push of the loaded image: buildx reuses the cache
+      # from the first, so this is close to free, and it is what produces a multi-platform
+      # manifest, which `load: true` cannot.
+      - name: Push
+        if: inputs.push
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ '{{' }} steps.meta.outputs.tags }}
+          labels: ${{ '{{' }} steps.meta.outputs.labels }}
+          cache-from: type=gha

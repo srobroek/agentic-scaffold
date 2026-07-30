@@ -1,0 +1,10 @@
+# A job fragment the host layer's wc-security.yml folds into its matrix.
+#
+# `config` mode, which is what reads a Dockerfile for misconfiguration. The image scan is
+# a separate job in wc-container.yml, because it needs the image built first and the
+# language-blind security workflow has no build step.
+codeql:
+  supported: false
+trivy:
+  mode: config
+  scanners: ["misconfig", "secret"]

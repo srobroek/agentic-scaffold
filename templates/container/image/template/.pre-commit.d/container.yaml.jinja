@@ -1,0 +1,12 @@
+{#- .pre-commit.d/container.yaml -- folded into the root config by `just hooks-merge`. -#}
+# Only the Dockerfile lint runs at commit time. Building an image takes minutes and needs
+# a running daemon, so the build and the scan belong in CI.
+repos:
+  - repo: local
+    hooks:
+      - id: hadolint
+        name: hadolint
+        entry: hadolint
+        language: system
+        files: (^|/)Dockerfile(\..+)?$
+        groups: [quality]

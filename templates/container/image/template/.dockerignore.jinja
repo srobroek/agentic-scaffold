@@ -1,0 +1,33 @@
+{#- .dockerignore -- what never enters the build context. -#}
+# The context is uploaded to the daemon before the first instruction runs, so anything
+# here is both a slower build and a bigger attack surface.
+
+.git
+.github
+.gitlab
+
+# Build output, which the builder stage produces itself. Copying a host-built artefact in
+# would ship whatever architecture the host happened to be.
+target
+dist
+build
+node_modules
+.venv
+__pycache__
+
+# Local state and secrets. A .env copied into a layer stays in the image history even if a
+# later layer deletes it.
+.env
+*.env
+.envrc
+
+# Agent and tooling state, none of which the image needs.
+.beads
+apm_modules
+.moon/cache
+repomix-full.xml
+
+# The infrastructure that deploys the image is not part of it.
+infra
+docs
+tests
