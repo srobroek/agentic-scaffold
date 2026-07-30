@@ -61,6 +61,18 @@ archives:
 checksum:
   name_template: checksums.txt
 
+{% if goreleaser_sbom -%}
+# One SBOM per archive, from syft, which `cmd` defaults to. Measured against syft 1.50.0: a
+# snapshot produced a valid SPDX-2.3 document naming 3 packages, with the cataloguing step
+# taking 36s.
+#
+# `artifacts: archive` rather than `binary`: the archive is what a user downloads, so it is
+# the thing an SBOM should describe. One document per archive also gives the attestation in
+# the workflow a per-artifact subject rather than one file covering every platform.
+sboms:
+  - artifacts: archive
+
+{% endif -%}
 # The changelog is release-please's, computed from the Conventional Commit subjects and
 # already written to CHANGELOG.md before the tag exists. goreleaser generating a second one
 # from the same commits would publish two that disagree on formatting.

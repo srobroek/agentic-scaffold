@@ -34,6 +34,13 @@ jobs:
       packages: write
       # The scan uploads SARIF to the security tab.
       security-events: write
+{%- if container_attest %}
+      # The attestation is a Sigstore bundle signed with a short-lived certificate minted
+      # from the workflow's OIDC token, and written to the repository's attestation store.
+      # Both are also the caller's to grant.
+      id-token: write
+      attestations: write
+{%- endif %}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -44,7 +51,12 @@ jobs:
       - name: Install tools
         uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
         with:
-          cache: true
+          # `cache: false` here, unlike every other mise-action call in this scaffold, and for
+          # the same reason release/goreleaser sets it on setup-go: this job pushes an image
+          # that users pull, so a poisoned cache entry would end up inside it. zizmor reports
+          # the combination of a cache opt-in and a publish step as cache-poisoning, at high
+          # severity. Only hadolint and just come from mise here, so a cold install is seconds.
+          cache: false
 
       - name: Lint the Dockerfile
         run: just container-lint
@@ -111,6 +123,7 @@ jobs:
       # from the first, so this is close to free, and it is what produces a multi-platform
       # manifest, which `load: true` cannot.
       - name: Push
+        id: push
         if: inputs.push
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -120,3 +133,19 @@ jobs:
           tags: ${{ '{{' }} steps.meta.outputs.tags }}
           labels: ${{ '{{' }} steps.meta.outputs.labels }}
           cache-from: type=gha
+{%- if container_attest %}
+
+      # The digest the registry returned, rather than a tag. A tag is mutable, so an
+      # attestation bound to one says nothing about what a puller receives later.
+      #
+      # `push-to-registry` stores the bundle beside the image, which is what lets
+      # `gh attestation verify oci://...` work for someone who has the image and not the
+      # repository.
+      - name: Attest the image provenance
+        if: inputs.push
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-name: {{ registry }}/${{ '{{' }} github.repository }}
+          subject-digest: ${{ '{{' }} steps.push.outputs.digest }}
+          push-to-registry: true
+{%- endif %}

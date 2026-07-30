@@ -68,6 +68,13 @@ hadolint_version:
   help: hadolint version the mise fragment pins.
   default: "2.14.0"
 
+container_attest:
+  type: bool
+  help: >-
+    Attest the pushed image's build provenance. Meaningful only on a push, since the subject
+    is the digest the registry returned. Costs one step and needs no separate credential.
+  default: true
+
 # Derived, because a conditional filename holding a quote breaks jinja compilation.
 is_compiled:
   type: bool

@@ -20,7 +20,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
 | `base/repo` | 3 | 5 |
-| `container/image` | 8 | 8 |
+| `container/image` | 9 | 8 |
 | `docs/adr` | 1 | 2 |
 | `docs/agents` | 1 | 11 |
 | `docs/api-refs` | 2 | 6 |
@@ -39,7 +39,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `quality/hooks` | 3 | 14 |
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
-| `release/goreleaser` | 5 | 6 |
+| `release/goreleaser` | 7 | 6 |
 | `release/release-please` | 4 | 4 |
 | `workspace/devcontainer` | 4 | 1 |
 | `workspace/just` | 0 | 3 |
@@ -251,6 +251,7 @@ Requires `git` on `PATH`.
 | `expose_port` | int | `8080` |
 | `trivy_severity` | str | `HIGH,CRITICAL` |
 | `hadolint_version` | str | `2.14.0` |
+| `container_attest` | bool | `True` |
 | `is_compiled` | bool | `{{ container_language in ['rust', 'go'] }}` |
 
 Writes:
@@ -763,7 +764,9 @@ Requires `git` on `PATH`.
 | `project_name` | str |  |
 | `goreleaser_main` | str | `.` |
 | `goreleaser_targets` | yaml | `['linux/amd64', 'linux/arm64', 'darwin/amd64', 'darwin/arm64']` |
+| `goreleaser_sbom` | bool | `True` |
 | `goreleaser_version` | str | `2.17.1` |
+| `syft_version` | str | `1.50.0` |
 | `go_version` | str | `1.26` |
 
 Writes:

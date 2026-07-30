@@ -5,7 +5,7 @@ date: 2026-07-29
 
 # Layers
 
-34 layers and roughly 81 variables, from 30 packages and 247 questions. Every
+36 layers and 105 asked variables, from 30 packages and 247 questions. Every
 variable listed here is asked or derived; anything absent is fixed in the layer
 per `../rules/choices.md`.
 
@@ -417,7 +417,7 @@ the developer has.
 |---|---|---|
 | `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow, `.just.d/release.just` | `release_type`, `initial_version`, `default_branch`, `release_packages` |
 | `release/cocogitto` | `cog.toml`, `.just.d/cog.just` | `initial_version`, `release_scopes` |
-| `release/goreleaser` | `.goreleaser.yaml`, `.github/workflows/goreleaser.yml`, `.just.d/goreleaser.just`, plus the mise, gitignore, and quality fragments | `goreleaser_main`, `goreleaser_targets`, `goreleaser_version`, `go_version` |
+| `release/goreleaser` | `.goreleaser.yaml`, `.github/workflows/goreleaser.yml`, `.just.d/goreleaser.just`, plus the mise, gitignore, and quality fragments | `goreleaser_main`, `goreleaser_targets`, `goreleaser_version`, `go_version`, `goreleaser_sbom`, `syft_version` |
 | `release/dep-updates` | `renovate.json`, `.github/dependabot.yml`, and the auto-merge workflow | `default_branch`, `auto_merge`, `renovate_timezone` |
 
 Ecosystems follow from the language layers. renovate covers the language
@@ -482,6 +482,36 @@ enough that a cold module download costs seconds nobody waits on.
 
 `go-lib` does not render this layer. A Go library is consumed by module path and publishes no
 artefact.
+
+### SBOM and provenance
+
+`goreleaser_sbom` is on by default and adds two things to a release: an SBOM per archive, and
+a build provenance attestation over every published file.
+
+The SBOM comes from goreleaser's own `sboms` block, which shells out to syft. Measured against
+goreleaser 2.17.1 and syft 1.50.0: four archives produced four valid SPDX-2.3 documents of
+about 3.8KB each, named `<archive>.sbom.json` beside their archive, with the cataloguing step
+taking 36 seconds. `artifacts: archive` rather than `binary`, because the archive is what a
+user downloads.
+
+goreleaser does not install syft, so the workflow does. Without that step the release fails at
+the cataloguing stage with the archives already built.
+
+A pairing check runs before the attestation and fails when `dist/` holds no SBOM, because an
+`sboms` block that produced nothing is a silent downgrade to no SBOM at all and the release
+would otherwise succeed looking attested. Emptiness is tested with `${sboms[*]+x}` rather than
+a length: under `set -u` an empty array reads as unbound on the runner's bash, which aborted
+with `unbound variable` before reaching the message.
+
+Provenance only, with no separate SBOM attestation. `actions/attest-sbom` warns that it is
+deprecated in favour of `actions/attest`, and both take `sbom-path` as one file capped at 16MB
+while goreleaser writes one per archive. A composite action cannot loop, so covering four
+archives would need a matrix job, which means uploading and re-downloading `dist/` to attest
+what the publishing job already holds. The SBOMs ship as release assets, and the provenance
+subject list includes them.
+
+The attestation runs after the publish, not before. Its subject is a digest, and a digest
+exists only once the artefact does.
 
 ## docs
 
@@ -826,7 +856,7 @@ is therefore not used.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `container/image` | `Dockerfile`, `.dockerignore`, `.just.d/container.just`, the mise, hook, CI, and security fragments | `container_language`, `container_runtime_base`, `registry`, `expose_port`, `trivy_severity` |
+| `container/image` | `Dockerfile`, `.dockerignore`, `.just.d/container.just`, the mise, hook, CI, and security fragments | `container_language`, `container_runtime_base`, `registry`, `expose_port`, `trivy_severity`, `container_attest` |
 
 `docs/architecture.md` carries the measured base image policy and the build-scan-push
 order. The layer's own `Dockerfile` repeats the measurement beside the `FROM` line, so the
@@ -836,6 +866,21 @@ Only hadolint runs at commit time. Building an image takes minutes and needs a d
 the build and the image scan are CI. `trivy` runs twice against different things: `config`
 mode reads the Dockerfile in the language-blind security workflow, and `image` mode reads
 the built image in this layer's own job.
+
+`container_attest` is on by default and attests the pushed image's provenance. The subject is
+the digest the registry returned, taken from the push step's own output, rather than a tag: a
+tag is mutable, so an attestation bound to one says nothing about what a puller receives
+later. `push-to-registry` stores the bundle beside the image, which is what lets
+`gh attestation verify oci://...` work for someone holding the image and not the repository.
+
+The step is gated on the push, since a pull request builds without publishing and there is no
+digest to bind.
+
+This job sets `cache: false` on mise, unlike every other mise-action call in the scaffold. It
+pushes an image users pull, so a poisoned cache entry would end up inside that image. zizmor
+reported exactly that against this workflow at high severity before the change. Only hadolint
+and just come from mise here, so a cold install costs seconds. `release/goreleaser` sets the
+same flag on setup-go.
 
 ## iac
 

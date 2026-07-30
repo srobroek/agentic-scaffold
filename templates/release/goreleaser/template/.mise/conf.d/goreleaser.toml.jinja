@@ -1,3 +1,10 @@
 {#- .mise/conf.d/goreleaser.toml -- mise reads every file in this directory. -#}
 [tools]
 goreleaser = "{{ goreleaser_version }}"
+{%- if goreleaser_sbom %}
+# goreleaser's `sboms` block shells out to syft and does not install it. Without syft on PATH a
+# local snapshot fails at the cataloguing step with the archives already built:
+# `exec: "syft": executable file not found in $PATH`. The release workflow installs it with its
+# own step, since that job runs no mise.
+syft = "{{ syft_version }}"
+{%- endif %}

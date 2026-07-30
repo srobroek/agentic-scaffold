@@ -320,3 +320,81 @@ def test_the_rendered_dockerfile_builds_and_runs(buildable: Path) -> None:
         assert shell.returncode != 0, "the runtime base must carry no shell"
     finally:
         subprocess.run(["docker", "rmi", "-f", tag], capture_output=True, check=False)
+
+
+# --- provenance attestation ------------------------------------------------
+
+
+def workflow(dest: Path) -> dict:
+    return yaml.safe_load((dest / ".github" / "workflows" / "wc-container.yml").read_text())
+
+
+def test_the_attestation_binds_the_digest_not_the_tag(container: Path) -> None:
+    """A tag is mutable, so an attestation bound to one says nothing about what a puller
+    receives later. The digest comes from the push step's own output, which is why that step
+    carries an id."""
+    steps = workflow(container)["jobs"]["image"]["steps"]
+    push = next(s for s in steps if s.get("name") == "Push")
+    assert push["id"] == "push"
+
+    attest = next(s for s in steps if "attest-build-provenance" in str(s.get("uses", "")))
+    assert attest["with"]["subject-digest"] == "${{ steps.push.outputs.digest }}"
+    assert "subject-path" not in attest["with"], "a path would re-hash a file, not the manifest"
+
+
+def test_the_attestation_only_runs_on_a_push(container: Path) -> None:
+    """There is no digest without a push, and a pull request builds without publishing."""
+    steps = workflow(container)["jobs"]["image"]["steps"]
+    attest = next(s for s in steps if "attest-build-provenance" in str(s.get("uses", "")))
+    assert attest["if"] == "inputs.push"
+
+
+def test_the_attestation_follows_the_push(container: Path) -> None:
+    """The subject is a digest, and a digest exists only once the artefact does."""
+    steps = workflow(container)["jobs"]["image"]["steps"]
+    push = next(i for i, s in enumerate(steps) if s.get("name") == "Push")
+    attest = next(
+        i for i, s in enumerate(steps) if "attest-build-provenance" in str(s.get("uses", ""))
+    )
+    assert attest > push
+
+
+def test_the_attestation_permissions_are_granted(container: Path) -> None:
+    """id-token mints the short-lived signing certificate and attestations writes the bundle.
+    A called workflow cannot hold more than its caller granted, so both are also documented
+    as the caller's to grant."""
+    permissions = workflow(container)["jobs"]["image"]["permissions"]
+    assert permissions["id-token"] == "write"
+    assert permissions["attestations"] == "write"
+
+
+def test_the_bundle_is_pushed_beside_the_image(container: Path) -> None:
+    """Without it `gh attestation verify oci://...` fails for someone who has the image and
+    not the repository."""
+    steps = workflow(container)["jobs"]["image"]["steps"]
+    attest = next(s for s in steps if "attest-build-provenance" in str(s.get("uses", "")))
+    assert attest["with"]["push-to-registry"] is True
+
+
+def test_attestation_can_be_turned_off(tmp_path: Path) -> None:
+    """A repository pushing to a registry that does not host attestations has no use for the
+    step, and the two extra permissions should not be requested for nothing."""
+    dest = tmp_path / "off"
+    dest.mkdir()
+    subprocess.run(["git", "init", "-q", str(dest)], check=True)
+    assert render(dest, GO + "container_attest: false\n").returncode == 0
+
+    job = workflow(dest)["jobs"]["image"]
+    assert "id-token" not in job["permissions"]
+    assert "attestations" not in job["permissions"]
+    assert not any("attest" in str(s.get("uses", "")) for s in job["steps"])
+
+
+def test_the_publishing_job_does_not_cache(container: Path) -> None:
+    """This job pushes an image users pull, so a poisoned cache entry would end up inside it.
+    zizmor reports the combination of a cache opt-in and a publish step as cache-poisoning at
+    high severity, and reported exactly that against this workflow before the change. Only
+    hadolint and just come from mise here, so a cold install costs seconds."""
+    steps = workflow(container)["jobs"]["image"]["steps"]
+    mise = next(s for s in steps if "mise-action" in str(s.get("uses", "")))
+    assert mise["with"]["cache"] is False
