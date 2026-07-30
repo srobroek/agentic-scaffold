@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -96,7 +97,9 @@ def test_the_packages_are_written_when_supplied(tmp_path: Path) -> None:
     render(
         "agentic/apm",
         dest,
-        APM_ANSWERS.replace("apm_packages: []", "apm_packages:\n" + "".join(f'  - "{p}"\n' for p in locators)),
+        APM_ANSWERS.replace(
+            "apm_packages: []", "apm_packages:\n" + "".join(f'  - "{p}"\n' for p in locators)
+        ),
     )
     assert yaml.safe_load((dest / "apm.yml").read_text())["dependencies"]["apm"] == locators
 
@@ -401,15 +404,12 @@ def test_the_database_push_runs_at_pre_push(tmp_path: Path) -> None:
     A git push is the moment the database has to follow.
     """
     dest = git_repo(tmp_path / "d")
-    render("quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n")
+    render(
+        "quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n"
+    )
 
     config = yaml.safe_load((dest / ".pre-commit-config.yaml").read_text())
-    hook = next(
-        h
-        for repo in config["repos"]
-        for h in repo["hooks"]
-        if h["id"] == "bd-dolt-push"
-    )
+    hook = next(h for repo in config["repos"] for h in repo["hooks"] if h["id"] == "bd-dolt-push")
     assert hook["stages"] == ["pre-push"]
     assert "pre-push" in config["default_install_hook_types"]
 
@@ -425,12 +425,12 @@ def test_the_adr_fragment_renders_and_writes(tmp_path: Path) -> None:
     stage produces either a failed commit or a missing file.
     """
     dest = git_repo(tmp_path / "d")
-    render("quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n")
+    render(
+        "quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n"
+    )
 
     config = yaml.safe_load((dest / ".pre-commit-config.yaml").read_text())
-    hook = next(
-        h for repo in config["repos"] for h in repo["hooks"] if h["id"] == "render-adrs"
-    )
+    hook = next(h for repo in config["repos"] for h in repo["hooks"] if h["id"] == "render-adrs")
     assert hook["stages"] == ["pre-commit"]
     # A database is not a path: no staged file set reveals that a bead changed.
     assert hook["always_run"] is True
@@ -444,12 +444,12 @@ def test_the_adr_hooks_no_op_without_their_tooling(tmp_path: Path) -> None:
     whether or not agentic/beads did, and the linter on `bd` being installed.
     """
     dest = git_repo(tmp_path / "d")
-    render("quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n")
+    render(
+        "quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n"
+    )
 
     config = yaml.safe_load((dest / ".pre-commit-config.yaml").read_text())
-    hooks = {
-        h["id"]: h for repo in config["repos"] for h in repo["hooks"]
-    }
+    hooks = {h["id"]: h for repo in config["repos"] for h in repo["hooks"]}
     assert "test -x scripts/render_adrs.py" in hooks["render-adrs"]["entry"]
     assert "command -v bd" in hooks["adr-lint-decisions"]["entry"]
 
@@ -469,6 +469,149 @@ def test_beads_ships_the_adr_renderer(tmp_path: Path) -> None:
     body = script.read_text()
     assert "VENDORED from srobroek/agentic-packages" in body, "provenance must survive"
     assert "bd export" in body
+
+
+DECISION = """\
+## Decision
+
+Use OpenTofu.
+
+## Rationale
+
+The licence change makes the alternative unusable here.
+
+## Alternatives Considered
+
+Terraform: rejected, BUSL.
+"""
+
+
+def decisions_rendered(tmp_path: Path) -> Path:
+    """A repo with agentic/beads and docs/adr, one closed decision, and ADRs rendered."""
+    dest = git_repo(tmp_path / "adr")
+    render("agentic/beads", dest, "bd_prefix: adrt\nbd_dolt_sync: local-only\n")
+    render("docs/adr", dest, "project_name: demo\n")
+
+    subprocess.run(
+        ["bd", "create", "Use OpenTofu", "--type", "decision", "-d", DECISION],
+        cwd=dest,
+        check=True,
+        capture_output=True,
+    )
+    listed = subprocess.run(
+        ["bd", "list", "--type", "decision", "--json"],
+        cwd=dest,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    bead = json.loads(listed.stdout)[0]["id"]
+    subprocess.run(
+        ["bd", "close", bead, "--reason", "settled"], cwd=dest, check=True, capture_output=True
+    )
+    subprocess.run(
+        [sys.executable, "scripts/render_adrs.py"], cwd=dest, check=True, capture_output=True
+    )
+    return dest
+
+
+@needs_bd
+def test_a_rendered_record_opens_with_its_frontmatter(tmp_path: Path) -> None:
+    """`---` on line 1, or a frontmatter parser reads the block as body text.
+
+    An earlier version put the provenance comment above it, which left `status`, `date`,
+    and `bead` invisible to anything indexing these records.
+    """
+    dest = decisions_rendered(tmp_path)
+    record = next((dest / "docs" / "adr").glob("0001-*.md"))
+    body = record.read_text()
+
+    assert body.startswith("---"), "frontmatter must be the first thing in the file"
+    parsed = yaml.safe_load(body.split("---")[1])
+    assert parsed["status"] == "accepted"
+    assert parsed["bead"]
+    # The provenance note still ships, below the block.
+    assert "Edit the bead, not this file" in body
+
+
+@needs_bd
+def test_the_index_lists_every_rendered_record(tmp_path: Path) -> None:
+    """docs/adr ships an index, and a table left at its placeholder row reports that a
+    project has no decisions while numbered files accumulate beside it."""
+    dest = decisions_rendered(tmp_path)
+    index = (dest / "docs" / "adr" / "index.md").read_text()
+    rows = index.partition("<!-- BEGIN GENERATED: decisions -->")[2].partition(
+        "<!-- END GENERATED: decisions -->"
+    )[0]
+
+    assert "0001-use-opentofu.md" in rows, "the row links the record it describes"
+    assert "| accepted |" in rows
+    assert "| | |" not in rows, "the placeholder row must be gone"
+
+
+@needs_bd
+def test_the_index_keeps_what_is_outside_the_markers(tmp_path: Path) -> None:
+    """The prose above the table explains the convention and is the project's to edit."""
+    dest = decisions_rendered(tmp_path)
+    index_path = dest / "docs" / "adr" / "index.md"
+    index_path.write_text(index_path.read_text() + "\n## Local note\n\nSurvives.\n")
+
+    subprocess.run(
+        [sys.executable, "scripts/render_adrs.py"], cwd=dest, check=True, capture_output=True
+    )
+    body = index_path.read_text()
+    assert "Survives." in body
+    assert "# Decision records" in body
+
+
+@needs_bd
+def test_an_index_without_markers_is_left_alone(tmp_path: Path) -> None:
+    """docs/adr may not have rendered, or a project may have replaced the index.
+
+    Injecting a table into a file that never asked for one is worse than leaving it
+    alone, so the renderer reports nothing rather than editing it.
+    """
+    dest = decisions_rendered(tmp_path)
+    index_path = dest / "docs" / "adr" / "index.md"
+    index_path.write_text("# My own index\n\nNo markers here.\n")
+
+    result = subprocess.run(
+        [sys.executable, "scripts/render_adrs.py"], cwd=dest, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+    assert index_path.read_text() == "# My own index\n\nNo markers here.\n"
+
+
+@needs_bd
+def test_check_reports_a_stale_index_without_repairing_it(tmp_path: Path) -> None:
+    """A gate that fixes what it checks destroys a hand edit and passes on the rerun."""
+    dest = decisions_rendered(tmp_path)
+    index_path = dest / "docs" / "adr" / "index.md"
+    index_path.write_text(index_path.read_text().replace("Use OpenTofu", "TAMPERED"))
+
+    result = subprocess.run(
+        [sys.executable, "scripts/render_adrs.py", "--check"],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1, "a stale index must fail the check"
+    assert "TAMPERED" in index_path.read_text(), "--check must not rewrite the tree"
+
+
+@needs_bd
+def test_rendering_is_idempotent(tmp_path: Path) -> None:
+    """A second run must restage nothing, or every unrelated commit carries every ADR."""
+    dest = decisions_rendered(tmp_path)
+    before = {path.name: path.read_text() for path in (dest / "docs" / "adr").glob("*.md")}
+
+    result = subprocess.run(
+        [sys.executable, "scripts/render_adrs.py"], cwd=dest, capture_output=True, text=True
+    )
+    assert result.returncode == 0
+    assert "wrote" not in result.stdout, "nothing changed, so nothing should be written"
+    after = {path.name: path.read_text() for path in (dest / "docs" / "adr").glob("*.md")}
+    assert after == before
 
 
 # --- AGENTS.md ownership ---------------------------------------------------

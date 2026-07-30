@@ -60,9 +60,7 @@ def test_every_language_ships_the_same_file_kinds(language: str, tmp_path: Path)
 
 
 @pytest.mark.parametrize("language", LANGUAGES)
-def test_the_reusable_workflows_take_a_working_directory(
-    language: str, tmp_path: Path
-) -> None:
+def test_the_reusable_workflows_take_a_working_directory(language: str, tmp_path: Path) -> None:
     """Without it a monorepo member cannot be linted where it sits."""
     dest = tmp_path / language
     dest.mkdir()
@@ -103,15 +101,11 @@ def test_actions_are_pinned_to_a_sha(language: str, tmp_path: Path) -> None:
             # A pinned line carries a trailing `# vN` comment naming the tag.
             sha = version.split("#", 1)[0].strip()
             assert len(sha) == 40, f"{path.name}: {reference} is not SHA-pinned"
-            assert all(c in "0123456789abcdef" for c in sha), (
-                f"{path.name}: {sha} is not a hex SHA"
-            )
+            assert all(c in "0123456789abcdef" for c in sha), f"{path.name}: {sha} is not a hex SHA"
 
 
 @pytest.mark.parametrize("language", LANGUAGES)
-def test_the_security_fragment_declares_codeql_support(
-    language: str, tmp_path: Path
-) -> None:
+def test_the_security_fragment_declares_codeql_support(language: str, tmp_path: Path) -> None:
     """CodeQL has no Rust extractor, so the fragment must say so rather than guess."""
     dest = tmp_path / language
     dest.mkdir()
@@ -131,9 +125,7 @@ def test_ruff_ignores_use_names_not_codes(tmp_path: Path) -> None:
     assert "preview = true" in body
 
     # Read the selector list, not the file: a comment may name the rejected code.
-    selectors = [
-        line for line in body.splitlines() if line.startswith('"tests/**"')
-    ]
+    selectors = [line for line in body.splitlines() if line.startswith('"tests/**"')]
     assert selectors, "the tests/** ignore is absent"
     assert '"S101"' not in selectors[0], "RUF201 rejects a rule code in a selector"
     assert '"assert"' in selectors[0]
@@ -279,9 +271,7 @@ def test_type_aware_linting_declares_its_package(tmp_path: Path) -> None:
     render("lang/ts", dest, ANSWERS["ts"])
     assert json.loads((dest / ".oxlintrc.json").read_text())["options"]["typeAware"] is True
 
-    task = (
-        REPO_ROOT / "templates" / "lang" / "ts" / "tasks" / "add_dev_deps.py"
-    ).read_text()
+    task = (REPO_ROOT / "templates" / "lang" / "ts" / "tasks" / "add_dev_deps.py").read_text()
     assert "oxlint-tsgolint" in task
 
 

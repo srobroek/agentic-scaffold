@@ -12,6 +12,12 @@ Copy `0000-template.md` to the next number. Numbers are never reused, and a deci
 no longer holds gets a new record superseding the old rather than an edit, so the history
 of what was believed stays readable.
 
-| ADR | Title | Status |
-|---|---|---|
-| | | |
+A decision held as a beads `decision` bead needs no copy. `render_adrs.py` writes its
+record and its row below at pre-commit, once the bead is closed. The rows between the
+markers are generated from the database, and everything outside them is this project's
+to edit.
+
+<!-- BEGIN GENERATED: decisions -->
+| ADR | Title | Status | Bead |
+|---|---|---|---|
+<!-- END GENERATED: decisions -->

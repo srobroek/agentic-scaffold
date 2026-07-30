@@ -47,6 +47,17 @@ from pathlib import Path
 
 ADR_DIR = Path("docs/adr")
 
+# The index `docs/adr` ships carries a table for the records. Left alone it keeps the
+# empty placeholder row while numbered files accumulate beside it, so the one artefact a
+# reader opens first is the one that says there are no decisions.
+#
+# Only the rows between these markers are rewritten. The prose above them explains the
+# convention and is the project's to edit, and the template row a hand-written record
+# would use survives.
+INDEX_FILE = ADR_DIR / "index.md"
+INDEX_BEGIN = "<!-- BEGIN GENERATED: decisions -->"
+INDEX_END = "<!-- END GENERATED: decisions -->"
+
 # Bare `bd` inherits the caller's pager and interactive prompts. A git hook has
 # no tty, so an unset pager can hang the commit rather than fail it.
 BD_ENV_FLAGS = {"BD_NO_PAGER": "1", "BD_NON_INTERACTIVE": "1"}
@@ -159,9 +170,11 @@ def render_one(bead: dict, number: int) -> str:
     status = "superseded" if superseded_by else "accepted"
     date = (bead.get("closed_at") or bead.get("updated_at") or "")[:10]
 
+    # Frontmatter opens the file. A leading HTML comment pushes `---` off line 1, and a
+    # frontmatter parser then reads the block as body text, so `status`, `date`, and
+    # `bead` go invisible to anything that indexes these records. The provenance note
+    # follows the block instead.
     lines = [
-        "<!-- Generated from a beads decision bead. Edit the bead, not this file:",
-        f"     bd show {bead.get('id')} -->",
         "---",
         f"number: {number}",
         f"title: {title}",
@@ -173,7 +186,15 @@ def render_one(bead: dict, number: int) -> str:
         lines.append(f"spec: {spec}")
     if superseded_by:
         lines.append(f"superseded-by: {', '.join(superseded_by)}")
-    lines += ["---", "", f"# {title}", ""]
+    lines += [
+        "---",
+        "",
+        "<!-- Generated from a beads decision bead. Edit the bead, not this file:",
+        f"     bd show {bead.get('id')} -->",
+        "",
+        f"# {title}",
+        "",
+    ]
 
     if superseded_by:
         lines += [
@@ -219,6 +240,45 @@ def render_one(bead: dict, number: int) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def render_index(entries: list[tuple[int, str, str, str]]) -> str:
+    """The generated row block for docs/adr/index.md.
+
+    Newest last, matching what the shipped index says the order is. A row links the
+    file and names the bead, so a reader can reach either the record or its source.
+    """
+    lines = [INDEX_BEGIN, "| ADR | Title | Status | Bead |", "|---|---|---|---|"]
+    for number, title, status, bead in entries:
+        slug = f"{number:04d}-{slugify(title)}.md"
+        lines.append(f"| [{number:04d}]({slug}) | {title} | {status} | `{bead}` |")
+    lines.append(INDEX_END)
+    return "\n".join(lines)
+
+
+def update_index(repo: Path, entries: list[tuple[int, str, str, str]], *, write: bool) -> Path | None:
+    """Rewrite the index's generated rows. Returns the path when it is stale.
+
+    Absent markers are not an error: `docs/adr` may not have rendered, or a project may
+    have replaced the index with its own. Injecting a table into a file that never asked
+    for one would be worse than leaving it alone, so this reports nothing in that case.
+    """
+    path = repo / INDEX_FILE
+    if not path.is_file():
+        return None
+
+    current = path.read_text(encoding="utf-8")
+    if INDEX_BEGIN not in current or INDEX_END not in current:
+        return None
+
+    head, _, rest = current.partition(INDEX_BEGIN)
+    _, _, tail = rest.partition(INDEX_END)
+    updated = head + render_index(entries) + tail
+    if updated == current:
+        return None
+    if write:
+        path.write_text(updated, encoding="utf-8")
+    return path
+
+
 def render_all(repo: Path, *, write: bool = True) -> tuple[list[Path], str | None]:
     """Render every closed decision. Returns (stale-or-written paths, skip reason).
 
@@ -244,15 +304,34 @@ def render_all(repo: Path, *, write: bool = True) -> tuple[list[Path], str | Non
         target.mkdir(parents=True, exist_ok=True)
 
     changed = []
+    entries: list[tuple[int, str, str, str]] = []
     for index, bead in enumerate(closed, start=1):
         body = render_one(bead, index)
-        path = target / f"{index:04d}-{slugify(bead.get('title') or '')}.md"
+        title = (bead.get("title") or "Untitled decision").strip()
+        path = target / f"{index:04d}-{slugify(title)}.md"
+
+        # The index row is collected for every decision, not only the stale ones: the
+        # table has to list all of them, and a run where one file changed still needs
+        # the complete set.
+        _, superseded_by = supersession(bead)
+        entries.append(
+            (
+                index,
+                title,
+                "superseded" if superseded_by else "accepted",
+                bead.get("id") or "",
+            )
+        )
+
         # Compare before writing, so an unrelated commit does not restage every ADR.
         if path.is_file() and path.read_text(encoding="utf-8") == body:
             continue
         changed.append(path)
         if write:
             path.write_text(body, encoding="utf-8")
+
+    if stale_index := update_index(repo, entries, write=write):
+        changed.append(stale_index)
     return changed, None
 
 

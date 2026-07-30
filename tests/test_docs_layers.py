@@ -126,7 +126,11 @@ def test_an_absent_repo_url_omits_the_links(tmp_path: Path) -> None:
     """A dead edit link is worse than none."""
     dest = tmp_path / "site"
     dest.mkdir()
-    render("docs/site", dest, SITE_ANSWERS.replace('repo_url: "https://github.com/owner/repo"', 'repo_url: ""'))
+    render(
+        "docs/site",
+        dest,
+        SITE_ANSWERS.replace('repo_url: "https://github.com/owner/repo"', 'repo_url: ""'),
+    )
 
     body = config_of(dest)
     assert "editLink" not in body
@@ -136,7 +140,11 @@ def test_an_absent_repo_url_omits_the_links(tmp_path: Path) -> None:
 def test_an_explicit_sidebar_is_written_when_asked(tmp_path: Path) -> None:
     dest = tmp_path / "site"
     dest.mkdir()
-    render("docs/site", dest, SITE_ANSWERS.replace("sidebar_autogenerate: true", "sidebar_autogenerate: false"))
+    render(
+        "docs/site",
+        dest,
+        SITE_ANSWERS.replace("sidebar_autogenerate: true", "sidebar_autogenerate: false"),
+    )
 
     assert "sidebar:" in config_of(dest)
 
@@ -217,9 +225,7 @@ def test_pages_permissions_do_not_ride_the_gate(sibling: Path) -> None:
     assert deploy["id-token"] == "write"
 
 
-@pytest.mark.parametrize(
-    ("fixture", "name"), [("sibling", "pages"), ("split", "docs-publish")]
-)
+@pytest.mark.parametrize(("fixture", "name"), [("sibling", "pages"), ("split", "docs-publish")])
 def test_concurrency_is_scoped_per_ref(fixture: str, name: str, request) -> None:
     """A global group would make two different refs cancel each other. Per ref, two
     pushes to one branch serialise and the later wins."""
@@ -228,9 +234,7 @@ def test_concurrency_is_scoped_per_ref(fixture: str, name: str, request) -> None
     assert "github.ref" in group
 
 
-@pytest.mark.parametrize(
-    ("fixture", "name"), [("sibling", "pages"), ("split", "docs-publish")]
-)
+@pytest.mark.parametrize(("fixture", "name"), [("sibling", "pages"), ("split", "docs-publish")])
 def test_the_build_disables_jekyll(fixture: str, name: str, request) -> None:
     """Pages applies Jekyll unless told not to, which drops any directory whose name opens
     with an underscore. Astro emits `_astro/`, so the assets 404 and pages render
@@ -277,9 +281,7 @@ def test_the_split_uses_a_deploy_key(split: Path) -> None:
     assert step["with"]["external_repository"] == "owner/owner.github.io"
 
 
-@pytest.mark.parametrize(
-    ("fixture", "name"), [("sibling", "pages"), ("split", "docs-publish")]
-)
+@pytest.mark.parametrize(("fixture", "name"), [("sibling", "pages"), ("split", "docs-publish")])
 def test_only_a_site_change_republishes(fixture: str, name: str, request) -> None:
     """A change outside the site cannot alter the built output.
 
@@ -293,9 +295,7 @@ def test_only_a_site_change_republishes(fixture: str, name: str, request) -> Non
 
 @pytest.mark.parametrize("layer", ["docs/deploy-sibling", "docs/deploy-split"])
 @pytest.mark.parametrize("tool", ["actionlint", "zizmor"])
-def test_the_deploy_workflows_pass_their_own_linters(
-    layer: str, tool: str, tmp_path: Path
-) -> None:
+def test_the_deploy_workflows_pass_their_own_linters(layer: str, tool: str, tmp_path: Path) -> None:
     if shutil.which(tool) is None:
         pytest.skip(f"{tool} absent from PATH")
 

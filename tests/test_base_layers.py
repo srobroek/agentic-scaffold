@@ -66,9 +66,7 @@ def test_licence_id_matching_is_case_insensitive(tmp_path: Path) -> None:
 def test_the_holder_and_year_are_substituted(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
-    render(
-        "base/license", dest, 'license: MIT\ncopyright_name: Acme Ltd\ncopyright_year: "2031"\n'
-    )
+    render("base/license", dest, 'license: MIT\ncopyright_name: Acme Ltd\ncopyright_year: "2031"\n')
     body = (dest / "LICENSE").read_text()
     assert "Acme Ltd" in body
     assert "2031" in body
