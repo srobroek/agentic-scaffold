@@ -357,3 +357,25 @@ def test_a_language_layer_declares_how_its_generator_output_is_normalised() -> N
             f"lang/{language} claims {task} normalises its generator output, but its "
             "_tasks do not run it"
         )
+
+
+def test_a_language_layer_contributes_both_shared_job_fragments() -> None:
+    """The host layer's quality and security workflows build their matrices by reading these
+    directories at run time, so a language contributes its jobs by dropping a file.
+
+    Absence is stated rather than implied. `codeql.supported: false` is a claim someone made
+    about a language CodeQL cannot extract; a missing file is indistinguishable from a layer
+    nobody finished. lang/api shipped without a security fragment until this test existed.
+    """
+    for layer in sorted(TEMPLATES.iterdir()):
+        if not (layer / "copier.yml").is_file():
+            continue
+        template = layer / "template" / ".github"
+        for kind in ("quality.d", "security.d"):
+            found = list((template / kind).glob("*.yml")) if (template / kind).is_dir() else []
+            assert found, f"lang/{layer.name} contributes no .github/{kind} fragment"
+
+        security = yaml.safe_load(next((template / "security.d").glob("*.yml")).read_text())
+        # Every key the discovery step reads has to be present, or a scan is skipped silently
+        # rather than declared unsupported.
+        assert "codeql" in security, f"lang/{layer.name} does not state its CodeQL support"

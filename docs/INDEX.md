@@ -30,7 +30,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `host/gitlab` | 7 | 10 |
 | `iac/cdk` | 6 | 5 |
 | `iac/terraform` | 11 | 23 |
-| `lang/api` | 8 | 7 |
+| `lang/api` | 8 | 8 |
 | `lang/go` | 3 | 11 |
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
@@ -533,6 +533,7 @@ Writes:
 
 ```
 .github/quality.d/api.yml
+.github/security.d/api.yml
 .github/workflows/wc-lint-api.yml
 .gitlab/ci/api.yml
 .just.d/api.just
