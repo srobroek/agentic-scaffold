@@ -22,7 +22,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `base/repo` | 3 | 5 |
 | `container/image` | 8 | 8 |
 | `docs/adr` | 1 | 2 |
-| `docs/agents` | 1 | 9 |
+| `docs/agents` | 1 | 11 |
 | `docs/deploy-sibling` | 3 | 1 |
 | `docs/deploy-split` | 4 | 1 |
 | `docs/site` | 9 | 9 |
@@ -292,6 +292,7 @@ steering directories under docs/agents, with generated blocks the steering skill
 Writes:
 
 ```
+.just.d/steering.just
 docs/agents/AGENTS.body.md
 docs/agents/ci/index.md
 docs/agents/conventions.md
@@ -301,6 +302,7 @@ docs/agents/index.md
 docs/agents/quality/index.md
 docs/agents/release/index.md
 docs/agents/testing/index.md
+scripts/gen_steering.py
 ```
 
 ## `docs/deploy-sibling`

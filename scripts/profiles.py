@@ -27,13 +27,16 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import os
 import sys
 from pathlib import Path
 
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PROFILES = REPO_ROOT / "profiles"
+# Overridable so a test can validate a copied directory. Writing a fixture into the real
+# profiles/ made the suite fail under `-n auto`: one worker saw another worker's file.
+PROFILES = Path(os.environ.get("SCAFFOLD_PROFILES") or REPO_ROOT / "profiles")
 TEMPLATES = REPO_ROOT / "templates"
 
 REQUIRED_KEYS = ("name", "summary", "generator", "layers", "build")

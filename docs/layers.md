@@ -898,6 +898,36 @@ generator, since `cargo new` and `create-better-t-stack` reach the network or ne
 toolchain the machine may lack, so `cargo build` there would fail for a missing manifest
 rather than for anything a layer got wrong.
 
+## Steering generation
+
+`docs/agents` ships `scripts/gen_steering.py`, which fills the marked blocks in
+`docs/agents/` from what is on disk. `docs/steering.md` carries the ownership table; the
+generator implements the generated half.
+
+A pure function of the tree. Nothing is asked, because an answer could disagree with the
+files an agent will actually read, and nothing reaches the network, so
+`just steering-check` can gate it in CI.
+
+| Reads | Produces |
+|---|---|
+| `justfile` and `.just.d/*` | the command surface in `index.md` |
+| `.mise/conf.d/*.toml` | the toolchain pin table |
+| each language layer's tool config | one `quality/<lang>.md` leaf, plus its index row |
+| `.github/workflows/*` | the job list and the gate's role |
+| `release-please-config.json` | the tool and the real tag shape |
+| the workflows and the Dockerfile | variable names, never values |
+
+Both markers carry the block name: `<!-- END GENERATED: index -->`, not a bare
+`<!-- END GENERATED -->`. A generator matching the bare form finds nothing, writes an empty
+block, and reports that it wrote the file.
+
+A file with no marker is never written after it is first created, which is what keeps
+`conventions.md` and each leaf's "why a rule is off" section. `--check` reports drift
+without repairing it, so the gate cannot destroy a hand edit and pass on the rerun.
+
+Adding a language adds `quality/<lang>.md` and one index row. No existing file grows, which
+is the property `docs/steering.md` asks for.
+
 ## Running the tests
 
 Most tests render a layer and run the real tool against the result, which is what catches

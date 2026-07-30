@@ -10,6 +10,7 @@ profile ran `just just-check`.
 from __future__ import annotations
 
 import fnmatch
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -154,39 +155,60 @@ def test_the_validator_agrees(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
+def validator_against(directory: Path) -> subprocess.CompletedProcess[str]:
+    """Run the validator with PROFILES pointed at a copy.
+
+    The failure-path tests used to write a `zz-test-*.yml` into the real profiles/
+    directory, which made them fail under `-n auto`: one worker saw another worker's
+    fixture, and `test_a_build_asserts_only_what_layers_produce` read it as a real profile.
+    A shared mutable directory is not a fixture.
+    """
+    return subprocess.run(
+        [sys.executable, str(VALIDATOR)],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "SCAFFOLD_PROFILES": str(directory)},
+    )
+
+
+def copied_profiles(tmp_path: Path, extra: dict[str, str]) -> Path:
+    directory = tmp_path / "profiles"
+    directory.mkdir()
+    for path in profile_paths():
+        (directory / path.name).write_text(path.read_text())
+    for name, body in extra.items():
+        (directory / name).write_text(body)
+    return directory
+
+
 def test_the_validator_rejects_an_unknown_layer(tmp_path: Path) -> None:
     """A validator that passes everything is not a validator, so the failure path is
     exercised rather than assumed."""
-    broken = PROFILES / "zz-test-invalid.yml"
-    broken.write_text(
-        "name: zz-test-invalid\nsummary: probe\ngenerator: none\n"
-        "layers:\n  - base/repo\n  - nope/missing\nbuild:\n  - true\n"
+    directory = copied_profiles(
+        tmp_path,
+        {
+            "zz-invalid.yml": "name: zz-invalid\nsummary: probe\ngenerator: none\n"
+            "layers:\n  - base/repo\n  - nope/missing\nbuild:\n  - true\n"
+        },
     )
-    try:
-        result = subprocess.run(
-            [sys.executable, str(VALIDATOR)], capture_output=True, text=True, check=False
-        )
-        assert result.returncode == 1
-        assert "nope/missing" in result.stderr
-    finally:
-        broken.unlink()
+    result = validator_against(directory)
+    assert result.returncode == 1
+    assert "nope/missing" in result.stderr
 
 
-def test_the_validator_rejects_a_bad_order() -> None:
-    broken = PROFILES / "zz-test-order.yml"
-    # base/gitignore aggregates, and lang/rust contributes, so this order is wrong.
-    broken.write_text(
-        "name: zz-test-order\nsummary: probe\ngenerator: none\n"
-        "layers:\n  - base/repo\n  - base/gitignore\n  - lang/rust\nbuild:\n  - true\n"
+def test_the_validator_rejects_a_bad_order(tmp_path: Path) -> None:
+    """base/gitignore aggregates .gitignore.d, and lang/rust contributes to it."""
+    directory = copied_profiles(
+        tmp_path,
+        {
+            "zz-order.yml": "name: zz-order\nsummary: probe\ngenerator: none\n"
+            "layers:\n  - base/repo\n  - base/gitignore\n  - lang/rust\nbuild:\n  - true\n"
+        },
     )
-    try:
-        result = subprocess.run(
-            [sys.executable, str(VALIDATOR)], capture_output=True, text=True, check=False
-        )
-        assert result.returncode == 1
-        assert "base/gitignore" in result.stderr
-    finally:
-        broken.unlink()
+    result = validator_against(directory)
+    assert result.returncode == 1
+    assert "base/gitignore" in result.stderr
 
 
 def test_the_largest_shape_needs_no_language_layer() -> None:
