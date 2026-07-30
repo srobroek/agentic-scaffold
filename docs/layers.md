@@ -1039,6 +1039,39 @@ reads.
 | `.github/workflows/wc-*.yml` | the caller the agent writes |
 | `.gitlab/ci/<name>.yml` | GitLab's `include: local:` glob |
 
+### The agentic hooks with a git event
+
+Three of the thirteen agentic-packages hooks act on a git action, and those move into
+`.pre-commit.d/git-actions.yaml`. As PreToolUse hooks they fire only for an agent whose
+harness is configured; as prek entries in a committed config they fire for every committer and
+survive an agent running without that config.
+
+| Hook | Stage | Behaviour |
+|---|---|---|
+| `normalize-close-keywords` | `commit-msg` | rewrites the message in place |
+| `attribution-guard` | `commit-msg` | advisory, prints and exits 0 |
+| `no-force-push-to-default` | `pre-push` | refuses a non-fast-forward |
+
+`Closes #1, #2, #3` closes only `#1`, because GitHub binds a closing keyword to the first
+issue in a list. The rewrite distributes it so the rest close too, verified end to end through
+prek's `commit-msg` stage.
+
+The attribution guard prints rather than blocking. A commit message is trivially fixable and a
+denied commit costs more than a nudge; the enforcing copy is the `commits` job in the quality
+workflow, which reads the whole pull request range. Its patterns are vendored rather than
+rewritten, because they carry recorded false-positive fixes: the bare
+`users.noreply.github.com` domain was removed after an ordinary human co-author trailer was
+reported as AI attribution.
+
+The rest stayed behind, and the fragment records why beside the three that moved.
+`hooks-quality` fires on an edit, which git never sees. `reset --hard`, `clean -fd`, and
+`checkout --` are pre-execution guards: by the time a git hook runs, the work is already gone.
+Only the force-push guard has an event, and `pre-push` is it.
+
+A pre-push hook receives its refs on stdin and cannot see the `--force` flag, so the guard
+compares ancestry instead: a non-fast-forward push means the remote commit is not an ancestor
+of the local one.
+
 ### Hook fragments
 
 In a monorepo each package carries a real `.pre-commit-config.yaml`, and prek's

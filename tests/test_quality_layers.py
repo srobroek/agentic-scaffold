@@ -426,3 +426,180 @@ def test_prek_installs_a_shim_for_every_declared_stage(rendered: Path) -> None:
         assert (rendered / ".git" / "hooks" / stage).is_file(), (
             f"no shim for {stage}, so that hook never fires"
         )
+
+
+# --- the migrated git-action hooks -----------------------------------------
+
+GIT_ACTION_IDS = {
+    "normalize-close-keywords",
+    "attribution-guard",
+    "no-force-push-to-default",
+}
+
+
+def test_the_git_action_hooks_reach_the_merged_config(tmp_path: Path) -> None:
+    """As PreToolUse hooks these fire only for an agent whose harness is configured. As prek
+    entries committed to the repository they fire for every committer and survive an agent
+    running without that config."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("quality/hooks", dest, ANSWERS)
+
+    config = yaml.safe_load((dest / ".pre-commit-config.yaml").read_text())
+    ids = {hook["id"] for repo in config["repos"] for hook in repo["hooks"]}
+    assert ids >= GIT_ACTION_IDS
+
+    # A hook whose stage is absent from this list gets no shim, so it never fires.
+    assert "commit-msg" in config["default_install_hook_types"]
+    assert "pre-push" in config["default_install_hook_types"]
+
+
+def test_the_vendored_scripts_carry_their_provenance(tmp_path: Path) -> None:
+    """No checker enforces a copy across a repository boundary, so the header names the source
+    and the re-sync command. This is the contract hooks-close-keywords documents."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("quality/hooks", dest, ANSWERS)
+
+    for name in ("commit-msg-rewrite.py", "close_keywords.py", "attribution_patterns.py"):
+        body = (dest / "scripts" / name).read_text()
+        assert "VENDORED from srobroek/agentic-packages" in body, f"{name} has no provenance"
+        assert "cp <agentic-packages>" in body, f"{name} names no re-sync command"
+
+
+def test_the_executable_hooks_arrive_executable(tmp_path: Path) -> None:
+    """`language: script` runs the file directly, so a missing execute bit is a hook that
+    never fires."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("quality/hooks", dest, ANSWERS)
+
+    for name in ("commit-msg-rewrite.py", "no_force_push.sh"):
+        mode = (dest / "scripts" / name).stat().st_mode
+        assert mode & 0o111, f"{name} is not executable"
+
+
+def test_the_attribution_guard_is_advisory(tmp_path: Path) -> None:
+    """It prints and exits 0. The message is trivially fixable, and a denied commit costs more
+    than a nudge; the enforcing copy is the quality workflow's commits job over the whole
+    range."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("quality/hooks", dest, ANSWERS)
+
+    message = dest / "msg"
+    message.write_text("feat: add the thing\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n")
+    result = subprocess.run(
+        [sys.executable, "scripts/attribution_guard.py", str(message)],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, "the guard must not block a commit"
+    assert "AI attribution" in result.stderr, "it reported nothing"
+
+
+def test_the_attribution_guard_ignores_ordinary_work(tmp_path: Path) -> None:
+    """A commit about AI code is ordinary work. Every upstream pattern requires
+    authorship-shaped context, and that scoping is why the patterns are vendored rather than
+    rewritten."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("quality/hooks", dest, ANSWERS)
+
+    message = dest / "msg"
+    message.write_text("fix: repair the claude client wrapper timeout\n")
+    result = subprocess.run(
+        [sys.executable, "scripts/attribution_guard.py", str(message)],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "AI attribution" not in result.stderr, "an ordinary commit was flagged"
+
+
+def test_close_keywords_distributes_across_the_list(tmp_path: Path) -> None:
+    """GitHub binds a closing keyword to the FIRST issue in a list, so `Closes #1, #2, #3`
+    leaves #2 and #3 open."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("quality/hooks", dest, ANSWERS)
+
+    message = dest / "msg"
+    message.write_text("fix: close them all\n\nCloses #1, #2, #3\n")
+    result = subprocess.run(
+        [sys.executable, "scripts/commit-msg-rewrite.py", str(message)],
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "Closes #1, closes #2, closes #3" in message.read_text()
+
+
+def test_the_force_push_guard_allows_a_fast_forward(tmp_path: Path) -> None:
+    """A fast-forward has the remote commit as an ancestor. The force is not visible in the
+    ref stream a pre-push hook receives, so the ancestry comparison is what detects it."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("quality/hooks", dest, ANSWERS)
+
+    subprocess.run(["git", "init", "-q", str(dest)], check=True)
+    for key, value in (("user.email", "t@e.com"), ("user.name", "T")):
+        subprocess.run(["git", "-C", str(dest), "config", key, value], check=True)
+    (dest / "f").write_text("a\n")
+    subprocess.run(["git", "-C", str(dest), "add", "-A"], check=True)
+    subprocess.run(
+        ["git", "-C", str(dest), "commit", "-qm", "one"], check=True, capture_output=True
+    )
+    first = subprocess.run(
+        ["git", "-C", str(dest), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    (dest / "f").write_text("a\nb\n")
+    subprocess.run(["git", "-C", str(dest), "add", "-A"], check=True)
+    subprocess.run(
+        ["git", "-C", str(dest), "commit", "-qm", "two"], check=True, capture_output=True
+    )
+    second = subprocess.run(
+        ["git", "-C", str(dest), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+    script = str(dest / "scripts" / "no_force_push.sh")
+
+    forward = subprocess.run(
+        ["bash", script],
+        input=f"refs/heads/main {second} refs/heads/main {first}\n",
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert forward.returncode == 0, forward.stderr
+
+    rewrite = subprocess.run(
+        ["bash", script],
+        input=f"refs/heads/main {first} refs/heads/main {second}\n",
+        cwd=dest,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert rewrite.returncode == 1, "a history rewrite was allowed"
+    assert "refusing to force push" in rewrite.stderr
+
+
+def test_the_fragment_records_what_did_not_migrate(tmp_path: Path) -> None:
+    """A pre-execution guard has no git event: by the time a hook runs, `reset --hard` has
+    already discarded the work. Recording that beside the three that did migrate is what stops
+    someone trying the other ten again."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("quality/hooks", dest, ANSWERS)
+
+    body = (dest / ".pre-commit.d" / "git-actions.yaml").read_text()
+    for absent in ("hooks-quality", "hooks-bash-safety", "reset --hard", "clean -fd"):
+        assert absent in body, f"the fragment does not say why {absent} stayed behind"

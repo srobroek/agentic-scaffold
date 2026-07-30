@@ -790,7 +790,7 @@ def test_the_governance_script_ships_with_the_layer(rendered: Path) -> None:
     assert "gh api" in body or '"api"' in body
 
 
-def test_the_gate_is_the_only_required_check(rendered: Path) -> None:
+def test_the_governance_script_requires_only_the_gate(rendered: Path) -> None:
     """It lists every other job in `needs:` and receives `toJSON(needs)`, so a new job is
     covered without touching branch protection. A path-filtered required check that never
     starts would block every unrelated pull request forever.
