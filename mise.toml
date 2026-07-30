@@ -4,3 +4,18 @@ uv = "latest"
 just = "latest"
 "cargo:gitnr" = "latest"
 prek = "latest"
+
+# The tests render a layer and run the real tool against the result, which is what catches a
+# defect a template read cannot. A test skips rather than failing when its tool is absent,
+# so an unpinned toolchain here means a green run that checked less than it appears to.
+#
+# Pinned to the versions the assertions were written against: several of these tests encode
+# a behaviour that differs by version, moon 2.x's renamed keys and tflint's config discovery
+# among them.
+opentofu = "1.12.5"
+tflint = "0.64.0"
+vacuum = "0.30.0"
+hadolint = "2.14.0"
+trivy = "latest"
+"npm:@moonrepo/cli" = "2.4.6"
+"ubi:oasdiff/oasdiff" = "1.26.1"
