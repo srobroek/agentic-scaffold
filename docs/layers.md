@@ -5,7 +5,7 @@ date: 2026-07-29
 
 # Layers
 
-30 layers and roughly 66 variables, from 30 packages and 247 questions. Every
+32 layers and roughly 72 variables, from 30 packages and 247 questions. Every
 variable listed here is asked or derived; anything absent is fixed in the layer
 per `../rules/choices.md`.
 
@@ -78,7 +78,7 @@ lang/<name>/template/
 | `lang/python` | `ruff.toml`, `pytest.ini`, `noxfile.py` | `python_version`, `python_layout`, `python_framework` |
 | `lang/ts` | `tsconfig.json`, `biome.json`, `.oxlintrc.json`, `vitest.config.ts` | `node_version`, `ts_framework` |
 | `lang/go` | `.golangci.yml`, `cmd/<name>/main.go` | `go_module_path`, `go_version` |
-| `lang/api` | `openapi.yaml`, vacuum and oasdiff config | `api_title` |
+| `lang/api` | `openapi.yaml`, `.just.d/api.just`, the mise, hook, CI, and quality fragments | `api_title`, `api_version`, `api_server_url`, `api_ruleset`, `api_fail_severity`, `api_baseline_ref` |
 
 `lang/ts` writes both `biome.json` and `.oxlintrc.json`. That pairing is fixed,
 not a choice. When better-t-stack generated the project it already wrote
@@ -87,6 +87,23 @@ not a choice. When better-t-stack generated the project it already wrote
 
 `lang/api` uses vacuum for linting and oasdiff for breaking-change detection.
 spectral renders only when a custom ruleset needs it.
+
+Both tools ship a default that looks like a gate and is not one. `vacuum lint` exits 0
+on warnings unless `--fail-severity` is passed, and a missing description or absent
+`operationId` is reported at warn, so the recipe passes it. `oasdiff breaking` prints
+every breaking change and exits 0 unless `--fail-on ERR` is passed. Measured against
+vacuum 0.30.0 and oasdiff 1.26.1: removing an operation exited 0 bare and 1 with the
+flag.
+
+oasdiff installs through `ubi` rather than `aqua`, which carries no registry entry for
+it.
+
+The starter spec passes its own gate as rendered, which took four `example` blocks: it
+scored 98 of 100 with four `missing examples` warnings until they were added, so the
+scaffold failed the check it ships. Only the lint runs at commit time. The
+breaking-change check reads the spec out of a baseline ref, and a first commit on a fresh
+branch has no merge base, so it belongs in CI where the pull request defines one and
+exits 0 rather than blocking when no baseline exists.
 
 `.gitignore.d/<name>` carries the conditional lines alone. gitnr's own templates
 cover `/target`, `__pycache__`, and `node_modules`; what it cannot express is
@@ -461,7 +478,7 @@ workflow to report a status.
 | `agentic/beads` | `.beads/` through `bd init --skip-hooks`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_dolt_sync`, `bd_sync_remote`, `bd_auto_export`, `bd_dolt_auto_commit`, `bd_push_command` |
 | `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_extra_ignores` |
 | `agentic/rtk` | `.rtk/filters.toml`, `.just.d/rtk.just` | none |
-| `agentic/marketplace` | nothing; it reports recommended installs | none |
+| `agentic/marketplace` | nothing; `tasks/recommend.py` reports what to register and install | none |
 
 No per-harness configuration file. `agentic/marketplace` runs last.
 
@@ -795,7 +812,7 @@ leaves a dirty tree and passes on the rerun.
 
 `agentic/marketplace` reads the finished tree.
 
-A profile states this order directly. 30 layers with a fixed order need no
+A profile states this order directly. 32 layers with a fixed order need no
 dependency solver.
 
 ## Contribution points

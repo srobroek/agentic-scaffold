@@ -1,0 +1,6 @@
+{#- .mise/conf.d/api.toml -- mise reads every file in this directory. -#}
+[tools]
+vacuum = "{{ vacuum_version }}"
+# ubi, not aqua: the aqua registry carries no oasdiff entry, so `aqua:oasdiff/oasdiff`
+# resolves nothing. ubi reads the GitHub releases directly.
+"ubi:oasdiff/oasdiff" = "{{ oasdiff_version }}"

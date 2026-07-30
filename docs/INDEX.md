@@ -13,6 +13,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `agentic/apm` | 5 | 3 |
 | `agentic/beads` | 7 | 3 |
 | `agentic/index` | 2 | 3 |
+| `agentic/marketplace` | 0 | 0 |
 | `agentic/package` | 15 | 9 |
 | `agentic/rtk` | 0 | 2 |
 | `base/gitignore` | 1 | 0 |
@@ -27,6 +28,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `host/gitlab` | 7 | 10 |
 | `iac/cdk` | 6 | 5 |
 | `iac/terraform` | 11 | 23 |
+| `lang/api` | 8 | 7 |
 | `lang/go` | 3 | 11 |
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
@@ -105,6 +107,13 @@ Writes:
 .just.d/index.just
 repomix.config.json
 ```
+
+## `agentic/marketplace`
+
+Reads the finished tree and reports which marketplaces to register and which packages suit the layers that rendered. Writes no per-harness configuration file.
+
+Requires `git` on `PATH`.
+
 
 ## `agentic/package`
 
@@ -445,6 +454,35 @@ infra/tests/naming.tftest.hcl
 infra/variables.tf
 infra/versions.tf
 scripts/tofu_lock.sh
+```
+
+## `lang/api`
+
+An OpenAPI contract with vacuum for linting and oasdiff for breaking-change detection, plus the CI jobs and fragments the aggregating layers fold in.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `api_title` | str |  |
+| `api_version` | str | `1.0.0` |
+| `api_server_url` | str | `https://api.example.com` |
+| `api_ruleset` | `recommended` | `all` | `none` | `recommended` |
+| `api_fail_severity` | `error` | `warn` | `info` | `warn` |
+| `api_baseline_ref` | str | `origin/main` |
+| `vacuum_version` | str | `0.30.0` |
+| `oasdiff_version` | str | `1.26.1` |
+
+Writes:
+
+```
+.github/quality.d/api.yml
+.github/workflows/wc-lint-api.yml
+.gitlab/ci/api.yml
+.just.d/api.just
+.mise/conf.d/api.toml
+.pre-commit.d/api.yaml
+openapi.yaml
 ```
 
 ## `lang/go`

@@ -1,0 +1,69 @@
+_subdirectory: template
+_answers_file: .copier-answers.api.yml
+
+_scaffold:
+  summary: >-
+    An OpenAPI contract with vacuum for linting and oasdiff for breaking-change
+    detection, plus the CI jobs and fragments the aggregating layers fold in.
+  requires_bin: [git]
+  after: [base/license, host/github, host/gitlab]
+
+# The spec becomes the project's the moment an endpoint is described.
+_skip_if_exists:
+  - openapi.yaml
+  - .vacuum.yaml
+
+api_title:
+  type: str
+  help: The API title, written into the spec's info block.
+  default: ""
+
+api_version:
+  type: str
+  help: >-
+    Contract version, which is separate from the release version. oasdiff compares two
+    specs rather than reading this, so it is documentation for a reader.
+  default: "1.0.0"
+
+api_server_url:
+  type: str
+  help: Base URL the spec declares as its production server.
+  default: https://api.example.com
+
+# vacuum's own recommended set, not spectral's. spectral renders only when a custom
+# ruleset needs it, per the fixed choices.
+api_ruleset:
+  type: str
+  choices: [recommended, all, none]
+  help: >-
+    Which vacuum ruleset the lint runs. `recommended` is vacuum's own curated set;
+    `all` adds the pedantic rules; `none` means a custom .vacuum.yaml owns it.
+  default: recommended
+
+# Warnings are the default failure threshold because a missing description or an absent
+# operationId is exactly the drift a contract gate exists to catch, and vacuum reports
+# both at warn rather than error.
+api_fail_severity:
+  type: str
+  choices: [error, warn, info]
+  help: Severity at which `just api-lint` fails.
+  default: warn
+
+api_baseline_ref:
+  type: str
+  help: >-
+    Git ref the breaking-change check compares against. The merge base with the default
+    branch is what a pull request should be measured from.
+  default: origin/main
+
+vacuum_version:
+  type: str
+  help: vacuum version the mise fragment pins.
+  default: "0.30.0"
+
+oasdiff_version:
+  type: str
+  help: >-
+    oasdiff version. Installed through ubi rather than aqua, which carries no oasdiff
+    registry entry.
+  default: "1.26.1"
