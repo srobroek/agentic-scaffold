@@ -291,8 +291,21 @@ Prose is the weakest of the surfaces that keep the tool in use:
 | Surface | Cost | Survives compaction |
 |---|---|---|
 | `docs/agents/index.md` naming the tool | none | no |
-| `SessionStart` comparing HEAD against the snapshot marker | about 5ms | yes |
+| `just pack-check` comparing HEAD against the pack's marker | about 80ms | n/a |
 | `PreToolUse` on `Grep\|Glob` surfacing a reminder | none | yes |
+
+`just pack` writes the HEAD it packed to `repomix-full.xml.sha`, and `just pack-check`
+reports how many commits the pack is behind. The marker holds a commit, since a checkout or
+a clone resets a modification time. It reports a count, which is what tells a reader whether
+to repack.
+
+The check reports and exits 0. A stale pack is information rather than a broken build, and a
+non-zero exit would put it in `just check` and fail runs for a reader who never opens the
+pack.
+
+Packing at session start was the alternative and was rejected on cost: repomix has no
+cache, two runs with identical arguments took 1.83s then 1.35s, and the snapshot goes stale
+on the agent's first edit.
 
 The reminder never denies the call. grep is the right tool for an exact-text
 lookup, so blocking it would be wrong.

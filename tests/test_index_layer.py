@@ -205,3 +205,47 @@ def test_the_compressed_artefact_is_ignored(tmp_path: Path) -> None:
     ]
     assert "repomix-code.xml" in patterns
     assert "repomix-full.xml" in patterns
+
+
+def test_pack_records_the_head_it_describes(tmp_path: Path) -> None:
+    """A modification time is reset by a checkout or a clone, so the marker is the commit.
+
+    Packing at session start was the alternative and costs every session 1.4 to 3.6 seconds
+    for a snapshot that may never be read: repomix has no cache, and two runs with identical
+    arguments took 1.83s then 1.35s. Comparing HEAD against a marker costs about 80ms.
+    """
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("agentic/index", dest, ANSWERS)
+
+    fragment = (dest / ".just.d" / "index.just").read_text()
+    assert "git rev-parse HEAD > repomix-full.xml.sha" in fragment
+    assert "pack-check:" in fragment
+    # How far behind, not merely whether: the count is what decides whether to repack.
+    assert "rev-list --count" in fragment
+
+
+def test_the_head_marker_is_ignored(tmp_path: Path) -> None:
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("agentic/index", dest, ANSWERS)
+
+    patterns = [
+        line.strip()
+        for line in (dest / ".gitignore.d" / "index").read_text().splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
+    assert "repomix-full.xml.sha" in patterns
+
+
+def test_pack_check_reports_rather_than_failing(tmp_path: Path) -> None:
+    """A stale pack is information, not a broken build. Exiting non-zero would put it in
+    `just check` and fail a run for a snapshot nobody asked for."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("agentic/index", dest, ANSWERS)
+
+    fragment = (dest / ".just.d" / "index.just").read_text()
+    body = fragment.partition("pack-check:")[2].partition("\n\n")[0]
+    # Every branch ends in `exit 0` or falls through; none exits non-zero.
+    assert "exit 1" not in body

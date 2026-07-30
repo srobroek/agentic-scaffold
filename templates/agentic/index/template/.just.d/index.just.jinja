@@ -8,7 +8,41 @@
 # Rebuild the pack, from the patterns in repomix.config.json
 [group('index')]
 pack:
+    #!/usr/bin/env bash
+    set -euo pipefail
     repomix
+    # The HEAD the pack describes, recorded beside it. `just pack-check` compares against
+    # this rather than a modification time, which a checkout or a clone resets.
+    git rev-parse HEAD > repomix-full.xml.sha 2>/dev/null || true
+
+# A pack goes stale on the first commit after it, and nothing about reading one says how old
+# it is. Packing at session start was the alternative and costs every session 1.4 to 3.6
+# seconds for a snapshot that may never be read: repomix has no cache, and two runs with
+# identical arguments took 1.83s then 1.35s. This comparison costs about 80ms.
+
+# Report how many commits the pack is behind
+[group('index')]
+pack-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f repomix-full.xml ]; then
+      echo "no pack yet; run 'just pack'"
+      exit 0
+    fi
+    if [ ! -f repomix-full.xml.sha ]; then
+      echo "the pack has no HEAD marker, so its age is unknown; run 'just pack'"
+      exit 0
+    fi
+    packed=$(cat repomix-full.xml.sha)
+    head=$(git rev-parse HEAD)
+    if [ "$packed" = "$head" ]; then
+      echo "the pack is current"
+      exit 0
+    fi
+    # `--count` rather than a boolean: how far behind decides whether a reader should
+    # repack or ignore it.
+    behind=$(git rev-list --count "$packed..$head" 2>/dev/null || echo "?")
+    echo "the pack is $behind commit(s) behind HEAD; run 'just pack' to refresh it"
 
 # --compress runs a parser over each file and keeps signatures while dropping bodies. It
 # earns its keep only where that parser knows the language. Measured on this scaffold:
