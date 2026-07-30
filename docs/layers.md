@@ -164,6 +164,24 @@ Each language layer therefore drops `.github/quality.d/<lang>.yml` and
 `.github/security.d/<lang>.yml`, and the shared workflow builds its matrix by
 reading that directory at run time.
 
+The security fragment also names the layer's opengrep packs, which is the same inversion
+applied to a ruleset: `lang/python` asks for `p/python`, `iac/terraform` for `p/terraform`,
+and the discovery step unions them, deduplicated. `lang/ts` and `iac/cdk` both ask for
+`p/typescript`, and passing it twice would run the same rules twice. An empty list is a
+claim rather than a gap, which is what `lang/api` states: opengrep matches code constructs
+and a contract is data.
+
+`--sarif` writes to stdout and is redirected. `--sarif-output=FILE` is documented and
+silently writes nothing: verified against opengrep 1.26.0, where the flag produced no file
+while the same scan on stdout produced valid SARIF 2.1.0 carrying the finding. A workflow
+trusting the documented flag uploads an empty file and reports a clean scan.
+
+The scan runs without `--error`, so a finding does not end the job before the SARIF reaches
+the security tab. A later step reads the file back and fails there. The GitLab job does pass
+`--error`, because it has no upload to protect, and it reads the same
+`.github/security.d/` fragments rather than a second copy: those are committed data rather
+than a GitHub feature, and two copies would disagree about which rules run.
+
 A `discover` job parses the fragments and emits the matrix as JSON, so a new
 `lang/*` layer contributes its jobs without the host layer or a caller changing.
 `discover` also emits a count per matrix, because a matrix of zero entries is a

@@ -11,3 +11,8 @@ osv:
 trivy:
   mode: fs
   scanners: ["misconfig", "vuln", "secret"]
+
+# The constructs are TypeScript, so the typescript pack applies. There is no cdk-specific
+# pack; trivy's misconfig scanner reads the synthesised template instead.
+opengrep:
+  packs: ["p/typescript"]

@@ -15,3 +15,8 @@ osv:
 trivy:
   mode: fs
   scanners: ["misconfig", "secret"]
+
+# opengrep carries terraform rules that read the HCL directly, where trivy's misconfig
+# scanner evaluates the resolved configuration. The two overlap without being redundant.
+opengrep:
+  packs: ["p/terraform"]

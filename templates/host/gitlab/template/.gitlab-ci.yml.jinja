@@ -101,3 +101,35 @@ secret-scan:
     # trufflehog verifies a candidate against the issuing API, so it reports live
     # credentials the regex scanners rate too low-entropy to flag.
     - trufflehog git file://. --results=verified --fail --no-update
+
+# The GitLab side of the opengrep scan. GitLab has no matrix discovery equivalent to the
+# GitHub `discover` job, and merge order across the include glob is not deterministic, so
+# each `.gitlab/ci/<lang>.yml` fragment cannot append to a shared pack list. The scan
+# therefore reads the same `.github/security.d/` fragments the GitHub side does: they are
+# committed data rather than a GitHub feature, and duplicating them per forge would let the
+# two disagree about which rules run.
+opengrep:
+  extends: .mise
+  stage: security
+  script:
+    - |
+      packs=$(python3 - <<'PY'
+      import pathlib, yaml
+      found = set()
+      for path in sorted(pathlib.Path(".github/security.d").glob("*.yml")):
+          entry = (yaml.safe_load(path.read_text()) or {}).get("opengrep")
+          if isinstance(entry, dict):
+              found.update(entry.get("packs") or [])
+      print(" ".join(f"--config {pack}" for pack in sorted(found)))
+      PY
+      )
+      if [ -z "$packs" ]; then
+        echo "no opengrep packs declared, so there are no rules to run"
+        exit 0
+      fi
+      curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh | bash
+      export PATH="$HOME/.opengrep/cli/latest:$PATH"
+      # --error here, unlike the GitHub job: GitLab has no SARIF upload to protect, so the
+      # scan can fail directly rather than through a second step.
+      # shellcheck disable=SC2086
+      opengrep scan $packs --error .

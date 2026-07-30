@@ -14,3 +14,8 @@ osv:
 trivy:
   mode: fs
   scanners: ["secret"]
+
+# No opengrep pack: its rules match code constructs, and a contract is data. Stated rather
+# than omitted, so the discovery step's empty list is a claim rather than a gap.
+opengrep:
+  packs: []

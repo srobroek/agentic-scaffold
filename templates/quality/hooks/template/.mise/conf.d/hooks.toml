@@ -17,3 +17,7 @@ actionlint = "1.7.12"
 zizmor = "1.28.0"
 taplo = "0.10.0"
 lychee = "0.24.2"
+
+# opengrep rather than semgrep: same rule format and registry namespace. Installed through
+# ubi, since aqua carries no registry entry for it.
+"ubi:opengrep/opengrep" = "1.26.0"

@@ -50,6 +50,8 @@ jobs:
     outputs:
       codeql: ${{ '{{' }} steps.scan.outputs.codeql }}
       any_codeql: ${{ '{{' }} steps.scan.outputs.any_codeql }}
+      opengrep: ${{ '{{' }} steps.scan.outputs.opengrep }}
+      any_opengrep: ${{ '{{' }} steps.scan.outputs.any_opengrep }}
       any_osv: ${{ '{{' }} steps.scan.outputs.any_osv }}
       any_trivy: ${{ '{{' }} steps.scan.outputs.any_trivy }}
     steps:
@@ -69,6 +71,7 @@ jobs:
           import yaml
 
           codeql, osv, trivy = [], False, False
+          opengrep = set()
           for path in sorted(pathlib.Path(".github/security.d").glob("*.yml")):
               fragment = yaml.safe_load(path.read_text()) or {}
 
@@ -86,10 +89,18 @@ jobs:
               if isinstance(entry, dict) and entry.get("mode"):
                   trivy = True
 
+              # Every pack every fragment names, deduplicated: two languages can both ask
+              # for p/typescript, and passing it twice runs the same rules twice.
+              entry = fragment.get("opengrep")
+              if isinstance(entry, dict):
+                  opengrep.update(entry.get("packs") or [])
+
           print(f"codeql={json.dumps(codeql)}")
           print(f"any_codeql={str(bool(codeql)).lower()}")
           print(f"any_osv={str(osv).lower()}")
           print(f"any_trivy={str(trivy).lower()}")
+          print(f"opengrep={json.dumps(sorted(opengrep))}")
+          print(f"any_opengrep={str(bool(opengrep)).lower()}")
           PY
 
   codeql:
@@ -160,6 +171,76 @@ jobs:
         with:
           sarif_file: osv-results.sarif
         if: always()
+
+  # opengrep rather than semgrep: same rule format and registry namespace, and the packs
+  # below are the ones each rendered layer asked for.
+  opengrep:
+    name: opengrep
+    needs: discover
+    # A pack list of zero entries would scan with no rules and report success, so the guard
+    # is required rather than tidy.
+    if: needs.discover.outputs.any_opengrep == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: {{ job_timeout_minutes }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install opengrep
+        run: |
+          set -euo pipefail
+          curl -fsSL https://raw.githubusercontent.com/opengrep/opengrep/main/install.sh | bash
+          echo "$HOME/.opengrep/cli/latest" >> "$GITHUB_PATH"
+
+      # `--sarif` writes to STDOUT and is redirected. `--sarif-output=FILE` is documented and
+      # silently writes nothing: verified against opengrep 1.26.0, where the flag produced no
+      # file at all while the same scan on stdout produced valid SARIF 2.1.0. A workflow
+      # trusting the documented flag uploads an empty file and reports a clean scan.
+      #
+      # No --error here, so a finding does not end the job before the upload. The step after
+      # the upload is what fails it.
+      - name: Scan
+        env:
+          PACKS: ${{ '{{' }} needs.discover.outputs.opengrep }}
+        run: |
+          set -euo pipefail
+          args=""
+          for pack in $(printf '%s' "$PACKS" | python3 -c 'import json,sys; print(" ".join(json.load(sys.stdin)))'); do
+            args="$args --config $pack"
+          done
+          # shellcheck disable=SC2086  # $args is a deliberate list of --config flags.
+          opengrep scan $args --sarif . > opengrep.sarif
+
+      - name: Upload results
+        uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        if: always()
+        with:
+          sarif_file: opengrep.sarif
+          category: opengrep
+
+      # Re-read the SARIF rather than re-scanning: a second scan costs the same again, and
+      # the file already holds every finding.
+      - name: Fail on findings
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, sys
+
+          with open("opengrep.sarif") as handle:
+              results = json.load(handle)["runs"][0]["results"]
+          if results:
+              for finding in results[:20]:
+                  rule = finding.get("ruleId", "?")
+                  where = finding["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+                  print(f"::error file={where}::{rule}")
+              print(f"{len(results)} opengrep finding(s)")
+              sys.exit(1)
+          print("no opengrep findings")
+          PY
 
   trivy:
     name: Trivy

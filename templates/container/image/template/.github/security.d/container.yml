@@ -8,3 +8,8 @@ codeql:
 trivy:
   mode: config
   scanners: ["misconfig", "secret"]
+
+# opengrep carries Dockerfile rules, which overlap trivy's misconfig scanner only partly:
+# trivy checks the configuration, opengrep the instruction patterns.
+opengrep:
+  packs: ["p/dockerfile"]

@@ -842,3 +842,47 @@ def test_every_pinned_action_matches_its_version_comment(rendered: Path) -> None
         for action, sha, tag in pattern.findall(workflow.read_text()):
             assert tag, f"{workflow.name}: {action}@{sha[:12]} carries no version comment"
             assert tag.startswith("v"), f"{workflow.name}: {action} comment {tag!r} is not a tag"
+
+
+def test_opengrep_runs_from_the_fragments_the_layers_declare(rendered: Path) -> None:
+    """The CI inversion applied to the ruleset: a language contributes its packs the same way
+    it contributes a CodeQL language or a trivy mode."""
+    workflow = yaml.safe_load((rendered / ".github" / "workflows" / "wc-security.yml").read_text())
+    assert "opengrep" in workflow["jobs"]
+
+    job = workflow["jobs"]["opengrep"]
+    # A pack list of zero entries would scan with no rules and report success.
+    assert job["if"] == "needs.discover.outputs.any_opengrep == 'true'"
+    assert job["permissions"]["security-events"] == "write"
+
+    discover = workflow["jobs"]["discover"]
+    assert "opengrep" in discover["outputs"]
+    assert "any_opengrep" in discover["outputs"]
+
+
+def test_the_sarif_is_written_to_stdout_rather_than_the_documented_flag(rendered: Path) -> None:
+    """`--sarif-output=FILE` is documented and silently writes nothing.
+
+    Verified against opengrep 1.26.0: the flag produced no file at all, while the same scan
+    with `--sarif` on stdout produced valid SARIF 2.1.0 with the finding in it. A workflow
+    trusting the documented flag uploads an empty file and reports a clean scan.
+    """
+    body = (rendered / ".github" / "workflows" / "wc-security.yml").read_text()
+    assert "--sarif . > opengrep.sarif" in body
+
+    # The comment above the step names the broken flag to explain why it is avoided, so the
+    # check is against the executable lines only.
+    code = "\n".join(line for line in body.splitlines() if not line.strip().startswith("#"))
+    assert "--sarif-output" not in code
+
+
+def test_the_scan_does_not_fail_before_the_upload(rendered: Path) -> None:
+    """`--error` would end the job on a finding, so the SARIF would never reach the security
+    tab. A separate step reads the file back and fails there."""
+    workflow = yaml.safe_load((rendered / ".github" / "workflows" / "wc-security.yml").read_text())
+    steps = workflow["jobs"]["opengrep"]["steps"]
+    names = [step.get("name", "") for step in steps]
+
+    scan = next(s for s in steps if s.get("name") == "Scan")
+    assert "--error" not in str(scan.get("run", "")), "a finding would end the job early"
+    assert names.index("Upload results") < names.index("Fail on findings")

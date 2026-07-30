@@ -379,3 +379,6 @@ def test_a_language_layer_contributes_both_shared_job_fragments() -> None:
         # Every key the discovery step reads has to be present, or a scan is skipped silently
         # rather than declared unsupported.
         assert "codeql" in security, f"lang/{layer.name} does not state its CodeQL support"
+        # An omitted opengrep key is indistinguishable from a layer nobody finished, where an
+        # empty pack list is a claim that the language has no rules worth running.
+        assert "opengrep" in security, f"lang/{layer.name} does not state its opengrep packs"
