@@ -1,0 +1,4 @@
+# A job fragment the host layer's wc-quality.yml folds into its matrix.
+#
+# No lizard entry: a release config has no cyclomatic complexity. The config's own validity
+# is checked by `just release-check`, which the quality workflow runs.

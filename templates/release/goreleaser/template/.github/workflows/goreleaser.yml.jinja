@@ -1,0 +1,52 @@
+name: Publish binaries
+
+# Triggered by the tag, which release-please pushes. That is the whole division of labour:
+# release-please computes the next version from the Conventional Commit subjects, writes the
+# changelog, and tags; this reacts to the tag and attaches what it built.
+#
+# Not part of the gate. A release runs after a merge, and a required check that only fires on
+# a tag would never report on a pull request.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: {{ job_timeout_minutes | default(30, true) }}
+    permissions:
+      # Attaching assets to the release release-please created.
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # The full history: goreleaser derives the version and the previous tag from it,
+          # and a shallow clone has neither.
+          fetch-depth: 0
+          persist-credentials: false
+
+      # `cache: false`, unlike every other Go job here. This one publishes artefacts, and a
+      # poisoned cache entry would end up inside a binary users download: zizmor reports the
+      # combination as cache-poisoning. A release is infrequent, so a cold module download
+      # costs seconds that nobody is waiting on.
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: "{{ go_version }}"
+          cache: false
+
+      - name: Publish
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
+        with:
+          version: "~> {{ goreleaser_version.rsplit('.', 1)[0] }}"
+          args: release --clean
+        env:
+          # The workflow's own token. goreleaser needs write access to attach the assets, and
+          # `release.mode: append` means it adds to the release rather than replacing its
+          # notes.
+          GITHUB_TOKEN: ${{ '{{' }} secrets.GITHUB_TOKEN }}

@@ -38,6 +38,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `quality/hooks` | 3 | 6 |
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
+| `release/goreleaser` | 5 | 6 |
 | `release/release-please` | 4 | 4 |
 | `workspace/devcontainer` | 4 | 1 |
 | `workspace/just` | 0 | 3 |
@@ -718,6 +719,31 @@ Writes:
 .github/dependabot.yml
 .github/workflows/{% if auto_merge %}dependabot-auto-merge.yml{% endif %}
 renovate.json
+```
+
+## `release/goreleaser`
+
+goreleaser for the artefacts a tag should publish: cross-compiled binaries, checksums, and archives. release-please keeps the version and the changelog.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `project_name` | str |  |
+| `goreleaser_main` | str | `.` |
+| `goreleaser_targets` | yaml | `['linux/amd64', 'linux/arm64', 'darwin/amd64', 'darwin/arm64']` |
+| `goreleaser_version` | str | `2.17.1` |
+| `go_version` | str | `1.26` |
+
+Writes:
+
+```
+.github/quality.d/goreleaser.yml
+.github/workflows/goreleaser.yml
+.gitignore.d/goreleaser
+.goreleaser.yaml
+.just.d/goreleaser.just
+.mise/conf.d/goreleaser.toml
 ```
 
 ## `release/release-please`

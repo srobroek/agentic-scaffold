@@ -1,0 +1,24 @@
+{#- .just.d/goreleaser.just -- bodies in `{% raw %}`, since just shares jinja's `{{ }}`. -#}
+# Release artefact recipes, contributed by release/goreleaser.
+#
+# release-please owns the version and the changelog. goreleaser owns what a tag publishes.
+# Neither knows how to do the other's job, which is why they are separate layers.
+{% raw %}
+# Runs in the quality workflow, so a broken config surfaces on a pull request rather than at
+# the moment someone cuts a release.
+
+# Fail when .goreleaser.yaml is invalid
+[group('release')]
+release-check:
+    goreleaser check
+
+# Build every target locally without publishing, to see what a tag would attach
+[group('release')]
+release-snapshot:
+    goreleaser release --snapshot --clean --skip=publish
+
+# What the last release would have contained
+[group('release')]
+release-artefacts:
+    @ls -la dist/*.tar.gz dist/*.zip dist/checksums.txt 2>/dev/null || echo "no dist/; run 'just release-snapshot'"
+{% endraw %}

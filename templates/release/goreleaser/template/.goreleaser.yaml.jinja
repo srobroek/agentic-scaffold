@@ -1,0 +1,72 @@
+{#-
+  .goreleaser.yaml -- what a tag publishes.
+-#}
+# version 2 is the current schema. goreleaser refuses a config with no version key rather
+# than assuming one.
+version: 2
+
+project_name: {{ project_name | default('app', true) }}
+
+before:
+  hooks:
+    # `go mod tidy` here rather than in CI: a release built from an untidy module graph is a
+    # release nobody can reproduce.
+    - go mod tidy
+
+builds:
+  - id: {{ project_name | default('app', true) }}
+    main: {{ goreleaser_main }}
+    # CGO off, so every target cross-compiles from one runner and the binary is static.
+    env:
+      - CGO_ENABLED=0
+    goos:
+{%- set oses = [] %}
+{%- for target in goreleaser_targets %}
+{%- if target.split('/')[0] not in oses %}
+{%- set _ = oses.append(target.split('/')[0]) %}
+      - {{ target.split('/')[0] }}
+{%- endif %}
+{%- endfor %}
+    goarch:
+{%- set arches = [] %}
+{%- for target in goreleaser_targets %}
+{%- if target.split('/')[1] not in arches %}
+{%- set _ = arches.append(target.split('/')[1]) %}
+      - {{ target.split('/')[1] }}
+{%- endif %}
+{%- endfor %}
+    # -s -w strips the symbol table and DWARF, which is most of a Go binary's size. The
+    # version comes from the tag goreleaser was invoked on, which is the tag release-please
+    # pushed.
+    ldflags:
+      - -s -w
+      - -X main.version={{ '{{' }}.Version{{ '}}' }}
+      - -X main.commit={{ '{{' }}.Commit{{ '}}' }}
+      - -X main.date={{ '{{' }}.Date{{ '}}' }}
+
+archives:
+  - formats: [tar.gz]
+    # A windows user gets a zip; everyone else a tarball.
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: >-
+      {{ '{{' }} .ProjectName {{ '}}' }}_
+      {{ '{{' }}- .Version {{ '}}' }}_
+      {{ '{{' }}- .Os {{ '}}' }}_
+      {{ '{{' }}- .Arch {{ '}}' }}
+
+# `checksum`, singular. `checksums` is rejected outright: goreleaser reported
+# "field checksums not found in type config.Project".
+checksum:
+  name_template: checksums.txt
+
+# The changelog is release-please's, computed from the Conventional Commit subjects and
+# already written to CHANGELOG.md before the tag exists. goreleaser generating a second one
+# from the same commits would publish two that disagree on formatting.
+changelog:
+  disable: true
+
+release:
+  # release-please created the release and its notes; this only attaches the artefacts.
+  mode: append

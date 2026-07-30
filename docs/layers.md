@@ -417,6 +417,7 @@ the developer has.
 |---|---|---|
 | `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow, `.just.d/release.just` | `release_type`, `initial_version`, `default_branch`, `release_packages` |
 | `release/cocogitto` | `cog.toml`, `.just.d/cog.just` | `initial_version`, `release_scopes` |
+| `release/goreleaser` | `.goreleaser.yaml`, `.github/workflows/goreleaser.yml`, `.just.d/goreleaser.just`, plus the mise, gitignore, and quality fragments | `goreleaser_main`, `goreleaser_targets`, `goreleaser_version`, `go_version` |
 | `release/dep-updates` | `renovate.json`, `.github/dependabot.yml`, and the auto-merge workflow | `default_branch`, `auto_merge`, `renovate_timezone` |
 
 Ecosystems follow from the language layers. renovate covers the language
@@ -456,6 +457,31 @@ The recorded versions are release-please's own after the first release, so an en
 already present keeps its version. A new member joins at the version the others share, or
 at `initial_version` when they disagree, so a repository releasing 2.x ships no 0.1.0
 package.
+
+### release-please versions, goreleaser publishes
+
+release-please computes the next version from the Conventional Commit subjects, writes
+`CHANGELOG.md`, and pushes the tag. `release/goreleaser` triggers on that tag and attaches
+what it built. Each tool covers what the other cannot, which is why they are separate
+layers.
+
+`changelog.disable: true` and `release.mode: append` are what keep them from colliding: the
+changelog already exists before the tag does, and generating a second one from the same
+commits would publish two that disagree on formatting.
+
+Verified against goreleaser 2.17.1 rather than read from its documentation. `checksums` is
+rejected outright, since the key is `checksum` singular. A snapshot build produced four
+cross-compiled binaries and a checksums file from one runner, and the extracted binary
+reported the version `ldflags` injected, which is what makes a bug report traceable to a
+build.
+
+`CGO_ENABLED=0` is what allows one runner to build every target. The release workflow sets
+`cache: false`, unlike every other Go job: a poisoned cache entry would end up inside a
+binary users download, which zizmor reports as cache-poisoning, and a release is infrequent
+enough that a cold module download costs seconds nobody waits on.
+
+`go-lib` does not render this layer. A Go library is consumed by module path and publishes no
+artefact.
 
 ## docs
 

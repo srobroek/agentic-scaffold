@@ -11,6 +11,7 @@ layers:
   - lang/go
   - host/github
   - release/release-please
+  - release/goreleaser
   - docs/agents
   - docs/adr
   - agentic/apm
@@ -36,5 +37,6 @@ answers:
 # for the absence of a manifest rather than for anything a layer got wrong. The agent
 # runs the generator, and `just check` proves the layer set.
 build:
+  - just release-check
   - just container-lint
   - just just-check
