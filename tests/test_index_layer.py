@@ -168,3 +168,40 @@ def test_post_start_refreshes_the_pack(tmp_path: Path) -> None:
     render("workspace/worktrunk", dest, WT_ANSWERS)
     config = tomllib.loads((dest / ".config" / "wt.toml").read_text())
     assert config["post-start"]["repomix"] == "repomix"
+
+
+def test_pack_code_is_a_separate_recipe(tmp_path: Path) -> None:
+    """--compress earns its keep only where its parser knows the language.
+
+    Measured over this scaffold: 27,215 bytes to 14,321 over python sources, a 47 percent
+    cut, against +0.1 percent over jinja templates, which it cannot parse and so slightly
+    grows. A flag on `pack` would make the grown case the default; a second recipe leaves
+    the choice where the measurement is.
+    """
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("agentic/index", dest, ANSWERS)
+
+    fragment = (dest / ".just.d" / "index.just").read_text()
+    assert "pack-code:" in fragment
+    assert "--compress" in fragment
+
+    # `pack` itself must stay uncompressed, or the template-heavy case regresses silently.
+    pack_body = fragment.partition("\npack:")[2].partition("\n\n")[0]
+    assert "--compress" not in pack_body
+
+
+def test_the_compressed_artefact_is_ignored(tmp_path: Path) -> None:
+    """An unignored artefact gets packed into the next artefact, which measured 38 percent
+    of one repository's whole pack."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("agentic/index", dest, ANSWERS)
+
+    patterns = [
+        line.strip()
+        for line in (dest / ".gitignore.d" / "index").read_text().splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
+    assert "repomix-code.xml" in patterns
+    assert "repomix-full.xml" in patterns

@@ -136,6 +136,27 @@ def test_ruff_ignores_use_names_not_codes(tmp_path: Path) -> None:
 # covered by tests/test_api_layer.py against vacuum and oasdiff instead.
 COVERED_ELSEWHERE = {"api": "tests/test_api_layer.py"}
 
+# Which generator each language layer renders over, and how its output is normalised so the
+# gate passes before a line of real code exists. Three of the four generators produce a tree
+# that FAILS the gate they ship with, each found by running it rather than reading:
+#
+#   cargo init      rust.missing_docs and clippy.pedantic both fire on the generated pub fn
+#                   under CI's -D warnings, so both are left out of the manifest
+#   uv init --lib   writes a function into src/<pkg>/__init__.py, which
+#                   non-empty-init-module rejects, so a task splits it into core.py
+#   bun init        writes index.ts with no trailing newline, which biome's formatter
+#                   rejects, so a task runs `biome check --write` once
+#   go mod init     the only one that produces a clean tree, so it needs no task
+#
+# A fifth language will hit its own version of this. The entry is required, and `None` is a
+# positive claim that the generator needs nothing rather than an omission.
+GENERATOR_NORMALISATION = {
+    "rust": "tasks/patch_manifest.py",
+    "python": "tasks/split_init.py",
+    "ts": "tasks/add_dev_deps.py",
+    "go": None,
+}
+
 
 def test_every_language_layer_is_covered_somewhere() -> None:
     """A new lang/* layer is either in ANSWERS or has its own file, or it ships untested."""
@@ -305,3 +326,34 @@ def test_a_generated_tsconfig_is_not_overwritten(tmp_path: Path) -> None:
     render("lang/ts", dest, ANSWERS["ts"])
 
     assert '"strict": false' in (dest / "tsconfig.json").read_text()
+
+
+def test_a_language_layer_declares_how_its_generator_output_is_normalised() -> None:
+    """A new lang/* layer cannot land without saying what its generator leaves broken.
+
+    Three of the four generators produce a tree that fails the gate the layer ships. That
+    was found by running each generator, not by reading its output, and a fifth language
+    will have its own version of it. This is the checklist the bead asks for, enforced.
+    """
+    on_disk = {p.parent.name for p in TEMPLATES.rglob("copier.yml")}
+    # lang/api has no generator: a contract is authored rather than scaffolded.
+    languages = on_disk - set(COVERED_ELSEWHERE)
+
+    undeclared = languages - set(GENERATOR_NORMALISATION)
+    assert not undeclared, (
+        f"these layers declare no generator normalisation: {undeclared}. Run the generator, "
+        "run `just check` on its output, and record what had to be fixed."
+    )
+
+    for language, task in GENERATOR_NORMALISATION.items():
+        if language not in languages:
+            continue
+        config = yaml.safe_load((TEMPLATES / language / "copier.yml").read_text())
+        tasks = " ".join(config.get("_tasks") or [])
+        if task is None:
+            # A claim that the generator needs nothing, which only holds while it stays true.
+            continue
+        assert task in tasks, (
+            f"lang/{language} claims {task} normalises its generator output, but its "
+            "_tasks do not run it"
+        )

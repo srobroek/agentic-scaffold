@@ -574,8 +574,11 @@ natively. They are then visible to anyone reading the repository.
 Path filtering is the only lever that works. Measured against a 1,269-file
 repository, the include and ignore pair cut a pack by 30.7 percent. The content
 flags did not: `--remove-comments` takes 13.6 percent but deletes every `//` and
-`#`, so safety notes and invariants go with them; `--compress` takes 21 percent
-against the 70 its documentation claims, and grows comment-dense files;
+`#`, so safety notes and invariants go with them; `--compress` depends entirely on
+whether its parser knows the language, so it is a second recipe rather than a flag on the
+first: measured over this scaffold's python sources it cut 27,215 bytes to 14,321, a 47
+percent reduction, and over its jinja templates it grew the pack by 0.1 percent because it
+cannot parse them. `just pack-code` is the recipe that uses it;
 `--remove-empty-lines`, `--no-file-summary`, and `--truncate-base64` take nothing;
 `--style json` and `--parsable-style` make the output 10 percent larger.
 

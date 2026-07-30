@@ -10,6 +10,20 @@
 pack:
     repomix
 
+# --compress runs a parser over each file and keeps signatures while dropping bodies. It
+# earns its keep only where that parser knows the language. Measured on this scaffold:
+# 27,215 bytes to 14,321 over python sources, a 47 percent cut, against +0.1 percent over
+# jinja templates, which it cannot parse and so slightly grows.
+#
+# So this is a second recipe rather than a flag on `pack`. A comment-dense or
+# template-heavy tree is the case where the plain pack is smaller, and a pack that grew is
+# a pack nobody checked.
+
+# Pack only the source, with signatures kept and bodies dropped
+[group('index')]
+pack-code:
+    repomix --compress --output repomix-code.xml
+
 # `graphify update` has no output flag, so it writes graphify-out/ into the tree
 # regardless. That is 9.9MB on 741 files and 60MB on 4,107, and unignored it gets
 # packed into the next artefact.
