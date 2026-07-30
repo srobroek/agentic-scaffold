@@ -147,9 +147,9 @@ them either.
 
 ## Freshness
 
-`just docs:agents` regenerates in place. `just docs:agents --check` regenerates
-into a temporary directory and exits non-zero on a difference, naming each stale
-file and the command that fixes it.
+`just steering` regenerates in place. `just steering-check` regenerates into a
+temporary directory and exits non-zero on a difference, naming each stale file
+and the command that fixes it.
 
 That check runs inside the quality job. A workflow of its own would be gated on
 paths, and a workflow that never runs leaves a required check pending forever.
@@ -159,15 +159,17 @@ paths, and a workflow that never runs leaves a required check pending forever.
 | Skill | Reads | Writes | Network |
 |---|---|---|---|
 | `project-scaffold` | interview answers, templates | a new repository | yes |
-| `project-scaffold-steering` | configuration on disk | marked blocks in `docs/agents/` | no |
 | `project-scaffold-update` | templates, repository state | layers and marked blocks | yes |
 
-`project-scaffold-steering` takes no arguments and asks nothing. Given the same
-files on disk it produces the same output, which is what lets CI verify it.
+Regenerating steering is a recipe rather than a skill. `just steering` takes no
+arguments and asks nothing, so given the same files on disk it produces the same
+output, which is what lets `just steering-check` verify it in CI. Wrapping a
+deterministic script in a skill would put a model in a decision that has none.
 
 `project-scaffold-update` handles a new layer, a template change landing in an
 existing repository, and retrofitting a repository scaffolded before this
-existed.
+existed. `copier update` cannot run here, since a layer rendered from a local
+path records no `_commit`, so the method is re-render plus git diff.
 
 Duplication and token-budget judgements belong to the `audit-steering` skill.
 The generator produces content and defers to it.

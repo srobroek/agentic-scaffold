@@ -374,12 +374,13 @@ values.
 | Skill | Scope |
 |---|---|
 | `project-scaffold` | interview, render layers, generate steering |
-| `project-scaffold-steering` | regenerate derived steering from configuration on disk |
 | `project-scaffold-update` | adopt a layer, apply template changes, retrofit an existing repository |
 
-`project-scaffold-steering` is a pure function of files on disk: no prompts, no
-network. `just docs:agents --check` regenerates into a temporary directory and
-exits non-zero on a difference. That check runs inside the existing quality job.
+Regenerating steering is `just steering`, not a skill. It is a pure function of
+files on disk, with no prompts and no network, so a skill wrapping it would put
+a model in a decision that has none. `just steering-check` regenerates into a
+temporary directory and exits non-zero on a difference. That check runs inside
+the existing quality job.
 A workflow of its own would be gated on paths, and a workflow that never runs
 leaves a required check pending forever.
 

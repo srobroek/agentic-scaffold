@@ -26,6 +26,12 @@
       "component": "project-scaffold",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [{ "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }]
+    },
+    "packages/project-scaffold-update": {
+      "release-type": "simple",
+      "component": "project-scaffold-update",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [{ "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }]
     }
   }
 }

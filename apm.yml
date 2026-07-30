@@ -1,7 +1,7 @@
 name: project-scaffold
 version: 0.1.0
 description: >-
-  Config-driven project scaffolding as composable copier layers. 34 layers covering git,
+  Config-driven project scaffolding as composable copier layers. 36 layers covering git,
   CI, quality gates, release, docs, infrastructure, containers, and agentic tooling, with
   13 profiles naming which layers a shape renders and in what order. The project-scaffold
   skill runs the interview, derives what rules/choices.md marks derived, and renders a
@@ -40,3 +40,9 @@ marketplace:
         - skill
         - scaffolding
         - copier
+    - name: project-scaffold-update
+      source: ./packages/project-scaffold-update
+      category: workflow
+      tags:
+        - skill
+        - scaffolding

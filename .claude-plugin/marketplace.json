@@ -16,6 +16,17 @@
       ],
       "category": "workflow",
       "source": "./packages/project-scaffold"
+    },
+    {
+      "name": "project-scaffold-update",
+      "description": "Change a repository that already exists: adopt a layer it does not have, re-render a layer whose template moved, or retrofit onto a repository that predates this tool. copier update does not work here, since a layer rendered from a local path records no _commit, so the method is re-render plus git diff.",
+      "version": "0.1.0",
+      "tags": [
+        "skill",
+        "scaffolding"
+      ],
+      "category": "workflow",
+      "source": "./packages/project-scaffold-update"
     }
   ]
 }

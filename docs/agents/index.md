@@ -27,7 +27,7 @@ and every fixed choice, `../steering.md` for what a scaffolded repository gets,
 | `just preview <layer> <dest>` | render one layer, writing nothing |
 | `just index` | regenerate `docs/INDEX.md` from `templates/` |
 | `just check` | render every profile and run its build |
-| `just docs:agents` | regenerate the generated blocks here |
+| `just steering` | regenerate the generated blocks here |
 
 ## Toolchain
 
