@@ -52,7 +52,10 @@ cdk-template:
 cdk-diff env="":
     npx cdk diff {{ env }}
 
-# Deploy. Never wired into CI: an apply belongs behind a manual gate.
+# Never wired into CI: an apply belongs behind a manual gate, and
+# --require-approval any-change makes the change list explicit before it runs.
+
+# Deploy the app
 [group('cdk')]
 cdk-deploy env="":
     npx cdk deploy {{ env }} --require-approval any-change
