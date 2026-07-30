@@ -67,6 +67,30 @@ Invoke `create-json`, not the flag form: `--yes` rejects any stack flag, and
 `addonOptions` has no flag equivalent. Read valid options at runtime from
 `create-better-t-stack schema --name <name>`, which emits JSON Schema.
 
+Option defaults, verified against the runtime schema rather than remembered. Every axis
+below is an enum `create-better-t-stack schema --name <axis>` emits:
+
+| Axis | Default | Why |
+|---|---|---|
+| `frontend` | `tanstack-router` | typed routing without a framework server |
+| `backend` | `hono` | runs on bun, node, and workers unchanged |
+| `runtime` | `bun` | the fixed package manager for TypeScript here |
+| `api` | `orpc` | see below |
+| `database`, `orm`, `auth`, `payments` | `none` | asked, not derived: a CLI or static site needs none |
+
+`api` is `orpc` rather than `trpc`, and the deciding evidence is not weight. Both scaffold
+the same `apps/{web,server}` shape and land within one dependency of each other, 45 against
+44. orpc ships `@orpc/openapi` and its generated server carries an `OpenAPIHandler` and an
+`OpenAPIReferencePlugin`, so the contract exists as a document. trpc emits no OpenAPI at
+all. `lang/api` gates that document with vacuum and oasdiff, so orpc is what makes the
+contract layer mean anything for a `ts-app`.
+
+`database` defaults to `none` because it is one of the two questions
+`../rules/choices.md` marks as asked for `ts-app`: a CLI or a static site needs neither a
+database nor an api, and the choice is not inferable from a project name. The CLI's own
+validator reports an incompatible combination, so the skill leans on it rather than
+encoding a matrix.
+
 Addon defaults:
 
 | Addon | Default | Condition |

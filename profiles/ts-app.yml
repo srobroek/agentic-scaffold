@@ -39,6 +39,16 @@ answers:
   docs_engine: starlight
   # starlight is off as a better-t-stack addon, because docs/site supersedes it.
 
+  # The generator's own axes, verified against `create-better-t-stack schema`. api is orpc
+  # rather than trpc because orpc emits an OpenAPI document and trpc emits none, which is
+  # what makes lang/api's vacuum and oasdiff gates mean anything here. database, orm, auth,
+  # and payments are asked rather than derived, so `none` is the starting point.
+  bts_frontend: tanstack-router
+  bts_backend: hono
+  bts_runtime: bun
+  bts_api: orpc
+  bts_addons: [biome, turborepo]
+
 # Only what the LAYERS produce. render_profile.py does not run the generator, so a
 # command needing generator output (cargo build, go build, a projen synth) would fail
 # for the absence of a manifest rather than for anything a layer got wrong. The agent
