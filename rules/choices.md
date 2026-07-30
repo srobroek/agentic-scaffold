@@ -89,3 +89,33 @@ golangci-lint v2 rejects v1's top-level `linters-settings`. Settings nest under
 
 `gh repo create --public` publishes immediately. Read the name, owner, and
 visibility back to the user and wait for confirmation before running it.
+
+## Repository governance
+
+The configuration surface that is neither a template file nor a CI job. Measured against
+a live repository rather than assumed: `gh api repos/<owner>/<repo>` reports every merge
+and feature setting, `/rulesets` and `/branches/<branch>/protection` report the rest, and
+GitHub reads no committed file for any of them. A freshly created repository returned zero
+rulesets and `Branch not protected`.
+
+So the split is not a judgement call:
+
+| Setting | Where it lives |
+|---|---|
+| `CODEOWNERS`, issue and pull-request templates, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` | committed files, `host/github` |
+| branch protection, required checks, merge queue, allowed merge types, auto-merge, repository features | `gh api`, through `just repo-govern` |
+| organisation versus personal owner, and visibility | asked, questions 5 and 6 |
+| environment secrets | never automated: a secret in a script is a secret in a shell history |
+
+`host/github` owns the files and ships the script. A layer renders a file, and GitHub reads
+no file for any of these settings, so the API surface is a script.
+
+Fixed settings, applied by the script:
+
+- `gate` is the only required status check. It lists every other job in `needs:` and
+  receives `toJSON(needs)`, so a new job is covered without touching branch protection.
+- Squash only. A merge commit puts a second author's subject in the history that
+  release-please then reads, and a rebase rewrites the commits CI already checked.
+- Delete the branch on merge, and enable auto-merge.
+- Issues on, wiki and projects off. A wiki is an unversioned second place for
+  documentation the `docs/` tree already owns.

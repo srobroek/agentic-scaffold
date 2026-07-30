@@ -176,6 +176,19 @@ extractor.
 |---|---|---|
 | `host/github` | `workflows/{wc-changes,wc-gate,wc-quality,wc-security}.yml`, `actions/ci-gate/`, `CODEOWNERS`, issue and pull-request templates, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` | `security_contact`, `coc_contact`, `default_branch`, `job_timeout_minutes` |
 
+### Governance lives in a script
+
+`host/github` renders the governance files and ships `scripts/repo_govern.py` for the rest.
+Measured against a live repository rather than assumed: `gh api repos/<slug>` reports every
+merge and feature setting, a freshly created repository returned zero rulesets and
+`Branch not protected`, and GitHub reads no committed file for any of it. A layer renders a
+file, so the API surface is a script. `../rules/choices.md` carries the split.
+
+`gate` is the only required check, `just repo-govern` applies the settings, and
+`just repo-govern-check` reports differences without changing anything, which is what CI can
+run. Environment secrets stay manual: a secret passed to a script is a secret in a shell
+history.
+
 `host/gitlab` was written rather than ported: bailiff had no GitLab CI package, only
 `repo/gitlab-repo`, so its four language fragments had no pipeline to be included by.
 

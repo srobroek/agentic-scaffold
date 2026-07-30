@@ -769,3 +769,56 @@ def test_the_whole_hook_set_runs_in_ci(rendered: Path) -> None:
     workflow = yaml.safe_load((rendered / ".github" / "workflows" / "wc-quality.yml").read_text())
     script = "\n".join(str(step.get("run", "")) for step in workflow["jobs"]["quality"]["steps"])
     assert "prek run --all-files" in script
+
+
+# --- governance ------------------------------------------------------------
+
+
+def test_the_governance_script_ships_with_the_layer(rendered: Path) -> None:
+    """Branch protection, required checks, merge types, and repository features are all
+    API-only. Verified against a live repository: `gh api repos/<slug>` reports every merge
+    and feature setting, a fresh repository returned zero rulesets and `Branch not
+    protected`, and GitHub reads no committed file for any of it.
+
+    A layer renders a file, so the API surface is a script this layer ships.
+    """
+    script = rendered / "scripts" / "repo_govern.py"
+    assert script.is_file()
+    body = script.read_text()
+    # A secret passed to a script is a secret in a shell history.
+    assert "secret" in body.lower()
+    assert "gh api" in body or '"api"' in body
+
+
+def test_the_gate_is_the_only_required_check(rendered: Path) -> None:
+    """It lists every other job in `needs:` and receives `toJSON(needs)`, so a new job is
+    covered without touching branch protection. A path-filtered required check that never
+    starts would block every unrelated pull request forever.
+    """
+    body = (rendered / "scripts" / "repo_govern.py").read_text()
+    assert 'REQUIRED_CHECKS = ["gate"]' in body
+
+
+def test_squash_is_the_only_merge_type(rendered: Path) -> None:
+    """A merge commit puts a second author's subject into the history release-please reads,
+    and a rebase rewrites the commits CI already checked."""
+    body = (rendered / "scripts" / "repo_govern.py").read_text()
+    assert '"allow_squash_merge": True' in body
+    assert '"allow_merge_commit": False' in body
+    assert '"allow_rebase_merge": False' in body
+
+
+def test_the_governance_recipes_render(rendered: Path) -> None:
+    fragment = (rendered / ".just.d" / "github.just").read_text()
+    assert "repo-govern" in fragment
+    # A check that changes nothing is what CI can run.
+    assert "--check" in fragment
+
+
+def test_the_check_flag_changes_nothing(rendered: Path) -> None:
+    """Asserted from the source rather than by calling the API: the check path must not
+    reach a PATCH or a PUT."""
+    body = (rendered / "scripts" / "repo_govern.py").read_text()
+    # apply_settings returns before building the PATCH when checking.
+    assert "if check or not differences:" in body
+    assert "return differences" in body
