@@ -350,6 +350,7 @@ def test_moon_resolves_the_generated_graph(
 
 
 @needs_moon
+@pytest.mark.slow
 def test_moon_orders_the_chain_and_caches_the_second_run(tmp_path: Path) -> None:
     """The capability the layer exists for, against a real cargo build.
 
@@ -374,6 +375,7 @@ def test_moon_orders_the_chain_and_caches_the_second_run(tmp_path: Path) -> None
 
 
 @needs_moon
+@pytest.mark.slow
 def test_changing_a_dependency_invalidates_its_dependents(tmp_path: Path) -> None:
     """Transitive invalidation is what `just` structurally cannot express: a hand-written
     loop reruns everything or nothing, with no graph to consult."""
@@ -390,6 +392,7 @@ def test_changing_a_dependency_invalidates_its_dependents(tmp_path: Path) -> Non
 
 
 @needs_moon
+@pytest.mark.slow
 def test_changing_only_the_dependent_reuses_the_dependency_cache(tmp_path: Path) -> None:
     if shutil.which("cargo") is None:
         pytest.skip("cargo absent")

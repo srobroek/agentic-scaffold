@@ -57,9 +57,21 @@ fix:
     {{ py }} ruff check --fix scripts templates
     {{ py }} ruff format scripts templates
 
+# Most of the wall clock is waiting on a real toolchain rather than on CPU, and every test
+# renders into its own tmp_path sharing no state, so the suite parallelises cleanly.
+# Measured on 14 cores: 889s serial against 160s at -n auto, same 543 passing.
+
 # Run the tests
 test:
+    {{ py }} pytest -q -n auto
+
+# Run the tests serially, for a readable failure or a debugger
+test-serial:
     {{ py }} pytest -q
+
+# Skip what installs an npm tree, builds an image, or compiles a crate
+test-fast:
+    SCAFFOLD_SKIP_SLOW=1 {{ py }} pytest -q -n auto
 
 # Validate every profile against templates/
 profiles:

@@ -1,0 +1,20 @@
+{
+  "name": "project-scaffold",
+  "interface": {
+    "displayName": "project-scaffold"
+  },
+  "plugins": [
+    {
+      "name": "project-scaffold",
+      "source": {
+        "source": "local",
+        "path": "./packages/project-scaffold"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "workflow"
+    }
+  ]
+}

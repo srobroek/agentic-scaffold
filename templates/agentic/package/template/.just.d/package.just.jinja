@@ -22,8 +22,10 @@
 
 apm := "uvx --from apm-cli@{{ apm_cli_version }} apm"
 {% raw %}
-# Rebuild the catalogs from apm.yml. Run this at release, and whenever a package or the
-# marketplace block changes, then commit the result.
+# Run this at release, and whenever a package or the marketplace block changes, then commit
+# the result.
+
+# Rebuild the marketplace catalogs from apm.yml
 [group('package')]
 package-build:
     {{ apm }} pack --offline
@@ -34,7 +36,9 @@ package-build:
 # tree untouched. Verified against apm 0.26.0: exit 4 on a hand-edited catalog with the
 # flag, exit 0 and a silently repaired file without it.
 
-# Fail when a committed catalog is stale. This is the pull-request gate.
+# This is the pull-request gate.
+
+# Fail when a committed catalog is stale
 [group('package')]
 package-check:
     {{ apm }} pack --offline --check-clean --dry-run

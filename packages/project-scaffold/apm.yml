@@ -1,0 +1,14 @@
+name: project-scaffold
+version: 0.1.0
+description: >-
+  Scaffold a new project from composable copier layers. Runs the six-question interview,
+  derives the rest from rules/choices.md, picks a profile, runs its generator, renders the
+  layer set in order, and reports every file written and every command that failed.
+author: Sjors Robroek
+license: Apache-2.0
+target: all
+includes: auto
+category: workflow
+tags:
+  - skill
+  - scaffolding

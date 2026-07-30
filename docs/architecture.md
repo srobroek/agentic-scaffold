@@ -86,10 +86,11 @@ all. `lang/api` gates that document with vacuum and oasdiff, so orpc is what mak
 contract layer mean anything for a `ts-app`.
 
 `database` defaults to `none` because it is one of the two questions
-`../rules/choices.md` marks as asked for `ts-app`: a CLI or a static site needs neither a
-database nor an api, and the choice is not inferable from a project name. The CLI's own
-validator reports an incompatible combination, so the skill leans on it rather than
-encoding a matrix.
+`../rules/choices.md` marks as asked for `ts-app`. A CLI or a static site needs neither a
+database nor an api, and no project name reveals which.
+
+The CLI's own validator reports an incompatible combination, so the skill leans on it
+rather than encoding a matrix.
 
 Addon defaults:
 
@@ -266,9 +267,11 @@ needed to debug; debian when a dependency needs glibc and a full userland.
 since `static` carries no interpreter.
 
 Build, scan, then push, in that order. An image already in a registry can be pulled by
-anything watching it, so a scan that runs after the push reports a vulnerability that has
-already shipped. The build loads into the local daemon rather than pushing, the scan reads
-it there, and the push is a separate step gated on the scan passing.
+anything watching it, so a scan running after the push reports a vulnerability that has
+already shipped.
+
+The build therefore loads into the local daemon rather than pushing. The scan reads it
+there, and the push is a separate step gated on that scan.
 
 A Dockerfile that already exists is never replaced, because whichever framework
 generated it owns it. The layer contributes the lint, the CI, and the ignore file around
@@ -304,6 +307,10 @@ CI, inside the quality job the gate depends on.
 |---|---|
 | the whole hook set, through `prek run --all-files` | formatters and fixers that rewrite files |
 | commit-message checks over the pull request range | anything reading staged state before a commit exists |
+| the refusal of a hand-made version tag | nothing: a tag is pushed rather than committed |
+
+The hook set runs over `--all-files`. A diff range covers only what a branch touched, so a
+hook bypassed at commit time stays bypassed for every file outside that range.
 
 The split follows from what each can see. A check that reads committed state runs
 in CI. A check that rewrites, or that needs the index, stays a hook.

@@ -1,0 +1,21 @@
+{
+  "name": "project-scaffold",
+  "owner": {
+    "name": "srobroek",
+    "url": "https://github.com/srobroek"
+  },
+  "plugins": [
+    {
+      "name": "project-scaffold",
+      "description": "Scaffold a new project from composable copier layers. Runs the six-question interview, derives the rest from rules/choices.md, picks a profile, runs its generator, renders the layer set in order, and reports every file written and every command that failed.",
+      "version": "0.1.0",
+      "tags": [
+        "skill",
+        "scaffolding",
+        "copier"
+      ],
+      "category": "workflow",
+      "source": "./packages/project-scaffold"
+    }
+  ]
+}

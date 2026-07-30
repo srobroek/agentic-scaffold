@@ -106,7 +106,7 @@ def check_one(path: Path) -> list[str]:
 
     layers = profile["layers"]
     if not isinstance(layers, list) or not layers:
-        return problems + ["`layers` is empty"]
+        return [*problems, "`layers` is empty"]
 
     for layer in layers:
         if not layer_exists(layer):

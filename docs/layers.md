@@ -98,12 +98,14 @@ flag.
 oasdiff installs through `ubi` rather than `aqua`, which carries no registry entry for
 it.
 
-The starter spec passes its own gate as rendered, which took four `example` blocks: it
+The starter spec passes its own gate as rendered, which took four `example` blocks. It
 scored 98 of 100 with four `missing examples` warnings until they were added, so the
-scaffold failed the check it ships. Only the lint runs at commit time. The
-breaking-change check reads the spec out of a baseline ref, and a first commit on a fresh
-branch has no merge base, so it belongs in CI where the pull request defines one and
-exits 0 rather than blocking when no baseline exists.
+scaffold failed the check it ships.
+
+Only the lint runs at commit time. The breaking-change check reads the spec out of a
+baseline ref, and a first commit on a fresh branch has no merge base, so it belongs in CI
+where the pull request defines one. With no baseline reachable it exits 0 rather than
+blocking the commit that introduces the contract.
 
 `.gitignore.d/<name>` carries the conditional lines alone. gitnr's own templates
 cover `/target`, `__pycache__`, and `node_modules`; what it cannot express is
@@ -895,6 +897,24 @@ A build command asserts only what the layers produce. `render_profile.py` does n
 generator, since `cargo new` and `create-better-t-stack` reach the network or need a
 toolchain the machine may lack, so `cargo build` there would fail for a missing manifest
 rather than for anything a layer got wrong.
+
+## Running the tests
+
+Most tests render a layer and run the real tool against the result, which is what catches
+the defects a template read cannot. That makes the suite wait on toolchains rather than on
+CPU, and every test renders into its own `tmp_path` sharing no state, so it parallelises
+cleanly.
+
+| Command | Measured on 14 cores |
+|---|---|
+| `just test` | 160s, 543 passing |
+| `just test-serial` | 889s, for a readable failure or a debugger |
+| `just test-fast` | skips what installs an npm tree, builds an image, or compiles a crate |
+
+A test that shells out to something expensive carries `@pytest.mark.slow`. An npm install
+or a container build dominates a run otherwise, and the cdk fixture is session-scoped for
+the same reason: its install and synth cost about 40 seconds and every test reading it only
+reads.
 
 ## Contribution points
 

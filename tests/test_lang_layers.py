@@ -131,10 +131,23 @@ def test_ruff_ignores_use_names_not_codes(tmp_path: Path) -> None:
     assert '"assert"' in selectors[0]
 
 
-def test_every_language_layer_is_covered_here() -> None:
-    """A new lang/* layer must be added to ANSWERS, or it ships untested."""
+# A layer with its own test file rather than a row in ANSWERS. The parametrised cases here
+# assume a compiler and a package manager, which a contract has neither of, so lang/api is
+# covered by tests/test_api_layer.py against vacuum and oasdiff instead.
+COVERED_ELSEWHERE = {"api": "tests/test_api_layer.py"}
+
+
+def test_every_language_layer_is_covered_somewhere() -> None:
+    """A new lang/* layer is either in ANSWERS or has its own file, or it ships untested."""
     on_disk = {p.parent.name for p in TEMPLATES.rglob("copier.yml")}
-    assert on_disk == set(ANSWERS), f"untested language layers: {on_disk - set(ANSWERS)}"
+    untested = on_disk - set(ANSWERS) - set(COVERED_ELSEWHERE)
+    assert not untested, f"untested language layers: {untested}"
+
+    # A layer claiming coverage elsewhere has to actually have it, or this exemption
+    # becomes a way to ship an untested layer.
+    for layer, path in COVERED_ELSEWHERE.items():
+        assert layer in on_disk, f"{layer} is exempted but no longer exists"
+        assert (REPO_ROOT / path).is_file(), f"{layer} claims coverage in {path}, which is absent"
 
 
 # --- lang/python's __init__ split ------------------------------------------

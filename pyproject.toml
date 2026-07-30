@@ -12,6 +12,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.0",
+    # Every test renders into its own tmp_path and shares no state, so the suite
+    # parallelises cleanly. Most of the wall-clock cost is waiting on a real toolchain.
+    "pytest-xdist>=3.6",
     "ruff>=0.14",
 ]
 

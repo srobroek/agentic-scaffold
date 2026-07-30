@@ -81,13 +81,22 @@ def cdk(tmp_path: Path) -> Path:
     return dest
 
 
-@pytest.fixture
-def synthesised(cdk: Path) -> Path:
+@pytest.fixture(scope="session")
+def synthesised(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """A rendered app taken through the documented bootstrap.
 
     `projen new` writes a ts-node task and the synth that would replace it is the thing
     that fails, so tsx is installed first and the projenrc is run directly through it.
+
+    Session-scoped: the npm install and the synth cost about 40 seconds, and every test
+    reading this fixture only reads. The one test that mutates it re-synths afterwards,
+    which is idempotent.
     """
+    cdk = tmp_path_factory.mktemp("cdk-synth")
+    subprocess.run(["git", "init", "-q", str(cdk)], check=True)
+    result = render(cdk)
+    assert result.returncode == 0, result.stderr
+
     assert run(cdk, "npm", "init", "-y").returncode == 0
     install = run(cdk, "npm", "install", "--no-audit", "--no-fund", PROJEN, TSX)
     assert install.returncode == 0, install.stderr[-2000:]

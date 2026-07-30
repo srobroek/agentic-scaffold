@@ -1,0 +1,42 @@
+name: project-scaffold
+version: 0.1.0
+description: >-
+  Config-driven project scaffolding as composable copier layers. 34 layers covering git,
+  CI, quality gates, release, docs, infrastructure, containers, and agentic tooling, with
+  13 profiles naming which layers a shape renders and in what order. The project-scaffold
+  skill runs the interview, derives what rules/choices.md marks derived, and renders a
+  profile end to end.
+author: Sjors Robroek
+license: Apache-2.0
+type: hybrid
+
+# Where compiled skills and steering deploy. kiro is a target rather than a marketplace
+# output, because apm ships no kiro marketplace mapper.
+targets:
+  - claude
+  - codex
+  - kiro
+
+includes: auto
+
+marketplace:
+  owner:
+    name: srobroek
+    url: https://github.com/srobroek
+  outputs:
+    claude: {}
+    codex: {}
+  versioning:
+    strategy: tag_pattern
+  build:
+    # Matches release-please's include-component-in-tag plus tag-separator "--".
+    tagPattern: '{name}--v{version}'
+  packages:
+    - name: project-scaffold
+      source: ./packages/project-scaffold
+      # Mandatory whenever the codex output is built.
+      category: workflow
+      tags:
+        - skill
+        - scaffolding
+        - copier
