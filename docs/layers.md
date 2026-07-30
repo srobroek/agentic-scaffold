@@ -5,7 +5,7 @@ date: 2026-07-29
 
 # Layers
 
-28 layers and roughly 60 variables, from 30 packages and 247 questions. Every
+30 layers and roughly 66 variables, from 30 packages and 247 questions. Every
 variable listed here is asked or derived; anything absent is fixed in the layer
 per `../rules/choices.md`.
 
@@ -223,10 +223,25 @@ carries the root config and the repository-wide hygiene hooks alone.
 | `workspace/monorepo` | the workspace manifest (`[workspace] members`, uv workspace, bun workspaces, or one go module), `scripts/add_member.py`, `.just.d/monorepo.just` | `layout`, `members`, `project_name` |
 | `workspace/just` | `justfile` carrying `setup`, the aggregates, and one `import?` per `.just.d/*.just`, plus `scripts/gen_justfile.py` and `.mise/conf.d/just.toml` | none |
 | `workspace/moon` | `.moon/workspace.yml`, `.moon/toolchain.yml`, `moon.yml` per member, `.just.d/moon.just` | `members`, `layout` |
-| `workspace/devcontainer` | `.devcontainer/devcontainer.json` | none |
+| `workspace/devcontainer` | `.devcontainer/devcontainer.json` | `project_name`, `base_image`, `docker_in_docker`, `forward_ports` |
 | `workspace/worktrunk` | `.config/wt.toml`, `.worktreeinclude` | `forge_platform`, `forge_hostname`, `worktree_includes` |
 
 `workspace/monorepo` owns `just add`.
+
+### The devcontainer has one toolchain source
+
+`mise` is the only toolchain feature, and `postCreateCommand` is
+`mise trust && mise install && just setup`. A per-language devcontainer feature would
+pin a second copy of a compiler that could then disagree with what CI and a laptop
+resolve from `.mise/conf.d/`.
+
+`mise trust` has to precede `mise install`: an untrusted config is skipped silently
+rather than failing, so the install would report success having installed nothing. The
+container calls `just setup` rather than repeating its steps, so the two cannot drift.
+
+`devcontainer.json` is JSONC, so it carries its reasoning in comments and `json.load`
+rejects it. The layer's tests parse it through
+`@devcontainers/cli read-configuration`, which is what an editor uses.
 
 ### moon alongside just, not instead of it
 
@@ -640,9 +655,23 @@ is therefore not used.
 | Layer | Writes | Variables |
 |---|---|---|
 | `iac/terraform` | `infra/{bootstrap,modules,envs,tests}`, `.tflint.hcl`, `.pre-commit.d/terraform.yaml` | `environments`, `aws_region`, `state_bucket` |
-| `iac/cdk` | `.projenrc.ts` with `runner: tsx()` and `github: false` | `cdk_language` |
+| `iac/cdk` | `.projenrc.ts` with `runner: tsx()`, `app: npx tsx`, and `github: false`, plus `.just.d/cdk.just` and the mise, gitignore, and security fragments | `cdk_version`, `projen_version`, `tsx_version`, `node_version` |
 
 `environments` defaults to `[dev, prod]`.
+
+### The ts-node trap has two call sites, not one
+
+`projenrcTsOptions.runner: TypeScriptRunner.tsx()` governs only how `.projenrc.ts`
+itself executes. projen writes `cdk.json`'s `app` separately, as
+`npx ts-node -P tsconfig.json --prefer-ts-exts src/main.ts`, so with the runner set and
+`app` left alone `npx projen` passed and `cdk synth` still failed. Both are overridden.
+
+Reproduced rather than assumed, against projen 0.101.22: under TypeScript 7.0.2 the
+default ts-node runner throws inside `findAndReadConfig`, and after both overrides
+`npx projen` and `cdk synth` each exit 0.
+
+`packageManager` is set explicitly too. projen otherwise defaults to `yarn_classic` and
+warns that the option will become required, and nothing else here uses yarn.
 
 ### One root module, not one per environment
 
@@ -696,6 +725,7 @@ agentic/{apm|package,beads}
 quality/hooks
 workspace/just
 workspace/moon         monorepo only: the member graph, after every member exists
+workspace/devcontainer container only: postCreateCommand calls `just setup`
 base/gitignore
 agentic/marketplace
 ```
@@ -744,7 +774,7 @@ leaves a dirty tree and passes on the rerun.
 
 `agentic/marketplace` reads the finished tree.
 
-A profile states this order directly. 28 layers with a fixed order need no
+A profile states this order directly. 30 layers with a fixed order need no
 dependency solver.
 
 ## Contribution points

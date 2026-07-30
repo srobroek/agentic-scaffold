@@ -1,0 +1,5 @@
+{#- .mise/conf.d/cdk.toml -- mise reads every file here. -#}
+# node is the only runtime projen needs; projen, tsx, and the CDK CLI arrive as project
+# dependencies through package.json so a synth resolves the versions .projenrc.ts pins.
+[tools]
+node = "{{ node_version }}"

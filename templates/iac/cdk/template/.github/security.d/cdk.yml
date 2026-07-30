@@ -1,0 +1,13 @@
+# A job fragment the host layer's wc-security.yml folds into its matrix.
+#
+# CodeQL reads the constructs as TypeScript, so it is supported here where iac/terraform
+# reports false for HCL. trivy's misconfig scanner reads the synthesised template rather
+# than the constructs, which is why cdk.out has to exist before it runs.
+codeql:
+  supported: true
+  language: javascript-typescript
+osv:
+  lockfiles: ["package-lock.json"]
+trivy:
+  mode: fs
+  scanners: ["misconfig", "vuln", "secret"]

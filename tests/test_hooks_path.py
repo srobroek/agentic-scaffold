@@ -18,16 +18,12 @@ JUSTFILE = REPO_ROOT / "justfile"
 
 
 def git(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args], cwd=cwd, capture_output=True, text=True, check=False
-    )
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=False)
 
 
 def commit_all(path: Path, message: str) -> subprocess.CompletedProcess[str]:
     git("add", "-A", cwd=path)
-    return git(
-        "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", message, cwd=path
-    )
+    return git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", message, cwd=path)
 
 
 @pytest.fixture

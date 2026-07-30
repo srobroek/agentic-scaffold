@@ -1,0 +1,64 @@
+{#-
+  .just.d/cdk.just -- imported by the root justfile. Recipe bodies are inside
+  `{% raw %}` because just shares jinja's `{{ }}`.
+-#}
+# CDK recipes, contributed by iac/cdk and imported by the root justfile.
+#
+# projen owns every generated file. The bootstrap order below is load-bearing and is
+# why `cdk-bootstrap-projen` exists as a separate recipe from `cdk-synth`.
+
+npm_pin := "{{ projen_version }}"
+{% raw %}
+# `projen new` writes a ts-node task, and the synth that would replace it with tsx is
+# the thing that fails under TypeScript 7. So tsx is installed first and .projenrc.ts is
+# run once directly through it; every later `npx projen` then works, because the synth
+# has by then rewritten its own default task.
+
+# Install the toolchain and run the first synth directly through tsx
+[group('cdk')]
+cdk-bootstrap-projen:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f package.json ]; then
+      npm init -y >/dev/null
+    fi
+    npm install --no-audit --no-fund projen tsx
+    # Directly, not through `npx projen`: the default task still points at ts-node here.
+    npx tsx .projenrc.ts
+
+# Regenerate every projen-owned file from .projenrc.ts
+[group('cdk')]
+cdk-synth:
+    npx projen
+
+# Fail when a generated file no longer matches .projenrc.ts
+[group('cdk')]
+cdk-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    npx projen
+    if ! git diff --exit-code; then
+      echo "generated files are stale; run 'just cdk-synth' and commit the result" >&2
+      exit 1
+    fi
+
+# Synthesise the CloudFormation template
+[group('cdk')]
+cdk-template:
+    npx cdk synth
+
+# Show what a deploy would change
+[group('cdk')]
+cdk-diff env="":
+    npx cdk diff {{ env }}
+
+# Deploy. Never wired into CI: an apply belongs behind a manual gate.
+[group('cdk')]
+cdk-deploy env="":
+    npx cdk deploy {{ env }} --require-approval any-change
+
+# Run the app's tests
+[group('cdk')]
+cdk-test:
+    npx projen test
+{% endraw %}

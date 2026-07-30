@@ -123,7 +123,9 @@ def test_every_language_fragment_kind_is_consumed(rendered: Path) -> None:
     # that directory in, or the fragment is inert.
     for language in languages:
         for kind, body in (("quality", quality), ("security", security)):
-            fragment = LANG_TEMPLATES / language / "template" / ".github" / f"{kind}.d" / f"{language}.yml"
+            fragment = (
+                LANG_TEMPLATES / language / "template" / ".github" / f"{kind}.d" / f"{language}.yml"
+            )
             if not fragment.is_file():
                 continue
             for key in yaml.safe_load(fragment.read_text()) or {}:
@@ -184,11 +186,43 @@ def test_every_lizard_language_is_one_lizard_knows() -> None:
     than failing the run. Nothing downstream would report it.
     """
     known = {
-        "c", "cpp", "java", "csharp", "javascript", "js", "python", "objectivec",
-        "objective-c", "objc", "ttcn", "ttcn3", "ruby", "php", "swift", "scala",
-        "GDScript", "go", "lua", "rust", "typescript", "ts", "fortran", "kotlin",
-        "solidity", "erlang", "zig", "tsx", "jsx", "vue", "vuejs", "perl", "st",
-        "r", "R", "plsql", "pl/sql",
+        "c",
+        "cpp",
+        "java",
+        "csharp",
+        "javascript",
+        "js",
+        "python",
+        "objectivec",
+        "objective-c",
+        "objc",
+        "ttcn",
+        "ttcn3",
+        "ruby",
+        "php",
+        "swift",
+        "scala",
+        "GDScript",
+        "go",
+        "lua",
+        "rust",
+        "typescript",
+        "ts",
+        "fortran",
+        "kotlin",
+        "solidity",
+        "erlang",
+        "zig",
+        "tsx",
+        "jsx",
+        "vue",
+        "vuejs",
+        "perl",
+        "st",
+        "r",
+        "R",
+        "plsql",
+        "pl/sql",
     }
     for fragment in sorted(LANG_TEMPLATES.glob("*/template/.github/quality.d/*.yml")):
         lizard = (yaml.safe_load(fragment.read_text()) or {}).get("lizard") or {}
@@ -303,7 +337,9 @@ def test_every_job_carries_a_timeout(rendered: Path) -> None:
 def test_the_timeout_is_threaded_from_the_answer(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
-    render("host/github", dest, ANSWERS.replace("job_timeout_minutes: 15", "job_timeout_minutes: 7"))
+    render(
+        "host/github", dest, ANSWERS.replace("job_timeout_minutes: 15", "job_timeout_minutes: 7")
+    )
     assert workflow(dest, "wc-gate")["jobs"]["gate"]["timeout-minutes"] == 7
 
 
@@ -378,8 +414,19 @@ def test_the_pipeline_needs_no_caller(gitlab: Path) -> None:
 def test_the_gitlab_layer_runs_no_language_tooling(gitlab: Path) -> None:
     """Each lang/* layer supplies its own .gitlab/ci fragment."""
     tooling = [
-        "cargo", "clippy", "rustfmt", "nextest", "ruff", "pytest", "biome",
-        "oxlint", "tsc", "bun", "golangci-lint", "gofmt", "govulncheck",
+        "cargo",
+        "clippy",
+        "rustfmt",
+        "nextest",
+        "ruff",
+        "pytest",
+        "biome",
+        "oxlint",
+        "tsc",
+        "bun",
+        "golangci-lint",
+        "gofmt",
+        "govulncheck",
     ]
     offenders = []
     for path in sorted(gitlab.rglob("*")):
@@ -523,7 +570,7 @@ def test_the_generated_pipeline_is_valid_yaml(gitlab: Path) -> None:
 
 
 def test_gitlab_governance_uses_gitlab_terminology(gitlab: Path) -> None:
-    """"Pull request" is GitHub's term, and a contributor reads these literally."""
+    """ "Pull request" is GitHub's term, and a contributor reads these literally."""
     contributing = (gitlab / "CONTRIBUTING.md").read_text()
     assert "merge request" in contributing.lower()
     assert "pull request" not in contributing.lower()

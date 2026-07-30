@@ -33,9 +33,7 @@ def render(layer: str, dest: Path, answers: str = "") -> subprocess.CompletedPro
 
 
 def just(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["just", *args], cwd=dest, capture_output=True, text=True, check=False
-    )
+    return subprocess.run(["just", *args], cwd=dest, capture_output=True, text=True, check=False)
 
 
 needs_just = pytest.mark.skipif(shutil.which("just") is None, reason="just absent from PATH")
@@ -293,7 +291,10 @@ def test_just_check_passes_once_synced(rendered: Path) -> None:
 MONOREPO_ANSWERS = {
     "rust": 'layout: rust\nproject_name: demo\nmembers: ""\nrust_edition: "2024"\n',
     "python": 'layout: python\nproject_name: demo\nmembers: ""\npython_version: "3.13"\n',
-    "go": 'layout: go\nproject_name: demo\nmembers: ""\ngo_module_path: example.com/demo\ngo_version: "1.26"\n',
+    "go": (
+        'layout: go\nproject_name: demo\nmembers: ""\n'
+        'go_module_path: example.com/demo\ngo_version: "1.26"\n'
+    ),
     "ts": 'layout: ts\nproject_name: demo\nmembers: ""\n',
 }
 
@@ -330,12 +331,13 @@ def test_each_layout_writes_only_its_own_manifest(layout: str, tmp_path: Path) -
 
 def test_the_member_glob_follows_the_layout(tmp_path: Path) -> None:
     """rust conventionally uses crates/*, python and ts packages/*, go cmd/*."""
-    assert 'members = ["crates/*"]' in (
-        workspace(tmp_path / "a", "rust") / "Cargo.toml"
-    ).read_text()
-    assert 'members = ["packages/*"]' in (
-        workspace(tmp_path / "b", "python") / "pyproject.toml"
-    ).read_text()
+    assert (
+        'members = ["crates/*"]' in (workspace(tmp_path / "a", "rust") / "Cargo.toml").read_text()
+    )
+    assert (
+        'members = ["packages/*"]'
+        in (workspace(tmp_path / "b", "python") / "pyproject.toml").read_text()
+    )
     assert '"packages/*"' in (workspace(tmp_path / "c", "ts") / "package.json").read_text()
 
 
@@ -608,9 +610,7 @@ def test_add_starts_a_new_member_at_the_initial_version_when_versions_disagree(
     assert add_member(dest, "core").returncode == 0
 
     path = dest / ".release-please-manifest.json"
-    path.write_text(
-        json.dumps({"crates/api": "2.3.1", "crates/core": "1.0.0"}, indent=2) + "\n"
-    )
+    path.write_text(json.dumps({"crates/api": "2.3.1", "crates/core": "1.0.0"}, indent=2) + "\n")
 
     assert add_member(dest, "util").returncode == 0
 
@@ -637,9 +637,7 @@ def test_setup_covers_a_fresh_clone(rendered: Path) -> None:
     # Trust before install: an untrusted config is skipped, and `mise install` then reads
     # nothing while reporting success. Compared on the command lines, since the recipe's
     # own comments mention installing too.
-    commands = [
-        line.strip() for line in body.splitlines() if line.strip().startswith("mise ")
-    ]
+    commands = [line.strip() for line in body.splitlines() if line.strip().startswith("mise ")]
     assert commands, "setup runs no mise command"
     assert commands[0].startswith("mise trust"), f"trust is not first: {commands}"
     for recipe in ("hooks-install", "rtk-setup", "apm-install"):
@@ -743,9 +741,7 @@ def test_the_shell_setting_avoids_bash_3_2_traps(rendered: Path) -> None:
 
     # Comments explaining the trap are fine; a recipe body using either is not.
     code = [
-        line
-        for line in body.splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
+        line for line in body.splitlines() if line.strip() and not line.lstrip().startswith("#")
     ]
     for builtin in ("mapfile", "readarray"):
         assert not any(builtin in line for line in code), f"{builtin} is bash 4 only"

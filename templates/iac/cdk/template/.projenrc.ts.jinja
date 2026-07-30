@@ -1,0 +1,53 @@
+/**
+ * .projenrc.ts -- the source of truth for every file projen generates.
+ *
+ * Edit this and run `just cdk-synth`. A generated file edited directly is overwritten
+ * on the next synth, and projen marks most of them read-only to say so.
+ */
+import { awscdk, javascript, typescript } from 'projen';
+
+const project = new awscdk.AwsCdkTypeScriptApp({
+  name: '{{ project_name | default('cdk-app', true) }}',
+  defaultReleaseBranch: '{{ default_branch }}',
+  cdkVersion: '{{ cdk_version }}',
+
+  // Explicit, because projen otherwise defaults to yarn_classic and warns that the
+  // option will become required. The rest of the scaffold uses npm or bun, never yarn.
+  packageManager: javascript.NodePackageManager.NPM,
+
+  projenrcTs: true,
+  projenrcTsOptions: {
+    // The tsx runner is required, not a preference. projen's default ts-node runner
+    // throws inside findAndReadConfig under TypeScript 7 (ts-node issue #2174), which
+    // makes every `npx projen` fail. Verified against ts-node 10.9.2 with TypeScript
+    // 7.0.2, where the default runner failed and this one succeeded.
+    runner: typescript.TypeScriptRunner.tsx(),
+  },
+
+  // Overriding projenrcTsOptions.runner is not enough. That covers only how the
+  // projenrc itself executes; projen writes cdk.json's `app` as
+  // `npx ts-node -P tsconfig.json --prefer-ts-exts src/main.ts` separately, so
+  // `cdk synth` and `cdk deploy` still ran ts-node and still failed under TypeScript 7.
+  // Verified: with only the runner set, `npx projen` passed and `cdk synth` did not.
+  app: 'npx tsx src/main.ts',
+
+  // The host/* layer owns CI. Leaving this on would have projen write its own
+  // workflows beside the reusable ones, and both would run on every push.
+  github: false,
+
+  // biome and oxlint come from lang/ts, and prek runs them. projen's eslint would be a
+  // second linter with its own config and its own opinion about formatting.
+  eslint: false,
+
+  devDeps: [
+    // Pinned so a synth resolves the same runner every time.
+    'tsx@{{ tsx_version }}',
+  ],
+});
+
+// projen marks .gitignore read-only, so a pattern added by hand is lost on the next
+// synth. base/gitignore rebuilds the root .gitignore from .gitignore.d/ anyway, and
+// this is the only way to reach projen's copy.
+project.gitignore.addPatterns('.env', '*.local');
+
+project.synth();

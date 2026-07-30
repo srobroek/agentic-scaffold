@@ -12,9 +12,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RENDER = REPO_ROOT / "scripts" / "render.py"
-MERGE = (
-    REPO_ROOT / "templates" / "quality" / "hooks" / "template" / "scripts" / "merge_hooks.py"
-)
+MERGE = REPO_ROOT / "templates" / "quality" / "hooks" / "template" / "scripts" / "merge_hooks.py"
 
 ANSWERS = """\
 hook_exclude_patterns: []
@@ -159,11 +157,7 @@ def test_the_slow_checks_stay_in_ci(rendered: Path) -> None:
 
 def test_the_offline_variants_are_used_where_a_commit_would_wait(rendered: Path) -> None:
     """A commit must not block on HTTP. CI runs both without the offline flag."""
-    entries = {
-        h["id"]: h.get("entry", "")
-        for r in config(rendered)["repos"]
-        for h in r["hooks"]
-    }
+    entries = {h["id"]: h.get("entry", "") for r in config(rendered)["repos"] for h in r["hooks"]}
     assert "--offline" in entries["lychee"]
     assert "--offline" in entries["zizmor"]
 

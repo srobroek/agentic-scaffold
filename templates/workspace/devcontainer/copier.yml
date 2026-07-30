@@ -1,0 +1,43 @@
+_subdirectory: template
+_answers_file: .copier-answers.devcontainer.yml
+
+_scaffold:
+  summary: >-
+    A devcontainer that installs the repository's own toolchain through mise and then
+    runs `just setup`, so a container and a laptop resolve the same versions.
+  requires_bin: [git]
+  # Renders late: postCreateCommand calls `just setup`, which workspace/just writes,
+  # and the toolchain comes from the .mise/conf.d fragments every earlier layer
+  # contributed.
+  after: [workspace/just]
+
+_skip_if_exists:
+  - .devcontainer/devcontainer.json
+
+project_name:
+  type: str
+  help: Container name shown in the editor.
+  default: ""
+
+# ubuntu rather than a language-specific image. Every toolchain here arrives through
+# mise, so a per-language base image would pin a second copy of the same compiler.
+base_image:
+  type: str
+  help: >-
+    Base image. The default carries git, a shell, and a non-root user, and nothing
+    language-specific.
+  default: mcr.microsoft.com/devcontainers/base:ubuntu
+
+# Asked because a repository that runs containers in CI needs it and one that does not
+# should not pay for it: docker-in-docker adds a privileged daemon to the container.
+docker_in_docker:
+  type: bool
+  help: >-
+    Whether the container can build images. Needed only when the container layer
+    rendered.
+  default: false
+
+forward_ports:
+  type: yaml
+  help: Ports the editor forwards, such as a dev server or an API.
+  default: []

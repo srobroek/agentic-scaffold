@@ -26,14 +26,11 @@ TS = 'layout: ts\nproject_name: demo\nmembers: "packages/*"\n'
 PY = 'layout: python\nproject_name: demo\nmembers: "packages/*"\npython_version: "3.13"\n'
 GO = (
     'layout: go\nproject_name: demo\nmembers: ""\n'
-    "go_module_path: github.com/srobroek/demo\ngo_version: \"1.26\"\n"
+    'go_module_path: github.com/srobroek/demo\ngo_version: "1.26"\n'
 )
 
 # The CLI mise installs, which is not on PATH by default.
-MOON_BIN = (
-    Path.home()
-    / ".local/share/mise/installs/npm-moonrepo-cli/latest/node_modules/.bin/moon"
-)
+MOON_BIN = Path.home() / ".local/share/mise/installs/npm-moonrepo-cli/latest/node_modules/.bin/moon"
 MOON = str(MOON_BIN) if MOON_BIN.is_file() else shutil.which("moon")
 needs_moon = pytest.mark.skipif(MOON is None, reason="moon absent")
 
@@ -65,9 +62,7 @@ def commit(path: Path) -> None:
 
 
 def moon(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [MOON, *args], cwd=dest, capture_output=True, text=True, check=False
-    )
+    return subprocess.run([MOON, *args], cwd=dest, capture_output=True, text=True, check=False)
 
 
 def workspace(tmp_path: Path, name: str, answers: str) -> Path:
@@ -78,12 +73,16 @@ def workspace(tmp_path: Path, name: str, answers: str) -> Path:
     assert render("workspace/monorepo", dest, answers).returncode == 0
 
     if "rust" in answers:
-        for member, extra in (("core", ""), ("api", '\n[dependencies]\ncore = { path = "../core" }\n')):
+        for member, extra in (
+            ("core", ""),
+            ("api", '\n[dependencies]\ncore = { path = "../core" }\n'),
+        ):
             src = dest / "crates" / member / "src"
             src.mkdir(parents=True)
             (src / "lib.rs").write_text("pub fn f() -> u8 { 1 }\n")
             (dest / "crates" / member / "Cargo.toml").write_text(
-                f'[package]\nname = "{member}"\nversion = "0.1.0"\nedition.workspace = true\n{extra}'
+                f'[package]\nname = "{member}"\nversion = "0.1.0"\n'
+                f"edition.workspace = true\n{extra}"
             )
     elif "ts" in answers:
         for member, deps in (("ui", ""), ("app", ',"dependencies":{"ui":"workspace:*"}')):
@@ -409,9 +408,7 @@ def test_changing_only_the_dependent_reuses_the_dependency_cache(tmp_path: Path)
 def test_the_cache_directory_is_ignored(rust_workspace: Path) -> None:
     fragment = (rust_workspace / ".gitignore.d" / "moon").read_text()
     patterns = [
-        line.strip()
-        for line in fragment.splitlines()
-        if line.strip() and not line.startswith("#")
+        line.strip() for line in fragment.splitlines() if line.strip() and not line.startswith("#")
     ]
     assert ".moon/cache/" in patterns
     # The graph itself is committed; only the cache is not.

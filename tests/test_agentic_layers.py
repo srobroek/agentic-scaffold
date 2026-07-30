@@ -96,7 +96,9 @@ def test_the_packages_are_written_when_supplied(tmp_path: Path) -> None:
     render(
         "agentic/apm",
         dest,
-        APM_ANSWERS.replace("apm_packages: []", "apm_packages:\n" + "".join(f'  - "{p}"\n' for p in locators)),
+        APM_ANSWERS.replace(
+            "apm_packages: []", "apm_packages:\n" + "".join(f'  - "{p}"\n' for p in locators)
+        ),
     )
     assert yaml.safe_load((dest / "apm.yml").read_text())["dependencies"]["apm"] == locators
 
@@ -401,15 +403,12 @@ def test_the_database_push_runs_at_pre_push(tmp_path: Path) -> None:
     A git push is the moment the database has to follow.
     """
     dest = git_repo(tmp_path / "d")
-    render("quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n")
+    render(
+        "quality/hooks", dest, "hook_exclude_patterns: []\nmax_file_kb: 500\ncommit_scopes: []\n"
+    )
 
     config = yaml.safe_load((dest / ".pre-commit-config.yaml").read_text())
-    hook = next(
-        h
-        for repo in config["repos"]
-        for h in repo["hooks"]
-        if h["id"] == "bd-dolt-push"
-    )
+    hook = next(h for repo in config["repos"] for h in repo["hooks"] if h["id"] == "bd-dolt-push")
     assert hook["stages"] == ["pre-push"]
     assert "pre-push" in config["default_install_hook_types"]
 

@@ -25,6 +25,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `docs/site` | 9 | 9 |
 | `host/github` | 6 | 12 |
 | `host/gitlab` | 7 | 10 |
+| `iac/cdk` | 6 | 5 |
 | `iac/terraform` | 11 | 23 |
 | `lang/go` | 3 | 11 |
 | `lang/python` | 3 | 12 |
@@ -34,6 +35,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
 | `release/release-please` | 4 | 4 |
+| `workspace/devcontainer` | 4 | 1 |
 | `workspace/just` | 0 | 3 |
 | `workspace/monorepo` | 12 | 6 |
 | `workspace/moon` | 5 | 6 |
@@ -371,6 +373,31 @@ SECURITY.md
 scripts/gen_gitlab_stages.py
 ```
 
+## `iac/cdk`
+
+An AWS CDK app owned by projen: .projenrc.ts with the tsx runner and no projen workflows, plus the fragments the aggregating layers fold in. projen owns the CDK and TypeScript build surface; the layers own CI, hooks, agentic, release, licence.
+
+Requires `git`, `node` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `project_name` | str |  |
+| `default_branch` | str | `main` |
+| `cdk_version` | str | `2.262.2` |
+| `projen_version` | str | `0.101.22` |
+| `tsx_version` | str | `4.23.1` |
+| `node_version` | str | `24` |
+
+Writes:
+
+```
+.github/security.d/cdk.yml
+.gitignore.d/cdk
+.just.d/cdk.just
+.mise/conf.d/cdk.toml
+.projenrc.ts
+```
+
 ## `iac/terraform`
 
 OpenTofu infrastructure under infra/: one root module, a per-environment .tfbackend and .tfvars pair, a starter child module, tofu tests, .tflint.hcl, and the CI, hook, mise, just, and gitignore fragments the aggregating layers fold in.
@@ -616,6 +643,25 @@ Writes:
 .just.d/release.just
 .release-please-manifest.json
 release-please-config.json
+```
+
+## `workspace/devcontainer`
+
+A devcontainer that installs the repository's own toolchain through mise and then runs `just setup`, so a container and a laptop resolve the same versions.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `project_name` | str |  |
+| `base_image` | str | `mcr.microsoft.com/devcontainers/base:ubuntu` |
+| `docker_in_docker` | bool | `False` |
+| `forward_ports` | yaml | `[]` |
+
+Writes:
+
+```
+.devcontainer/devcontainer.json
 ```
 
 ## `workspace/just`

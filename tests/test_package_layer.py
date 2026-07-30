@@ -74,9 +74,7 @@ def commit(path: Path, message: str = "wip") -> None:
 
 
 def apm(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["apm", *args], cwd=dest, capture_output=True, text=True, check=False
-    )
+    return subprocess.run(["apm", *args], cwd=dest, capture_output=True, text=True, check=False)
 
 
 @pytest.fixture
@@ -321,7 +319,9 @@ def test_every_recipe_has_a_real_description(package: Path) -> None:
         if not name.strip().startswith("marketplace") and name.strip() != "package":
             continue
         text = description.strip()
-        assert text and text[0].isupper(), f"{name.strip()!r} description looks like prose: {text!r}"
+        assert text and text[0].isupper(), (
+            f"{name.strip()!r} description looks like prose: {text!r}"
+        )
 
 
 # --- integration -----------------------------------------------------------

@@ -135,7 +135,10 @@ WT_ANSWERS = (
 def test_worktrunk_config_is_valid_toml_both_ways(tmp_path: Path) -> None:
     for name, answers in (
         ("plain", WT_ANSWERS),
-        ("dev", WT_ANSWERS.replace("dev_server: false", 'dev_server: true\ndev_command: "just dev"')),
+        (
+            "dev",
+            WT_ANSWERS.replace("dev_server: false", 'dev_server: true\ndev_command: "just dev"'),
+        ),
     ):
         dest = tmp_path / name
         dest.mkdir()

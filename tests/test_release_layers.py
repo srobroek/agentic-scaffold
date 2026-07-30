@@ -138,12 +138,6 @@ def test_the_release_workflow_does_not_ride_the_gate(release_please: Path) -> No
     assert "timeout-minutes" in job
 
 
-
-
-
-
-
-
 # --- release/cocogitto -----------------------------------------------------
 
 
@@ -215,9 +209,7 @@ def test_nothing_is_updated_twice(dep_updates: Path) -> None:
     assert "github-actions" not in renovate["enabledManagers"]
 
     disabled = [
-        rule
-        for rule in renovate["packageRules"]
-        if rule.get("matchManagers") == ["github-actions"]
+        rule for rule in renovate["packageRules"] if rule.get("matchManagers") == ["github-actions"]
     ]
     assert disabled and disabled[0]["enabled"] is False
 
@@ -263,9 +255,7 @@ def test_auto_merge_is_not_spoofable(dep_updates: Path) -> None:
 
 
 def test_a_major_update_waits_for_a_person(dep_updates: Path) -> None:
-    workflow = (
-        dep_updates / ".github" / "workflows" / "dependabot-auto-merge.yml"
-    ).read_text()
+    workflow = (dep_updates / ".github" / "workflows" / "dependabot-auto-merge.yml").read_text()
     assert "semver-patch" in workflow
     assert "semver-minor" in workflow
     assert "semver-major" not in workflow

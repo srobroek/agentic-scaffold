@@ -1,0 +1,51 @@
+_subdirectory: template
+_answers_file: .copier-answers.cdk.yml
+
+_scaffold:
+  summary: >-
+    An AWS CDK app owned by projen: .projenrc.ts with the tsx runner and no projen
+    workflows, plus the fragments the aggregating layers fold in. projen owns the CDK
+    and TypeScript build surface; the layers own CI, hooks, agentic, release, licence.
+  requires_bin: [git, node]
+  # host/* owns CI, so projen's own workflows are disabled rather than merged. Renders
+  # after the host layer for the same reason iac/terraform does.
+  after: [base/repo, host/github, host/gitlab]
+
+# .projenrc.ts is the project's own the moment a construct is added, and every file
+# projen generates from it is regenerated rather than rendered.
+_skip_if_exists:
+  - .projenrc.ts
+
+project_name:
+  type: str
+  help: The CDK app name, written into .projenrc.ts.
+  default: ""
+
+default_branch:
+  type: str
+  help: Branch projen records as the release branch.
+  default: main
+
+cdk_version:
+  type: str
+  help: >-
+    aws-cdk-lib version the app pins. projen writes it into package.json rather than
+    resolving it at synth time.
+  default: "2.262.2"
+
+projen_version:
+  type: str
+  help: projen version the mise fragment pins, so a synth is reproducible.
+  default: "0.101.22"
+
+tsx_version:
+  type: str
+  help: >-
+    tsx version. Required rather than optional: projen's default ts-node runner fails
+    under TypeScript 7, verified against ts-node 10.9.2 and TypeScript 7.0.2.
+  default: "4.23.1"
+
+node_version:
+  type: str
+  help: Node version the mise fragment pins.
+  default: "24"

@@ -1,0 +1,45 @@
+{#-
+  .devcontainer/devcontainer.json
+
+  One toolchain source. mise installs every tool from the .mise/conf.d fragments the
+  other layers contributed, so this file names no compiler and no language version: a
+  per-language devcontainer feature would pin a second copy that could disagree with
+  what CI and a laptop resolve.
+-#}
+{
+  "name": "{{ project_name | default('project', true) }}",
+  "image": "{{ base_image }}",
+
+  "features": {
+    // mise is the only toolchain feature. Everything in .mise/conf.d installs through
+    // it, which is what makes the container resolve the versions CI resolves.
+    "ghcr.io/devcontainers-extra/features/mise:1": {},
+    // The CLI the release and marketplace recipes call.
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+{%- if docker_in_docker %},
+    // Only when the container layer rendered. This runs a privileged daemon inside the
+    // container, so it is opt-in rather than default.
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+{%- endif %}
+  },
+
+  // `mise trust` first: a fresh checkout is untrusted, and an untrusted config is
+  // skipped silently rather than failing, so `mise install` would report success
+  // having installed nothing.
+  //
+  // Then `just setup`, which is the same entry point a fresh clone runs. Duplicating
+  // its steps here would let the two drift.
+  "postCreateCommand": "mise trust --yes && mise install --yes && just setup",
+
+  // The mise shims directory has to precede the system paths, or a tool installed by
+  // mise loses to an older copy in the base image.
+  "remoteEnv": {
+    "PATH": "${containerEnv:HOME}/.local/share/mise/shims:${containerEnv:PATH}"
+  },
+{% if forward_ports %}
+  "forwardPorts": [{% for port in forward_ports %}{{ port }}{% if not loop.last %}, {% endif %}{% endfor %}],
+{% endif %}
+  // Runs as the image's non-root user. Building as root leaves root-owned files in the
+  // bind-mounted workspace, which the host user then cannot edit.
+  "remoteUser": "vscode"
+}

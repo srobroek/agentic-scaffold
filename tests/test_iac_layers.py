@@ -52,9 +52,7 @@ def render(layer: str, dest: Path, answers: str = ANSWERS) -> subprocess.Complet
 
 
 def tofu(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["tofu", *args], cwd=dest, capture_output=True, text=True, check=False
-    )
+    return subprocess.run(["tofu", *args], cwd=dest, capture_output=True, text=True, check=False)
 
 
 @pytest.fixture
@@ -438,7 +436,7 @@ def test_the_recipes_keep_their_parameters_through_rendering(tmp_path: Path) -> 
 
     fragment = (dest / ".just.d" / "terraform.just").read_text()
     assert "tf-plan env=tofu_default_env:" in fragment
-    assert 'envs/{{ env }}.tfbackend' in fragment, "the parameter was substituted away"
+    assert "envs/{{ env }}.tfbackend" in fragment, "the parameter was substituted away"
     # The one line that IS interpolated.
     assert 'tofu_default_env := "dev"' in fragment
 
