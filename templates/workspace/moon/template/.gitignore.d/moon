@@ -1,0 +1,5 @@
+# moon's cache and local state. The task cache is a rebuildable artefact keyed by
+# content hash, so committing it would both bloat the repo and let a stale entry
+# travel to another machine.
+.moon/cache/
+.moon/docker/

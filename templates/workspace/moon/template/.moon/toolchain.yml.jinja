@@ -1,0 +1,32 @@
+{#-
+  .moon/toolchain.yml -- which toolchains moon manages.
+
+  Deliberately thin. mise already owns every toolchain through .mise/conf.d/, so
+  declaring versions here too would give two managers one job and let them disagree.
+  moon is told the language exists and nothing more.
+-#}
+$schema: 'https://moonrepo.dev/schemas/toolchain.json'
+
+{% if layout == 'ts' -%}
+# `node` with no version key: mise installs the runtime, and moon uses whatever is on
+# PATH. Setting a version here would have moon download a second copy.
+node:
+  packageManager: 'bun'
+  bun: {}
+  # moon otherwise runs an install on every task, which mise and `just setup` already did.
+  inferTasksFromScripts: false
+{%- elif layout == 'rust' -%}
+rust:
+  # No `version`: rustup and mise own the toolchain. moon reads Cargo.toml to
+  # understand the workspace and leaves installation alone.
+  syncToolchainConfig: false
+{%- elif layout == 'python' -%}
+python:
+  # uv is the package manager, matching what lang/python and workspace/monorepo write.
+  packageManager: 'uv'
+  uv: {}
+{%- else -%}
+# go declares nothing here. moon 2.x has no go toolchain, so it shells out to the `go`
+# on PATH, which mise pins. A bare `{}` was tried and is invalid YAML in this position:
+# a flow mapping cannot follow the `$schema` block key.
+{%- endif %}

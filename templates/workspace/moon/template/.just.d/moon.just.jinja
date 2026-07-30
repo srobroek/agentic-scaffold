@@ -1,0 +1,68 @@
+{#-
+  .just.d/moon.just -- imported by the root justfile.
+
+  Rendered as .jinja for the `:=` default. Recipe bodies are wrapped in `{% raw %}`,
+  because just shares jinja's `{{ }}` and an unwrapped body loses every parameter.
+-#}
+# moon recipes, contributed by workspace/moon and imported by the root justfile.
+#
+# moon is not a replacement for just. just is the entry point a person types; moon is
+# what resolves the member graph underneath it. The division: a recipe here that names
+# no member runs across the graph, and `just` keeps owning the repo-wide tasks that
+# have no member dimension at all.
+
+moon_default_branch := "{{ default_branch | default('main', true) }}"
+{% raw %}
+# Regenerate every member's moon.yml from the workspace manifest
+[group('moon')]
+moon-sync:
+    @python3 scripts/gen_moon.py .
+
+# Fail when a member's moon.yml no longer matches the manifest
+[group('moon')]
+moon-check:
+    @python3 scripts/gen_moon.py . --check
+
+# moon orders the graph itself: asking for one member's task builds whatever that task
+# depends on first, in dependency order. Measured on a three-member chain, one command
+# built core, then api, then web without any of that order being written down here.
+
+# Build every member, in dependency order
+[group('moon')]
+moon-build:
+    moon run :build
+
+# Run one member's task and everything it depends on: `just moon-run api build`
+[group('moon')]
+moon-run member task:
+    moon run {{ member }}:{{ task }}
+
+# Test every member
+[group('moon')]
+moon-test:
+    moon run :test
+
+# --affected diffs against the default branch, so a branch touching one member runs
+# that member and its dependents rather than the whole workspace. This is the recipe
+# CI calls; a full run is the fallback when the diff is unavailable.
+
+# Run the build for members a branch actually touched
+[group('moon')]
+moon-affected:
+    moon run :build --affected --upstream {{ moon_default_branch }}
+
+# Every project moon resolves, as JSON
+[group('moon')]
+moon-projects:
+    moon query projects
+
+# What a change would rebuild, without building it
+[group('moon')]
+moon-graph:
+    moon project-graph
+
+# Clear the task cache
+[group('moon')]
+moon-clean:
+    moon clean
+{% endraw %}

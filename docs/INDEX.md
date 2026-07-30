@@ -36,6 +36,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `release/release-please` | 4 | 4 |
 | `workspace/just` | 0 | 3 |
 | `workspace/monorepo` | 12 | 6 |
+| `workspace/moon` | 5 | 6 |
 | `workspace/worktrunk` | 6 | 2 |
 
 ## `agentic/apm`
@@ -661,6 +662,31 @@ scripts/add_member.py
 {% if is_python %}pyproject.toml{% endif %}
 {% if is_rust %}Cargo.toml{% endif %}
 {% if is_ts %}package.json{% endif %}
+```
+
+## `workspace/moon`
+
+moon over an existing workspace: the project graph, the toolchain declaration, a moon.yml per member generated from the manifest's own glob, and the recipes that run affected-only builds.
+
+Requires `git` on `PATH`.
+
+| Question | Type | Default |
+|---|---|---|
+| `layout` | `rust` | `python` | `go` | `ts` |  |
+| `project_name` | str |  |
+| `members` | str |  |
+| `moon_version` | str | `2.4.6` |
+| `node_version` | str | `24` |
+
+Writes:
+
+```
+.gitignore.d/moon
+.just.d/moon.just
+.mise/conf.d/moon.toml
+.moon/toolchain.yml
+.moon/workspace.yml
+scripts/gen_moon.py
 ```
 
 ## `workspace/worktrunk`

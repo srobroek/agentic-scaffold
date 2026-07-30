@@ -1,0 +1,8 @@
+{#-
+  .mise/conf.d/moon.toml -- mise reads every file in this directory, so a layer
+  contributes its own tools without touching a shared one.
+-#}
+# Pinned rather than latest. moon 2.x renamed a project's `type` key to `layer`, so a
+# CLI older than the generated files rejects them outright.
+[tools]
+"npm:@moonrepo/cli" = "{{ moon_version }}"

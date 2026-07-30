@@ -1,0 +1,42 @@
+{#-
+  .moon/workspace.yml -- the project graph.
+-#}
+# $schema pins the shape this file is validated against, so a key renamed upstream
+# fails here with a message rather than being silently ignored.
+$schema: 'https://moonrepo.dev/schemas/workspace.json'
+
+# Projects resolve through the same glob the root manifest lists as its member path,
+# so a member created by `just add` is a moon project with no edit here. Verified
+# against cargo, uv, and bun: a directory under the glob is a member either way.
+projects:
+  - '{{ members or ('crates/*' if layout == 'rust' else ('cmd/*' if layout == 'go' else 'packages/*')) }}'
+
+# What invalidates every task's cache regardless of a task's own inputs. A lockfile
+# change alters what every member compiles against, so it belongs here rather than in
+# each member's inputs.
+hasher:
+  optimization: 'accuracy'
+
+# `pipeline`, not `runner`. moon 2.x renamed the section, and an unknown key is a hard
+# parse error rather than an ignored one, so this file fails loudly against the wrong
+# CLI version. Checked against moonrepo.dev/schemas/workspace.json.
+pipeline:
+  # How long a cache entry survives. This is the whole reason for the layer: on a
+  # three-member chain, changing one leaf reused two cache entries and ran in 1.24s
+  # against a 3.37s cold build, where the equivalent `just` loop costs the full 3.4s
+  # every time because it has no graph to consult.
+  cacheLifetime: '7 days'
+  autoCleanCache: true
+  # moon otherwise writes dependency edges back into each member's manifest. cargo,
+  # uv, and bun already resolve members through the root glob, so letting moon sync
+  # them would give two tools one job.
+  syncProjectDependencies: false
+
+vcs:
+  # `client`, not `manager`. The published workspace.json still documents `manager`,
+  # but moon 2.4.6 rejects it and names `client` in the error, so the CLI is what this
+  # follows.
+  client: 'git'
+  # `moon run --affected --upstream` diffs against this, which is what makes an
+  # affected-only CI run possible.
+  defaultBranch: '{{ default_branch | default('main', true) }}'

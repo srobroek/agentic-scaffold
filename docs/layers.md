@@ -5,7 +5,7 @@ date: 2026-07-29
 
 # Layers
 
-19 layers and roughly 34 variables, from 30 packages and 247 questions. Every
+28 layers and roughly 60 variables, from 30 packages and 247 questions. Every
 variable listed here is asked or derived; anything absent is fixed in the layer
 per `../rules/choices.md`.
 
@@ -222,11 +222,58 @@ carries the root config and the repository-wide hygiene hooks alone.
 |---|---|---|
 | `workspace/monorepo` | the workspace manifest (`[workspace] members`, uv workspace, bun workspaces, or one go module), `scripts/add_member.py`, `.just.d/monorepo.just` | `layout`, `members`, `project_name` |
 | `workspace/just` | `justfile` carrying `setup`, the aggregates, and one `import?` per `.just.d/*.just`, plus `scripts/gen_justfile.py` and `.mise/conf.d/just.toml` | none |
-| `workspace/moon` | `.moon/workspace.yml` | `members` |
+| `workspace/moon` | `.moon/workspace.yml`, `.moon/toolchain.yml`, `moon.yml` per member, `.just.d/moon.just` | `members`, `layout` |
 | `workspace/devcontainer` | `.devcontainer/devcontainer.json` | none |
 | `workspace/worktrunk` | `.config/wt.toml`, `.worktreeinclude` | `forge_platform`, `forge_hostname`, `worktree_includes` |
 
 `workspace/monorepo` owns `just add`.
+
+### moon alongside just, not instead of it
+
+moon is the second task runner, not a replacement. `just` is the entry point a person
+types and owns every repo-wide task with no member dimension. moon owns the member
+graph underneath: it is the only thing here that models a dependency between members.
+
+That distinction is what the layer buys, and it is not caching. Measured on a
+three-member chain where `core` is depended on by `api`, which is depended on by `web`:
+
+| Scenario | moon | the equivalent `just` loop |
+|---|---|---|
+| cold | 3.37s | 3.48s |
+| nothing changed | 0.10s | 3.37s |
+| one leaf changed | 1.24s | 3.37s |
+
+The `just` loop costs the same every run because it has no graph to consult. moon
+rebuilds a dependent when its dependency changes and skips it when only a sibling
+moved, which is a correctness property rather than a speed one: a hand-written loop
+either reruns everything or risks using a stale artefact. `moon run web:build` also
+orders `core`, then `api`, then `web` from one command, with that order written nowhere
+in the recipes.
+
+`moon.yml` is generated per member by `gen_moon.py`, which reads the root manifest's
+glob and each member's own dependency declarations. Nothing about the graph is asked,
+because an answer could disagree with the manifest. Each toolchain spells a sibling
+differently, and every spelling is read: rust `{ path = "../core" }`, ts
+`"ui": "workspace:*"`, python the requirement string `lib>=0.1.0`. go declares no
+edges, since a member there is a package inside one module.
+
+moon 2.x renamed keys that render cleanly and fail only when the CLI reads them:
+
+- The workspace section is `pipeline`, not `runner`.
+- `vcs.client`, not `vcs.manager`. The published `workspace.json` still documents
+  `manager`, and moon 2.4.6 rejects it, so the CLI is what this follows.
+- A project's kind is `layer`, where 1.x used `type`.
+- The task variable is `$MOON_PROJECT_ID`. There is no `$MOON_PROJECT_NAME`, and it is
+  the directory rather than the package name, so `cargo -p` gets the manifest's name
+  written in literally instead.
+
+An output path is member-relative, which is wrong for cargo: it writes to the workspace
+root `target/`, so rust declares `/target/debug` with moon's workspace-relative prefix.
+A path nothing creates makes moon warn and cache nothing, so python and go declare no
+outputs at all: `uv sync` writes into a shared `.venv`, and `go build ./...` discards
+its binary. Inputs are declared per toolchain too. `src/**/*` matches nothing in a go
+member, where sources sit beside the package, so no edit would ever invalidate the
+build.
 
 Each import is written `import?`, the optional form. Under the hard form a missing
 file is a parse error that takes down every recipe in the justfile, so a fragment
@@ -648,6 +695,7 @@ release/*  iac/*  docs/*
 agentic/{apm|package,beads}
 quality/hooks
 workspace/just
+workspace/moon         monorepo only: the member graph, after every member exists
 base/gitignore
 agentic/marketplace
 ```
@@ -696,7 +744,7 @@ leaves a dirty tree and passes on the rerun.
 
 `agentic/marketplace` reads the finished tree.
 
-A profile states this order directly. 19 layers with a fixed order need no
+A profile states this order directly. 28 layers with a fixed order need no
 dependency solver.
 
 ## Contribution points
