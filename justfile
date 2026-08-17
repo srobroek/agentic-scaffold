@@ -114,6 +114,15 @@ fix:
 test:
     {{ py }} pytest -q -n auto
 
+# Run the integration cases: layer combinations rendered, built, asserted
+integration *names:
+    # Deliberately NOT in `check`. A case renders a whole tree and runs its build, which takes
+    # minutes where the unit suite takes seconds, and `check` has to stay fast enough to run on
+    # every edit. Run this when layer composition changes.
+    #
+    # `just integration --list` names the cases; `--keep` leaves a failing tree on disk.
+    {{ py }} tests-integration/run.py {{ names }}
+
 # Run the tests with CI=true, which is what a runner sets
 test-ci:
     # Several tools branch on this variable, so a suite that only ever runs without it tests a

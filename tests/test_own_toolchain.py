@@ -71,6 +71,12 @@ def test_every_pinned_version_exists() -> None:
             # A backend that cannot enumerate is not evidence the pin is wrong.
             continue
         available = set(result.stdout.split())
+        if not available:
+            # Exit 0 with nothing listed, which `aqua:gastownhall/beads` does: mise warns
+            # `No versions found` and still succeeds. Treating that as a missing version failed
+            # the gate on a pin that was installed and working, so an empty list is the same
+            # non-evidence as a failed lookup.
+            continue
         if spec not in available:
             newest = sorted(available)[-3:] if available else []
             missing.append(f"{name}={spec} (available near: {newest})")

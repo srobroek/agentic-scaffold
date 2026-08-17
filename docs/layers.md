@@ -1105,6 +1105,30 @@ generator, since `cargo new` and `create-better-t-stack` reach the network or ne
 toolchain the machine may lack, so `cargo build` there would fail for a missing manifest
 rather than for anything a layer got wrong.
 
+### Integration cases
+
+A profile covers one shape and a unit test covers one layer. Neither covers what happens when
+two layers meet, which is where the ordering bugs above came from. `tests-integration/` holds
+that middle ground: a case names a layer set, an order, and a build, and `just integration`
+renders each into a scratch tree and runs it.
+
+| Case | The interaction |
+|---|---|
+| `layer-added-after-aggregator` | a language layer adopted after `workspace/just` leaves the import block stale |
+| `monorepo-rust-two-members` | two members added through `add_member.py`, and whether the second replaces the first's mise fragment |
+| `both-hosts-mirrored` | both hosts over one language layer, each folding the same fragments into its own generated file |
+| `retrofit-onto-existing` | layers over a populated tree, and which side wins |
+
+Out of `just check` on purpose. A case renders a whole tree and runs its build, and a gate slow
+enough to skip is worse than a suite someone has to remember. `tests/test_integration_cases.py`
+reads the case files without rendering, so a mistyped layer or a case duplicating a profile
+fails in the fast suite instead.
+
+Each case states in `gap` what is not already covered, because a case that repeats a profile
+costs minutes and proves nothing. Verified by breaking each one: removing the resync fails
+`layer-added-after-aggregator`, and dropping `README.md` from `base/repo`'s `_skip_if_exists`
+fails `retrofit-onto-existing`.
+
 ## Steering generation
 
 `docs/agents` ships `scripts/gen_steering.py`, which fills the marked blocks in

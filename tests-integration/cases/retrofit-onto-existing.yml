@@ -1,0 +1,46 @@
+name: retrofit-onto-existing
+summary: Layers rendered onto a tree that already holds files at the paths they want.
+
+gap: |
+  tests/test_update_skill.py asserts what the update skill says about retrofitting, and
+  several layer tests assert one `_skip_if_exists` path each. Nothing renders a layer set over
+  a populated tree and then builds the result.
+
+  The interaction is which side wins. A hand-written README and a project's own
+  .cargo/config.toml have to survive, because a retrofit that silently replaces a person's
+  file is worse than one that refuses. A generated file has to be rebuilt regardless, because
+  a stale one fails its own check.
+
+layers:
+  - base/repo
+  - lang/rust
+  - workspace/just
+  - base/gitignore
+
+answers:
+  project_name: probe
+  description: An integration case tree.
+  license: mpl-2.0
+  crate_kind: lib
+  rust_edition: "2024"
+
+# The tree as it stands before any layer renders. Written by hand, the way an existing
+# repository arrives.
+setup:
+  - just just-sync
+
+build:
+  - just just-check
+
+expect:
+  # base/repo lists README.md in _skip_if_exists, so the hand-written one is kept. The marker
+  # below is written by the pre-render step in `before`.
+  - "'HAND WRITTEN' in (tree / 'README.md').read_text()"
+  # A generated file is rebuilt regardless: it has its own check, and a stale one fails it.
+  - "'rust.just' in (tree / 'justfile').read_text()"
+  - (tree / ".gitignore").is_file()
+
+# Run before the layers, on the freshly initialised tree.
+before:
+  - "printf 'HAND WRITTEN\\n\\nDo not replace this.\\n' > README.md"
+  - git add -A && git commit -q -m existing

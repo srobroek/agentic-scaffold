@@ -11,6 +11,11 @@ Always ignored regardless of language, because a layer or a hook writes them:
 the repomix pack, generated skill directories, and the beads Dolt database.
 
 Idempotent: the whole file is rebuilt from its sources every run.
+
+gitnr fetches its templates over the network, so this task can fail transiently. Observed once
+under `pytest -n auto`, where a render exited non-zero and the same command succeeded on a rerun
+and across twelve concurrent renders. A retry belongs here if it recurs; one occurrence is not
+enough to know whether the cause is rate limiting or a dropped connection.
 """
 
 from __future__ import annotations

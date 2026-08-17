@@ -1,0 +1,51 @@
+name: both-hosts-mirrored
+summary: A repository mirrored to both forges renders both host layers over one language layer.
+
+gap: |
+  tests/test_host_layers.py renders both hosts and asserts which one owns the three shared
+  governance documents. It renders no language layer, so neither host's generated file has a
+  fragment to fold in.
+
+  The interaction: both hosts read the same fragment directories to build their own generated
+  file. GitHub's quality workflow reads .github/quality.d/ at run time, and GitLab's stages
+  list is generated from .gitlab/ci/*.yml. A language layer contributes to both, and each
+  host's check has to agree the result is current.
+
+layers:
+  - base/repo
+  - lang/rust
+  - host/github
+  - host/gitlab
+  - workspace/just
+
+answers:
+  project_name: probe
+  description: An integration case tree.
+  license: mpl-2.0
+  crate_kind: lib
+  rust_edition: "2024"
+  default_branch: main
+  security_contact: security@example.com
+  coc_contact: conduct@example.com
+
+setup:
+  - just just-sync
+  - just gitlab-sync
+
+build:
+  - just just-check
+  - just gitlab-check
+
+expect:
+  # Each host keeps its own tree.
+  - (tree / ".github" / "workflows" / "wc-quality.yml").is_file()
+  - (tree / ".gitlab-ci.yml").is_file()
+  # The language layer contributed to both.
+  - (tree / ".github" / "quality.d" / "rust.yml").is_file()
+  - (tree / ".gitlab" / "ci" / "rust.yml").is_file()
+  # The stages the rust fragment's jobs declare are in the generated list. Stage names are
+  # generic rather than per-language -- the fragment declares `lint` and `test`, not `rust` --
+  # so asserting the language name here would pass only by accident. GitLab fails the whole
+  # pipeline when a job names an absent stage, so this is the assertion that matters.
+  - "'- lint' in (tree / '.gitlab-ci.yml').read_text()"
+  - "'- test' in (tree / '.gitlab-ci.yml').read_text()"

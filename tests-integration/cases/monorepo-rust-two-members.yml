@@ -1,0 +1,45 @@
+name: monorepo-rust-two-members
+summary: A rust workspace where two members are added through the real script.
+
+gap: |
+  profiles/rust-lib renders one crate at the root. tests/test_workspace_layers.py calls
+  add_member.py and asserts the manifest registration, and tests/test_moon_layer.py builds
+  a dependency chain from a hand-written fixture. Nothing renders the real layer set and then
+  adds two members through the real script.
+
+  The interaction: add_member.py renders the language layer at the member path and moves the
+  repository-wide directories up, merging into whatever is there. Two members both contribute
+  a .mise/conf.d/ entry, and moving the directory wholesale would drop the first.
+
+layers:
+  - base/repo
+  - workspace/monorepo
+  - workspace/just
+  - lang/rust
+
+answers:
+  project_name: probe
+  description: An integration case tree.
+  license: mpl-2.0
+  layout: rust
+  members: ""
+  crate_kind: lib
+  rust_edition: "2024"
+
+setup:
+  - python3 scripts/add_member.py core rust
+  - python3 scripts/add_member.py api rust
+  - just just-sync
+
+build:
+  - just just-check
+
+expect:
+  - (tree / "crates" / "core" / "Cargo.toml").is_file()
+  - (tree / "crates" / "api" / "Cargo.toml").is_file()
+  # Both members registered, not just the last one.
+  - "'crates/*' in (tree / 'Cargo.toml').read_text()"
+  # The claim in `gap`, asserted rather than described: the second member's mise fragment did
+  # not replace the first layer's. Verified on a kept tree, which held just.toml and rust.toml.
+  - (tree / ".mise" / "conf.d" / "just.toml").is_file()
+  - (tree / ".mise" / "conf.d" / "rust.toml").is_file()

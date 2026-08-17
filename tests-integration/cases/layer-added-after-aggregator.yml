@@ -1,0 +1,35 @@
+name: layer-added-after-aggregator
+summary: A language layer adopted after workspace/just leaves the import block stale.
+
+gap: |
+  scripts/profiles.py refuses this ordering inside a profile, and tests/test_profiles.py
+  asserts the refusal. Neither renders the bad order and shows what the tree looks like
+  afterwards, which is what a person adopting a layer by hand actually produces.
+
+  Measured on a real tree: rendering lang/rust after workspace/just left the justfile
+  reading "# No fragments rendered yet." while .just.d/rust.just existed beside it.
+
+layers:
+  - base/repo
+  - workspace/just
+  - lang/rust
+
+answers:
+  # base/repo is the only layer with a question that has no default.
+  project_name: probe
+  description: An integration case tree.
+  license: mpl-2.0
+  crate_kind: lib
+  rust_edition: "2024"
+
+# just-check is the recipe that catches it, so the fragment has to be folded in first.
+setup:
+  - just just-sync
+
+build:
+  - just just-check
+
+expect:
+  # The resync is what makes the import real; without setup above, just-check fails.
+  - "'rust.just' in (tree / 'justfile').read_text()"
+  - (tree / ".just.d" / "rust.just").is_file()
