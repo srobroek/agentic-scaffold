@@ -3,36 +3,55 @@
 
     lint_prose.py [PATH ...]
 
-Internal genre for everything under `docs/`, `rules/`, `profiles/`, and
-`AGENTS.md`. Consumer genre for `README.md`. `docs/INDEX.md` is generated and is
-not linted.
+Everything under `docs/`, `rules/`, `profiles/`, plus `AGENTS.md` and `README.md`.
+`docs/INDEX.md` is generated and is not linted.
 
-Given paths, lints those instead of the tracked set, so a hook can pass staged
-files.
+Given paths, lints those instead of the tracked set, so a hook can pass staged files.
+
+WHY slopvac AND NOT THE VALE GATE. This called `~/.claude/skills/review-docs/scripts/
+slop-lint.sh` until that script stopped existing: slopvac ba2f21e moved Vale into the linter
+package and replaced the shell gate with this CLI. The installed skill was stale, and its
+`.vale-change.ini` shared one `StylesPath` with `.vale.ini` while omitting the `prose-scope`
+package. `vale sync` replaces that directory wholesale, so syncing either config deleted a style
+the other needed and `just lint` failed at random until someone re-synced. Calling the linter
+directly removes the shared directory, so there is nothing left to desync.
+
+`--profile relaxed`, measured rather than picked: across the sixteen files gated here it scores
+99.3/100 with zero errors, where `normal` scores 43.3 and reports 355 findings. The difference is
+almost entirely Simplified Technical English rules the previous gate never applied, so `normal`
+would be a new standard for this repository's prose rather than the same one. Raising it is a
+decision to take deliberately, not a side effect of a linter migration.
 
 Exit codes:
-    0  clean, or the gate is not installed
-    1  the gate reported a finding
+    0  clean, or the linter is not reachable
+    1  the linter reported a finding
 """
 
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-GATE = Path.home() / ".claude" / "skills" / "review-docs" / "scripts" / "slop-lint.sh"
 
-INTERNAL_GLOBS = ("docs/*.md", "docs/**/*.md", "rules/*.md", "profiles/*.md", "AGENTS.md")
-CONSUMER_FILES = ("README.md",)
+# slopvac is not on PyPI yet, so a checkout is the fallback its own SKILL.md prescribes:
+# "MUST fall back to `uvx --from <path-to-checkout> slopvac`".
+CHECKOUT = Path.home() / "personal" / "dev" / "slopvac" / "packages" / "slopvac-lint"
+
+# The profile and every override live in slopvac.toml, which is committed. Passing --profile
+# here would silently outrank it.
+CONFIG = REPO_ROOT / "slopvac.toml"
+
+GLOBS = ("docs/*.md", "docs/**/*.md", "rules/*.md", "profiles/*.md", "AGENTS.md", "README.md")
 GENERATED = ("docs/INDEX.md",)
 
 
-def tracked(globs: tuple[str, ...]) -> list[str]:
+def tracked() -> list[str]:
     result = subprocess.run(
-        ["git", "ls-files", *globs],
+        ["git", "ls-files", *GLOBS],
         capture_output=True,
         text=True,
         check=False,
@@ -41,28 +60,29 @@ def tracked(globs: tuple[str, ...]) -> list[str]:
     return [line for line in result.stdout.splitlines() if line]
 
 
-def run_gate(genre: str, files: list[str]) -> int:
-    if not files:
-        return 0
-    result = subprocess.run(
-        ["bash", str(GATE), "--genre", genre, *files],
-        check=False,
-        cwd=REPO_ROOT,
+def linter() -> list[str] | None:
+    """The argv prefix that runs slopvac, or None when it cannot be reached.
+
+    Published release first, so a machine with it installed does not build a checkout. A
+    checkout that is absent means no gate rather than a failure: the same policy the previous
+    gate had, since prose is checked at commit time and the tests assert the wrapper stays
+    quiet about it.
+    """
+    if shutil.which("slopvac") is not None:
+        return ["slopvac"]
+    if shutil.which("uvx") is None:
+        return None
+    if CHECKOUT.is_dir():
+        return ["uvx", "--from", str(CHECKOUT), "slopvac"]
+    # A published release, once there is one.
+    probe = subprocess.run(
+        ["uvx", "slopvac", "--version"], capture_output=True, text=True, check=False
     )
-    return result.returncode
+    return ["uvx", "slopvac"] if probe.returncode == 0 else None
 
 
-def partition(paths: list[str]) -> tuple[list[str], list[str]]:
-    """Split paths into internal-genre and consumer-genre, dropping generated files."""
-    internal, consumer = [], []
-    for path in paths:
-        if path in GENERATED:
-            continue
-        if path in CONSUMER_FILES:
-            consumer.append(path)
-        elif path.endswith(".md"):
-            internal.append(path)
-    return internal, consumer
+def lintable(paths: list[str]) -> list[str]:
+    return [p for p in paths if p.endswith(".md") and p not in GENERATED]
 
 
 def main() -> int:
@@ -70,20 +90,21 @@ def main() -> int:
     parser.add_argument("paths", nargs="*", help="lint these instead of the tracked set")
     args = parser.parse_args()
 
-    if not GATE.is_file():
-        print(f"prose gate absent at {GATE}, skipping", file=sys.stderr)
+    command = linter()
+    if command is None:
+        print(f"slopvac not reachable, and no checkout at {CHECKOUT}; skipping", file=sys.stderr)
         return 0
 
-    if args.paths:
-        internal, consumer = partition(args.paths)
-    else:
-        internal = [p for p in tracked(INTERNAL_GLOBS) if p not in GENERATED]
-        consumer = [p for p in CONSUMER_FILES if (REPO_ROOT / p).is_file()]
+    files = lintable(args.paths or tracked())
+    if not files:
+        return 0
 
-    status = 0
-    status |= run_gate("internal", internal)
-    status |= run_gate("consumer", consumer)
-    return 1 if status else 0
+    result = subprocess.run(
+        [*command, *files],
+        check=False,
+        cwd=REPO_ROOT,
+    )
+    return 1 if result.returncode else 0
 
 
 if __name__ == "__main__":

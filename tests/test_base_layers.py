@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -244,3 +245,83 @@ def test_gitignore_is_rebuilt_identically(tmp_path: Path) -> None:
     render("base/gitignore", dest, 'gitnr_templates: ""\n')
 
     assert (dest / ".gitignore").read_text() == first
+
+
+# --- the gitnr fetch -------------------------------------------------------
+
+FOLD = REPO_ROOT / "templates" / "base" / "gitignore" / "tasks" / "fold_gitignore.py"
+
+
+def gitnr_shim(directory: Path, body: str) -> dict[str, str]:
+    """A fake gitnr on PATH, so the retry is exercised without waiting for a real outage."""
+    shim = directory / "bin"
+    shim.mkdir(parents=True, exist_ok=True)
+    executable = shim / "gitnr"
+    executable.write_text(body)
+    executable.chmod(0o755)
+    env = dict(os.environ)
+    env["PATH"] = f"{shim}:{env['PATH']}"
+    env["COUNTER"] = str(directory / "count")
+    return env
+
+
+def test_the_gitnr_fetch_recovers_from_a_transient_failure(tmp_path: Path) -> None:
+    """gitnr fetches over the network, and one render failed under `pytest -n auto` while the
+    same command succeeded on a rerun and across twelve concurrent renders.
+
+    A template is cached for an hour, so the second attempt is usually local. Without the retry
+    a transient fetch fails a whole render, and the layer writes no .gitignore at all.
+    """
+    env = gitnr_shim(
+        tmp_path,
+        "#!/usr/bin/env bash\n"
+        'n=$(cat "$COUNTER" 2>/dev/null || echo 0)\n'
+        'n=$((n + 1)); echo "$n" > "$COUNTER"\n'
+        'if [ "$n" -lt 3 ]; then echo "transient $n" >&2; exit 1; fi\n'
+        'echo "# from the third attempt"\n',
+    )
+    (tmp_path / "count").write_text("0")
+
+    dest = tmp_path / "tree"
+    dest.mkdir()
+    result = subprocess.run(
+        [sys.executable, str(FOLD), str(dest), "gh:Global/macOS"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+        timeout=300,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (tmp_path / "count").read_text().strip() == "3", "it did not retry"
+    # Five attempts available, so recovering on the third leaves headroom.
+    assert "of 5 failed" in result.stderr
+    # The recovered output is what lands, not an empty file.
+    assert "third attempt" in (dest / ".gitignore").read_text()
+    # Said out loud: a silent retry turns a systematic failure into a slow render nobody looks at.
+    assert "attempt 1 of 5 failed" in result.stderr
+
+
+def test_the_gitnr_fetch_gives_up_and_says_how_many_times(tmp_path: Path) -> None:
+    """A retry that hides a systematic failure is worse than no retry. The message names the
+    attempt count and the tool's own last words."""
+    env = gitnr_shim(
+        tmp_path,
+        '#!/usr/bin/env bash\necho "always broken" >&2\nexit 1\n',
+    )
+    # Otherwise this spends 2+4+8+16 seconds sleeping to prove a message. The backoff itself is
+    # asserted by its own measurement, not here.
+    env["GITNR_BACKOFF_SECONDS"] = "0"
+    dest = tmp_path / "tree"
+    dest.mkdir()
+    result = subprocess.run(
+        [sys.executable, str(FOLD), str(dest), "gh:Global/macOS"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+        timeout=300,
+    )
+    assert result.returncode == 1
+    assert "after 5 attempts" in result.stderr
+    assert "always broken" in result.stderr

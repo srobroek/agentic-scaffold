@@ -22,3 +22,15 @@ the other rejects `--`. Write neither. Use a comma, a colon, or two sentences.
 
 A template is not linted as prose. Its rendered output is what matters, and
 `just check` builds it.
+
+## The prose gate
+
+`slopvac`, configured by `slopvac.toml` at the root. `scripts/lint_prose.py` calls it, and
+`just lint` calls that.
+
+The profile is `normal`, with the eight Simplified Technical English categories demoted to
+advisory. `relaxed` let obvious slop pass; `normal` without the demotion reports 355 findings on
+`docs/layers.md`, 241 of them from STE alone. STE targets aircraft maintenance procedures, so it
+suits a runbook and not an explanation.
+
+Errors gate. A warning or a suggestion is worth reading and does not fail the build.

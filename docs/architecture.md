@@ -259,7 +259,7 @@ distroless is the runtime base. Measured against the same static Go binary:
 
 The shell is the deciding column rather than the size. `docker run --entrypoint sh`
 failed outright on distroless and returned `uid=0(root)` on alpine, so a compromised
-process there gets both root and a shell. alpine is the choice when a shell is genuinely
+process there gets both root and a shell. alpine is the choice when a shell is
 needed to debug; debian when a dependency needs glibc and a full userland.
 
 `static` requires a statically linked binary, which is why the compiled build stages set
@@ -388,7 +388,7 @@ leaves a required check pending forever.
 
 | Rejected | Reason |
 |---|---|
-| structkit | hooks are never rendered; documented behavior absent in three of three features tested |
+| structkit | hooks are never rendered; documented behavior absent in three of three cases tested |
 | better-t-stack as a forked library | `template-processor.ts` does not perform a layered merge; the processors encode turbo-versus-nx knowledge |
 | projen for python or typescript | generates `requirements.txt`; no `pyproject.toml` |
 | ultracite | 366 pinned rules, fixed formatter profile, single maintainer |

@@ -1,0 +1,73 @@
+# The prose gate for this repository. `scripts/lint_prose.py` runs slopvac against it, and
+# `just lint` runs that.
+#
+# `normal` rather than `relaxed`, with the Simplified Technical English categories demoted to
+# advisory. Measured on docs/layers.md: `normal` reports 355 findings and scores 43.3, and 241 of
+# those warnings come from the eight ste-* categories alone. `relaxed` scores 99.2 but lets
+# obvious slop through -- appending "This is currently a WIP feature that will leverage a robust
+# solution" to a document still PASSED, which is a weaker gate than the one this replaced.
+#
+# So the slop rules stay at their `normal` severity and STE becomes advisory. STE is written for
+# aircraft maintenance procedures: it asks for one clause per sentence and a controlled vocabulary,
+# which suits a runbook and does not suit prose explaining why a layer renders in a given order.
+# Adopting it would be a decision about how this repository writes, not a linter setting.
+profile = "normal"
+
+exclude = [
+  "**/node_modules/**",
+  "**/apm_modules/**",
+  "**/.venv/**",
+  "**/dist/**",
+  "**/build/**",
+  # Generated from templates/ by `just index`. Findings against it are not actionable: the fix
+  # would have to be made in a generator that has no prose to fix.
+  "docs/INDEX.md",
+]
+
+[thresholds]
+# No errors, which is what the gate turns on. The density budget and score minimum are left at
+# the profile's own values, so demoting STE below is what makes `normal` reachable rather than
+# a threshold raised until it passed.
+max_errors = 0
+
+# --- Simplified Technical English --------------------------------------------
+# Advisory, for the reason in the header. Each is still reported, so a document that wants to
+# read like a procedure can act on them.
+[categories.ste-descriptive]
+severity = "suggestion"
+
+[categories.ste-nouns]
+severity = "suggestion"
+
+[categories.ste-practices]
+severity = "suggestion"
+
+[categories.ste-procedural]
+severity = "suggestion"
+
+[categories.ste-punctuation]
+severity = "suggestion"
+
+[categories.ste-sentences]
+severity = "suggestion"
+
+[categories.ste-verbs]
+severity = "suggestion"
+
+[categories.ste-words]
+severity = "suggestion"
+
+# --- Steering indexes --------------------------------------------------------
+# `docs/agents/**` files are short and mostly generated: a table of paths, a marked block, and
+# two or three sentences of rule. The score floor is a density measure, so eight suggestions in a
+# 57-word file scores 14 findings per 100 words and fails on arithmetic rather than on prose.
+#
+# Errors and warnings still gate them. Only the score floor is lifted, and only here.
+[[overrides]]
+files = ["docs/agents/**/*.md"]
+
+# Nested, because `min_score` belongs to the thresholds table rather than the block: setting it
+# at the block's top level is rejected as an extra input.
+[overrides.thresholds]
+max_errors = 0
+min_score = 0

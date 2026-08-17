@@ -211,11 +211,18 @@ history.
 `repo/gitlab-repo`, so its four language fragments had no pipeline to be included by.
 
 Unlike `host/github`, it does not ship a governance script. The file-based half is there:
-CODEOWNERS, the issue and merge request templates, and the three governance documents. The rest
-is applied through the API, meaning protected branches, approval rules, push rules, and merge
-trains, and GitLab gates several of those by instance version and tier. A script written against
-one instance would silently do less on another, so the layer renders the files and leaves those
-settings to be applied by hand. `psc-hfx` holds the decision.
+CODEOWNERS, the issue and merge request templates, and the three governance documents.
+
+The rest is applied through the API:
+
+| Applied by hand | Why not scripted |
+|---|---|
+| protected branches, protected tags | gated by instance version |
+| approval rules, merge trains | gated by tier |
+| push rules | gated by tier |
+
+A script written against one instance would silently do less on another, so the layer renders
+the files and leaves those settings to a person. `psc-hfx` holds the decision.
 
 The `stages:` list is generated from what the `.gitlab/ci/*.yml` fragments declare.
 GitLab fails the whole pipeline when a job names a stage the list omits rather than
@@ -341,11 +348,11 @@ moon 2.x renamed keys that render cleanly and fail only when the CLI reads them:
 
 An output path is member-relative, which is wrong for cargo: it writes to the workspace
 root `target/`, so rust declares `/target/debug` with moon's workspace-relative prefix.
-A path nothing creates makes moon warn and cache nothing, so python and go declare no
-outputs at all: `uv sync` writes into a shared `.venv`, and `go build ./...` discards
-its binary. Inputs are declared per toolchain too. `src/**/*` matches nothing in a go
-member, where sources sit beside the package, so no edit would ever invalidate the
-build.
+A path nothing creates makes moon warn and cache nothing, so python and go declare no outputs
+at all: `uv sync` writes into a shared `.venv`, and `go build ./...` discards its binary.
+
+Inputs are declared per toolchain too. `src/**/*` matches nothing in a go member, where sources
+sit beside the package, so no edit would ever invalidate the build.
 
 Each import is written `import?`, the optional form. Under the hard form a missing
 file is a parse error that takes down every recipe in the justfile, so a fragment
@@ -397,7 +404,7 @@ shims and a bad commit message was blocked.
 gate CI does and cannot land what CI would reject. A project-defined command is
 approved once and re-prompts when edited, so that line changing is visible.
 
-Of the ten hooks worktrunk offers, the layer sets two. `pre-commit` is left to
+Of the ten hooks worktrunk has, the layer sets two. `pre-commit` is left to
 prek, which installs the git-level hooks already. `post-commit`, `post-merge`, and
 `pre-switch` describe work that belongs to CI or to the source worktree.
 `pre-remove` would fire on every `wt merge`, since the user config sets
@@ -510,7 +517,7 @@ a `release-restore` recipe, which the sync step calls after the bump and before 
 call is guarded, so a repository with no comments to restore does not have to define one.
 
 Blocking the release on the missing comment was the first attempt, and it was wrong: the
-comments go missing on every release by construction, so the test blocked the very pull request
+comments go missing on every release by construction, so the test blocked the pull request
 that was supposed to carry the fix. Repairing beats refusing when the damage is predictable.
 
 `persist-credentials: false` on the checkout, with the credential passed in the remote URL
@@ -742,12 +749,13 @@ natively. They are then visible to anyone reading the repository.
 
 Path filtering is the only lever that works. Measured against a 1,269-file
 repository, the include and ignore pair cut a pack by 30.7 percent. The content
-flags did not: `--remove-comments` takes 13.6 percent but deletes every `//` and
-`#`, so safety notes and invariants go with them; `--compress` depends entirely on
-whether its parser knows the language, so it is a second recipe rather than a flag on the
-first: measured over this scaffold's python sources it cut 27,215 bytes to 14,321, a 47
-percent reduction, and over its jinja templates it grew the pack by 0.1 percent because it
-cannot parse them. `just pack-code` is the recipe that uses it;
+flags did not. `--remove-comments` takes 13.6 percent, and deletes every `//` and `#` with
+it, so safety notes and invariants go too.
+
+`--compress` depends on whether its parser knows the language, which makes it a second recipe
+rather than a flag on the first. Measured over this scaffold's python sources it cut 27,215
+bytes to 14,321, a 47 percent reduction. Over its jinja templates it grew the pack by 0.1
+percent, because it cannot parse them. `just pack-code` is the recipe that uses it;
 `--remove-empty-lines`, `--no-file-summary`, and `--truncate-base64` take nothing;
 `--style json` and `--parsable-style` make the output 10 percent larger.
 
@@ -838,10 +846,9 @@ the rows are generated: the prose above them is the project's, a hand-written re
 takes a row below the block, and an index with no markers is left untouched rather than
 injected into, because `docs/adr` may not have rendered at all.
 
-A rendered record opens with its frontmatter. A leading HTML comment pushes `---` off
-line one, and a parser then reads the block as body text, so `status`, `date`, and
-`bead` go invisible to anything indexing the records; the provenance note follows the
-block instead.
+A rendered record opens with its frontmatter. A leading HTML comment pushes `---` off line
+one, and a parser then reads the block as body text. `status`, `date`, and `bead` go invisible
+to anything indexing the records, so the provenance note follows the block instead.
 
 `agentic/beads` runs `bd init --skip-hooks` and keeps everything else bd writes.
 Neither flag is an answer: `--skip-hooks` is always passed and `--skip-agents` never

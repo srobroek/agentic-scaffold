@@ -103,7 +103,7 @@ So the split is not a judgement call:
 | Setting | Where it lives |
 |---|---|
 | `CODEOWNERS`, issue and pull-request templates, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` | committed files, `host/github` |
-| branch protection, required checks, merge queue, allowed merge types, auto-merge, repository features | `gh api`, through `just repo-govern` |
+| branch protection, required checks, merge queue, allowed merge types, auto-merge, repository settings | `gh api`, through `just repo-govern` |
 | organisation versus personal owner, and visibility | asked, questions 5 and 6 |
 | environment secrets | never automated: a secret in a script is a secret in a shell history |
 

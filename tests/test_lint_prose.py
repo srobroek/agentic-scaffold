@@ -1,9 +1,15 @@
 """The prose gate wrapper fails loudly.
 
-Written after a shell version of this wrapper used `mapfile`, which bash 3.2 on
-macOS does not have. It printed errors and exited 0, so `just check` reported ok
-against docs that had never been linted. Rewriting it in Python removed the shell
-portability question; these tests keep the exit-code contract.
+Written after a shell version of this wrapper used `mapfile`, which bash 3.2 on macOS does not
+have. It printed errors and exited 0, so `just check` reported ok against docs that had never
+been linted. Rewriting it in Python removed the shell portability question; these tests keep the
+exit-code contract.
+
+The gate itself moved. It called `~/.claude/skills/review-docs/scripts/slop-lint.sh` until that
+script stopped existing: slopvac ba2f21e replaced the shell gate with a CLI. The installed skill
+was stale, and its two Vale configs shared one `StylesPath` while asking for different packages,
+so `vale sync` deleted a style the other needed and `just lint` failed at random. Calling the
+linter directly removed the shared directory, so there is nothing left to desync.
 """
 
 from __future__ import annotations
@@ -11,13 +17,20 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WRAPPER = REPO_ROOT / "scripts" / "lint_prose.py"
-GATE = Path.home() / ".claude" / "skills" / "review-docs" / "scripts" / "slop-lint.sh"
+CONFIG = REPO_ROOT / "slopvac.toml"
+CHECKOUT = Path.home() / "personal" / "dev" / "slopvac" / "packages" / "slopvac-lint"
+
+# The linter is not part of this repository, so on a runner it is absent and the wrapper says so
+# and exits 0. A test asserting a finding would then fail for the wrapper working correctly.
+reachable = shutil.which("slopvac") is not None or CHECKOUT.is_dir()
+needs_linter = pytest.mark.skipif(not reachable, reason="slopvac not reachable")
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -31,36 +44,107 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_generated_files_are_not_linted() -> None:
-    """docs/INDEX.md is generated, so gate findings against it are not actionable."""
+    """docs/INDEX.md is generated, so findings against it are not actionable: the fix would have
+    to be made in a generator that has no prose to fix."""
     result = run("docs/INDEX.md")
     assert result.returncode == 0
     assert "INDEX.md" not in result.stdout
 
 
-@pytest.mark.skipif(not GATE.is_file(), reason="prose gate not installed")
-def test_wrapper_runs_clean_and_prints_nothing_on_stderr() -> None:
-    """Clean means clean: a warning on stderr from a passing run is noise that trains people to
-    ignore the gate.
+def test_the_wrapper_passes_no_profile_flag() -> None:
+    """The profile and every override live in the committed config. A `--profile` on the command
+    line outranks the file, so passing one would make the config decorative."""
+    # The argv the wrapper builds, not its prose: the docstring explains the choice and says
+    # `--profile` while doing so.
+    body = WRAPPER.read_text()
+    argv_lines = [line for line in body.splitlines() if "command," in line or "*files" in line]
+    assert argv_lines, "could not find where the wrapper builds its argv"
+    assert not any("--profile" in line for line in argv_lines)
 
-    Gated on the gate being installed, like the test below. The skill lives under
-    ~/.claude/skills and is not part of this repository, so on a runner the wrapper prints
-    `prose gate absent at ..., skipping` -- which is the wrapper working, not a defect. CI
-    failed here on exactly that message.
+
+# --- the committed config --------------------------------------------------
+
+
+def test_the_config_is_committed_and_parses() -> None:
+    assert CONFIG.is_file()
+    tomllib.loads(CONFIG.read_text())
+
+
+def test_the_profile_is_normal_with_ste_demoted() -> None:
+    """`relaxed` was the first choice and it was too weak: appending "This is currently a WIP
+    feature that will leverage a robust solution" to a document still PASSED.
+
+    `normal` catches that. What made `normal` unreachable was Simplified Technical English --
+    measured on docs/layers.md, 241 of its 355 findings came from the eight ste-* categories --
+    so those are advisory and the slop rules keep their severity. STE is written for aircraft
+    maintenance procedures, and adopting it would be a decision about how this repository writes
+    rather than a linter setting.
     """
+    config = tomllib.loads(CONFIG.read_text())
+    assert config["profile"] == "normal"
+
+    demoted = {
+        name for name, body in config["categories"].items() if body.get("severity") == "suggestion"
+    }
+    assert demoted == {
+        "ste-descriptive",
+        "ste-nouns",
+        "ste-practices",
+        "ste-procedural",
+        "ste-punctuation",
+        "ste-sentences",
+        "ste-verbs",
+        "ste-words",
+    }, "the demotion has to be exactly the STE categories"
+
+    # The gate is errors. Demoting a category below error would make it decorative.
+    assert config["thresholds"]["max_errors"] == 0
+
+
+def test_the_score_floor_is_lifted_only_for_the_steering_indexes() -> None:
+    """A `docs/agents/**` file is short and mostly generated: a table of paths, a marked block,
+    and two sentences of rule. The score floor is a density measure, so eight suggestions in a
+    57-word file reads as 14 findings per 100 words and fails on arithmetic.
+
+    Scoped, because lifting the floor everywhere would drop it for docs/layers.md too, where it
+    is doing real work.
+    """
+    config = tomllib.loads(CONFIG.read_text())
+    overrides = config["overrides"]
+    assert len(overrides) == 1, "one override; a second needs its own reason"
+
+    override = overrides[0]
+    assert override["files"] == ["docs/agents/**/*.md"]
+    assert override["thresholds"]["min_score"] == 0
+    # Errors still gate them.
+    assert override["thresholds"]["max_errors"] == 0
+
+
+# --- the contract ----------------------------------------------------------
+
+
+@needs_linter
+def test_the_wrapper_runs_clean_and_prints_nothing_on_stderr() -> None:
+    """Clean means clean: a warning on stderr from a passing run is noise that trains people to
+    ignore the gate."""
     result = run()
     assert result.returncode == 0, result.stdout + result.stderr
     assert result.stderr.strip() == "", f"unexpected stderr: {result.stderr}"
 
 
-@pytest.mark.skipif(not GATE.is_file(), reason="prose gate not installed")
-def test_wrapper_fails_when_a_doc_violates_the_gate(tmp_path: Path) -> None:
+@needs_linter
+def test_the_wrapper_fails_on_slop(tmp_path: Path) -> None:
+    """The sentence `relaxed` let through. This is the assertion that decided the profile."""
     target = REPO_ROOT / "docs" / "agents" / "testing" / "index.md"
     backup = tmp_path / "backup.md"
     shutil.copy2(target, backup)
     try:
-        target.write_text(target.read_text() + "\n\nThis is currently a WIP feature.\n")
+        target.write_text(
+            target.read_text()
+            + "\n\nThis is currently a WIP feature that will leverage a robust solution.\n"
+        )
         result = run()
-        assert result.returncode == 1
-        assert "StatusLanguage" in result.stdout + result.stderr
+        assert result.returncode == 1, "slop has to fail the gate"
+        assert "error" in (result.stdout + result.stderr).lower()
     finally:
         shutil.copy2(backup, target)

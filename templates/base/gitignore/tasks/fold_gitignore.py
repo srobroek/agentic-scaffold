@@ -12,20 +12,37 @@ the repomix pack, generated skill directories, and the beads Dolt database.
 
 Idempotent: the whole file is rebuilt from its sources every run.
 
-gitnr fetches its templates over the network, so this task can fail transiently. Observed once
-under `pytest -n auto`, where a render exited non-zero and the same command succeeded on a rerun
-and across twelve concurrent renders. A retry belongs here if it recurs; one occurrence is not
-enough to know whether the cause is rate limiting or a dropped connection.
+gitnr fetches its templates over the network, so the fetch is retried. It failed once under
+`pytest -n auto` while the same command succeeded on a rerun and across twelve concurrent
+renders, which is a transient fetch rather than a systematic one.
 """
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 GITNR_TIMEOUT_SECONDS = 120
+
+# Five attempts with exponential backoff, so the waits are 2, 4, 8, and 16 seconds and a render
+# survives roughly half a minute of upstream trouble.
+#
+# Sized against a real outage rather than guessed. `raw.githubusercontent.com` returned 429 and
+# then 503 for the gitignore templates, verified with curl: three attempts over six seconds
+# failed thirteen tests, and `Global/macOS` passed only because gitnr still had it cached from an
+# earlier run. A template is cached for an hour, so a successful attempt makes the next render
+# local and the backoff costs nothing on a normal day.
+#
+# It does not survive a sustained outage, and it is not meant to. The alternative was vendoring
+# the three OS templates, which trades an upstream dependency for three files to keep current.
+GITNR_ATTEMPTS = 5
+# Overridable so a test exercising the give-up path does not spend thirty seconds sleeping. Not a
+# knob for a person to turn: the default is the measured one.
+GITNR_BACKOFF_SECONDS = float(os.environ.get("GITNR_BACKOFF_SECONDS", "2"))
 
 # The operating system writes these whatever the project is, so they are added for
 # every render rather than derived from the language layers. Finder writes a
@@ -63,16 +80,39 @@ def gitnr_output(sources: list[str]) -> str:
     # `Icon[\r]` and `.HFS+ Private Directory Data[\r]`. Converting it splits each
     # across two lines, leaving `Icon[` behind, which is an unterminated character
     # class. Every tool reading the file then errors on it, zizmor among them.
-    result = subprocess.run(
-        ["gitnr", "create", *sources],
-        capture_output=True,
-        check=False,
-        timeout=GITNR_TIMEOUT_SECONDS,
+    # Retried, because the fetch is the failure. gitnr caches a template for an hour, so a cold
+    # cache is the only time this touches the network, and that is when it broke: one render
+    # exited non-zero under `pytest -n auto` while the same command succeeded on a rerun and
+    # across twelve concurrent renders. A warm cache makes the second attempt local, so the
+    # backoff exists for the case where the cache is cold for every attempt.
+    detail = ""
+    for attempt in range(1, GITNR_ATTEMPTS + 1):
+        try:
+            result = subprocess.run(
+                ["gitnr", "create", *sources],
+                capture_output=True,
+                check=False,
+                timeout=GITNR_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            detail = f"timed out after {GITNR_TIMEOUT_SECONDS}s"
+        else:
+            if result.returncode == 0:
+                return result.stdout.decode(errors="replace")
+            detail = result.stderr.decode(errors="replace").strip() or f"exit {result.returncode}"
+
+        if attempt < GITNR_ATTEMPTS:
+            # Said out loud. A silent retry turns a systematic failure into a slow render
+            # nobody investigates.
+            print(
+                f"gitnr attempt {attempt} of {GITNR_ATTEMPTS} failed ({detail}), retrying",
+                file=sys.stderr,
+            )
+            time.sleep(GITNR_BACKOFF_SECONDS * 2 ** (attempt - 1))
+
+    raise SystemExit(
+        f"gitnr failed for {' '.join(sources)} after {GITNR_ATTEMPTS} attempts: {detail}"
     )
-    if result.returncode != 0:
-        detail = result.stderr.decode(errors="replace").strip() or f"exit {result.returncode}"
-        raise SystemExit(f"gitnr failed for {' '.join(sources)}: {detail}")
-    return result.stdout.decode(errors="replace")
 
 
 def fragments(dest: Path) -> str:
