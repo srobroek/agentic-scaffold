@@ -16,6 +16,8 @@ import sys
 from pathlib import Path
 
 import pytest
+
+from conftest import mise_bin
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -31,11 +33,13 @@ license: Apache-2.0
 default_branch: main
 """
 
-# mise installs these outside PATH for a bare subprocess.
+# mise installs these outside the PATH a bare subprocess inherits. The two pinned versions are
+# named directly, since a test here asserts behaviour specific to them. `just` floats, so it is
+# resolved through mise rather than an installs/just/latest path: see conftest.mise_bin.
 TOOL_DIRS = [
     Path.home() / ".local/share/mise/installs/vacuum/0.30.0",
     Path.home() / ".local/share/mise/installs/ubi-oasdiff-oasdiff/1.26.1",
-    Path.home() / ".local/share/mise/installs/just/latest",
+    *([mise_bin("just")] if mise_bin("just") else []),
 ]
 
 

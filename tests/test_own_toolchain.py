@@ -135,3 +135,28 @@ def test_every_runtime_a_layer_requires_is_pinned() -> None:
         f"layers require {missing} and mise.toml pins none of them, so every test that renders "
         "such a layer fails instead of skipping"
     )
+
+
+def test_no_test_hardcodes_a_mise_latest_path() -> None:
+    """`installs/<tool>/latest` is a symlink to whatever version was installed last, not to what
+    mise.toml pins, and on a CI runner it does not exist at all.
+
+    Both failures happened. It pointed at node 25 locally while the pin said 24, and on the
+    runner the CDK tests fell through to the image's own npm, whose `npm ci` broke projen's
+    generated `install:ci` task: five errors in CI against a local pass, testing a version the
+    pin never named. `conftest.mise_bin` asks `mise which` instead.
+    """
+    offenders = []
+    for path in sorted((REPO_ROOT / "tests").glob("test_*.py")):
+        for number, line in enumerate(path.read_text().splitlines(), start=1):
+            if "installs/" not in line or "/latest" not in line:
+                continue
+            # Prose about the trap is not an instance of it. A real one is a path literal, so
+            # it carries the mise prefix inside quotes.
+            if '".local/share/mise/installs' not in line:
+                continue
+            offenders.append(f"{path.name}:{number}")
+    assert not offenders, (
+        "these hardcode a mise `latest` path instead of calling conftest.mise_bin: "
+        + ", ".join(offenders)
+    )

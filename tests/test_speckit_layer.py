@@ -20,6 +20,8 @@ import sys
 from pathlib import Path
 
 import pytest
+
+from conftest import mise_bin
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -42,7 +44,9 @@ apm_target: "claude,codex"
 apm_cli_version: "0.26.0"
 """
 
-JUST = Path.home() / ".local/share/mise/installs/just/latest/just"
+# Resolved through mise. See conftest.mise_bin for why not an installs/<tool>/latest path.
+_JUST_BIN = mise_bin("just")
+JUST = (_JUST_BIN / "just") if _JUST_BIN else Path("just")
 needs_just = pytest.mark.skipif(
     not JUST.is_file() and shutil.which("just") is None, reason="just absent"
 )

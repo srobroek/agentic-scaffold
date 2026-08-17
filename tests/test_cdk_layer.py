@@ -21,6 +21,8 @@ from pathlib import Path
 
 import pytest
 
+from conftest import mise_bin
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RENDER = REPO_ROOT / "scripts" / "render.py"
 
@@ -29,10 +31,11 @@ ANSWERS = "project_name: demo-cdk\ndefault_branch: main\n"
 PROJEN = "projen@0.101.22"
 TSX = "tsx@4.23.1"
 
-# mise installs node outside PATH for a bare subprocess.
-NODE_BIN = Path.home() / ".local/share/mise/installs/node/latest/bin"
+# mise installs node outside the PATH a bare subprocess inherits. See conftest.mise_bin for
+# why this is resolved through `mise which` rather than an installs/<tool>/latest path.
+NODE_BIN = mise_bin("npm")
 needs_node = pytest.mark.skipif(
-    shutil.which("npm") is None and not (NODE_BIN / "npm").is_file(),
+    shutil.which("npm") is None and (NODE_BIN is None or not (NODE_BIN / "npm").is_file()),
     reason="npm absent",
 )
 slow = pytest.mark.skipif(
@@ -43,7 +46,7 @@ slow = pytest.mark.skipif(
 
 def node_env() -> dict[str, str]:
     env = dict(os.environ)
-    if NODE_BIN.is_dir():
+    if NODE_BIN is not None and NODE_BIN.is_dir():
         env["PATH"] = f"{NODE_BIN}:{env['PATH']}"
     return env
 
@@ -103,7 +106,13 @@ def _synth_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     install = run(cdk, "npm", "install", "--no-audit", "--no-fund", PROJEN, TSX)
     assert install.returncode == 0, install.stderr[-2000:]
     synth = run(cdk, "npx", "tsx", ".projenrc.ts")
-    assert synth.returncode == 0, synth.stdout[-2000:] + synth.stderr[-2000:]
+    # The HEAD of each stream, not the tail. npm prints its own usage when it rejects an
+    # argument, and that usage is long enough that a tail-truncated message shows only the
+    # flag list and hides the one line naming the cause. Two CI cycles were spent guessing
+    # at `npm ci` failures whose reason had been scrolled off.
+    assert synth.returncode == 0, (
+        "stdout:\n" + synth.stdout[:4000] + "\n\nstderr:\n" + synth.stderr[:4000]
+    )
     return cdk
 
 

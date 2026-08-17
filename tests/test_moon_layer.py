@@ -16,6 +16,8 @@ import sys
 from pathlib import Path
 
 import pytest
+
+from conftest import mise_bin
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -30,7 +32,9 @@ GO = (
 )
 
 # The CLI mise installs, which is not on PATH by default.
-MOON_BIN = Path.home() / ".local/share/mise/installs/npm-moonrepo-cli/latest/node_modules/.bin/moon"
+# Resolved through mise. See conftest.mise_bin for why not an installs/<tool>/latest path.
+_MOON_BIN = mise_bin("moon")
+MOON_BIN = (_MOON_BIN / "moon") if _MOON_BIN else Path("moon")
 MOON = str(MOON_BIN) if MOON_BIN.is_file() else shutil.which("moon")
 needs_moon = pytest.mark.skipif(MOON is None, reason="moon absent")
 

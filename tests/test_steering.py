@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from conftest import mise_bin
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RENDER = REPO_ROOT / "scripts" / "render.py"
 
@@ -26,7 +28,9 @@ AGENTS = "project_name: demo\n"
 RUST = 'crate_kind: bin\nrust_edition: "2024"\nlicense: Apache-2.0\n'
 PYTHON = 'python_version: "3.13"\npython_layout: src\npython_framework: none\n'
 
-JUST = Path.home() / ".local/share/mise/installs/just/latest/just"
+# Resolved through mise. See conftest.mise_bin for why not an installs/<tool>/latest path.
+_JUST_BIN = mise_bin("just")
+JUST = (_JUST_BIN / "just") if _JUST_BIN else Path("just")
 needs_just = pytest.mark.skipif(
     not JUST.is_file() and shutil.which("just") is None, reason="just absent"
 )

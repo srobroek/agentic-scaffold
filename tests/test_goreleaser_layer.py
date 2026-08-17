@@ -20,6 +20,8 @@ import sys
 from pathlib import Path
 
 import pytest
+
+from conftest import mise_bin
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -28,7 +30,8 @@ RENDER = REPO_ROOT / "scripts" / "render.py"
 ANSWERS = 'project_name: demoapp\ngoreleaser_main: "."\ngo_version: "1.26"\n'
 
 GORELEASER = Path.home() / ".local/share/mise/installs/goreleaser/2.17.1/goreleaser"
-GO_BIN = Path.home() / ".local/share/mise/installs/go/latest/bin"
+# Resolved through mise. See conftest.mise_bin for why not an installs/<tool>/latest path.
+GO_BIN = mise_bin("go") or Path("/nonexistent")
 
 needs_goreleaser = pytest.mark.skipif(
     not GORELEASER.is_file() and shutil.which("goreleaser") is None,

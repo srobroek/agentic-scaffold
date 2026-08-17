@@ -21,21 +21,24 @@ from pathlib import Path
 
 import pytest
 
+from conftest import mise_bin
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RENDER = REPO_ROOT / "scripts" / "render.py"
 
 ANSWERS = 'api_ref_languages: ["rust", "python", "ts"]\napi_ref_section: reference\n'
-NODE_BIN = Path.home() / ".local/share/mise/installs/node/latest/bin"
+# Resolved through mise rather than an installs/node/latest path. See conftest.mise_bin.
+NODE_BIN = mise_bin("node")
 
 needs_node = pytest.mark.skipif(
-    shutil.which("node") is None and not (NODE_BIN / "node").is_file(),
+    shutil.which("node") is None and (NODE_BIN is None or not (NODE_BIN / "node").is_file()),
     reason="node absent",
 )
 
 
 def node_env() -> dict[str, str]:
     env = dict(os.environ)
-    if NODE_BIN.is_dir():
+    if NODE_BIN is not None and NODE_BIN.is_dir():
         env["PATH"] = f"{NODE_BIN}:{env['PATH']}"
     return env
 
