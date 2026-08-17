@@ -297,3 +297,18 @@ def test_the_catalogs_are_gated_against_drift() -> None:
         line for line in justfile.splitlines() if line.startswith("check:")
     )
     assert "packages" in check.split(), f"`packages` is not in the gate: {check}"
+
+
+def test_the_kiro_rationale_survives_a_release() -> None:
+    """release-please rewrites apm.yml to bump `version`, and its YAML writer drops comments.
+
+    The 0.2.0 release silently removed the note explaining why kiro is a deploy target but not a
+    marketplace output -- a distinction the agentic/package layer exists to keep, and the one
+    thing about this manifest a reader cannot infer from the keys. Restoring it by hand after
+    every release only works if something notices, so this is what notices.
+    """
+    body = (REPO_ROOT / "apm.yml").read_text()
+    assert "kiro is a target rather than a marketplace" in body, (
+        "the kiro rationale is gone from apm.yml; release-please's YAML writer strips comments, "
+        "so restore it after the release"
+    )
