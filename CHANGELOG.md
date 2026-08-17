@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/srobroek/agentic-scaffold/compare/srobroek-project-scaffold--v0.2.0...srobroek-project-scaffold--v0.2.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* **apm:** restore the kiro rationale release-please stripped ([67f6079](https://github.com/srobroek/agentic-scaffold/commit/67f607945a1fe0a98bd892369b0821e947d9690f))
+* **release:** repair apm.yml after a release instead of blocking on it ([ecc599a](https://github.com/srobroek/agentic-scaffold/commit/ecc599acb8e784a6b7d53d1c5ec125f3349ca745))
+
 ## [0.2.0](https://github.com/srobroek/agentic-scaffold/compare/srobroek-project-scaffold--v0.1.0...srobroek-project-scaffold--v0.2.0) (2026-08-17)
 
 
