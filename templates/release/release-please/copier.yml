@@ -33,6 +33,15 @@ default_branch:
   help: branch the release workflow triggers on.
   default: main
 
+release_app:
+  type: bool
+  help: >-
+    Mint a GitHub App token for the release workflow. A pull request opened with GITHUB_TOKEN
+    triggers no workflow, so without this the release pull request reports no checks and a
+    required check blocks it. Needs a RELEASE_APP_CLIENT_ID variable and a
+    RELEASE_APP_PRIVATE_KEY secret on the repository.
+  default: false
+
 # Empty means a single-package repository. A monorepo passes the member directories,
 # which `just release-sync` reads from the workspace manifest rather than asking twice.
 release_packages:

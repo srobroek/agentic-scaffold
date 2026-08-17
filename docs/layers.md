@@ -415,7 +415,7 @@ the developer has.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow, `.just.d/release.just` | `release_type`, `initial_version`, `default_branch`, `release_packages` |
+| `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow, `.just.d/release.just` | `release_type`, `initial_version`, `default_branch`, `release_packages`, `release_app` |
 | `release/cocogitto` | `cog.toml`, `.just.d/cog.just` | `initial_version`, `release_scopes` |
 | `release/goreleaser` | `.goreleaser.yaml`, `.github/workflows/goreleaser.yml`, `.just.d/goreleaser.just`, plus the mise, gitignore, and quality fragments | `goreleaser_main`, `goreleaser_targets`, `goreleaser_version`, `go_version`, `goreleaser_sbom`, `syft_version` |
 | `release/dep-updates` | `renovate.json`, `.github/dependabot.yml`, and the auto-merge workflow | `default_branch`, `auto_merge`, `renovate_timezone` |
@@ -457,6 +457,26 @@ The recorded versions are release-please's own after the first release, so an en
 already present keeps its version. A new member joins at the version the others share, or
 at `initial_version` when they disagree, so a repository releasing 2.x ships no 0.1.0
 package.
+
+### The release pull request needs an App token
+
+A pull request opened with `GITHUB_TOKEN` does not trigger a workflow. GitHub refuses this on
+purpose, so that a workflow cannot cause its own next run. The pull request release-please opens
+therefore reports no checks, and a required check blocks it forever. Measured on this
+repository: PR #2 came up with zero check runs against a required `gate`.
+
+`release_app` mints a token from a GitHub App instead, which is not subject to that rule. It
+needs two credentials on the repository:
+
+| Name | Kind | Why |
+|---|---|---|
+| `RELEASE_APP_CLIENT_ID` | variable | not sensitive, and keeping it visible makes a wrong-app failure readable |
+| `RELEASE_APP_PRIVATE_KEY` | secret | the App's signing key |
+
+The default is off, since a scaffold cannot provision an App. With it off the workflow still
+runs and still opens the pull request; merging it just needs an admin override. The workflow
+says so beside the token it chose, rather than leaving the reader to discover it from a blocked
+pull request.
 
 ### release-please versions, goreleaser publishes
 

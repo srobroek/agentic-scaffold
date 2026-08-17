@@ -29,8 +29,31 @@ jobs:
       pull-requests: write
       issues: write
     steps:
+{%- if release_app %}
+      # A pull request opened with GITHUB_TOKEN triggers no workflow. GitHub refuses this on
+      # purpose, to stop a workflow from causing its own next run, so the release pull request
+      # reports no checks and a required check blocks it forever. An App token is not subject to
+      # that, which is the only reason this step exists.
+      #
+      # `vars` for the client id and `secrets` for the key: the id is not sensitive, and keeping
+      # it visible makes a wrong-app failure readable.
+      - name: Mint the release app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ '{{' }} vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ '{{' }} secrets.RELEASE_APP_PRIVATE_KEY }}
+{%- endif %}
+
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
+{%- if release_app %}
+          token: ${{ '{{' }} steps.app-token.outputs.token }}
+{%- else %}
+          # GITHUB_TOKEN, so the release pull request will carry no checks. A required check
+          # then blocks it, and merging needs an admin override. Set `release_app` and provide
+          # the two credentials to avoid that.
           token: ${{ '{{' }} secrets.GITHUB_TOKEN }}
+{%- endif %}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json

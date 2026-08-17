@@ -286,3 +286,44 @@ def test_the_release_workflows_pass_their_own_linters(
 
     result = subprocess.run(argv, capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def workflow_of(dest: Path) -> dict:
+    return yaml.safe_load((dest / ".github" / "workflows" / "release-please.yml").read_text())
+
+
+def test_without_the_app_the_release_pr_carries_no_checks(release_please: Path) -> None:
+    """The default, and the trap it leaves is recorded in the workflow itself.
+
+    A pull request opened with GITHUB_TOKEN triggers no workflow. GitHub refuses this on
+    purpose, to stop a workflow from causing its own next run. The release pull request
+    therefore reports no checks, and a required check blocks it: measured on this scaffold's own
+    repository, where PR #2 came up with zero check runs against a required `gate`.
+    """
+    steps = workflow_of(release_please)["jobs"]["release-please"]["steps"]
+    assert not any("create-github-app-token" in str(s.get("uses", "")) for s in steps)
+
+    body = (release_please / ".github" / "workflows" / "release-please.yml").read_text()
+    assert "will carry no checks" in body, "the trap has to be stated where the token is chosen"
+
+
+def test_the_app_token_makes_the_release_pr_trigger_ci(tmp_path: Path) -> None:
+    """An App token is not subject to the no-recursive-trigger rule, which is the only reason
+    the mint step exists."""
+    dest = tmp_path / "app"
+    dest.mkdir()
+    subprocess.run(["git", "init", "-q", str(dest)], check=True)
+    result = render("release/release-please", dest, RP_ANSWERS + "release_app: true\n")
+    assert result.returncode == 0, result.stderr
+
+    steps = workflow_of(dest)["jobs"]["release-please"]["steps"]
+    mint = next(s for s in steps if "create-github-app-token" in str(s.get("uses", "")))
+    assert mint["id"] == "app-token"
+    # The id is not sensitive, and keeping it in `vars` makes a wrong-app failure readable.
+    assert mint["with"]["app-id"] == "${{ vars.RELEASE_APP_CLIENT_ID }}"
+    assert mint["with"]["private-key"] == "${{ secrets.RELEASE_APP_PRIVATE_KEY }}"
+
+    # The mint has to precede the action, and the action has to actually use the token.
+    action = next(s for s in steps if "release-please-action" in str(s.get("uses", "")))
+    assert steps.index(mint) < steps.index(action)
+    assert action["with"]["token"] == "${{ steps.app-token.outputs.token }}"

@@ -241,7 +241,12 @@ def test_the_repository_can_actually_release_itself() -> None:
     workflow = yaml.safe_load(workflow_path.read_text())
 
     # The config filenames are inputs, so a rename here silently stops the release.
-    step = workflow["jobs"]["release-please"]["steps"][0]
+    # Found by index once, which broke when the App-token mint step moved ahead of it.
+    step = next(
+        s
+        for s in workflow["jobs"]["release-please"]["steps"]
+        if "release-please-action" in str(s.get("uses", ""))
+    )
     assert step["with"]["config-file"] == "release-please-config.json"
     assert step["with"]["manifest-file"] == ".release-please-manifest.json"
     assert (REPO_ROOT / step["with"]["config-file"]).is_file()
