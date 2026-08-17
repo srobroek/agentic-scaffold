@@ -37,29 +37,43 @@ jobs:
       #
       # `vars` for the client id and `secrets` for the key: the id is not sensitive, and keeping
       # it visible makes a wrong-app failure readable.
-      # Whether both credentials are present, as a step output. `secrets` is not available in a
-      # step-level `if`, which actionlint reports, so the check reaches the condition below
-      # through env instead.
-      - name: Check for the release app credentials
-        id: creds
+      # Fails the run when either credential is missing or empty, rather than continuing with
+      # GITHUB_TOKEN. A pull request opened with that token carries no checks, so a fallback
+      # produces a release pull request nobody can merge while the run reports success -- the
+      # failure would surface later, as a blocked pull request, with nothing pointing at the
+      # cause.
+      #
+      # The length check is what catches an empty secret. One was set from a `op read` whose
+      # 1Password session had timed out mid-pipe: the write reported success and stored nothing,
+      # and every later run died inside the action with `DataError: Invalid keyData`.
+      #
+      # `secrets` is unavailable in a step-level `if`, which actionlint reports, so the check
+      # reads both through env.
+      - name: Require the release app credentials
         env:
           CLIENT_ID: ${{ '{{' }} vars.RELEASE_APP_CLIENT_ID }}
           PRIVATE_KEY: ${{ '{{' }} secrets.RELEASE_APP_PRIVATE_KEY }}
         run: |
-          if [ -n "$CLIENT_ID" ] && [ -n "$PRIVATE_KEY" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::no release app credentials; the release pull request will carry no checks"
+          {%- raw %}
+          set -euo pipefail
+          if [ -z "$CLIENT_ID" ]; then
+            echo "::error::RELEASE_APP_CLIENT_ID is not set on this repository"
+            exit 1
           fi
+          # A PEM private key is well over a kilobyte. Anything shorter is not one.
+          # `${#name}` in the template opens jinja's comment tag, so this body is in `raw`:
+          # copier otherwise fails with "Missing end of comment tag" and names no line.
+          if [ "${#PRIVATE_KEY}" -lt 1000 ]; then
+            echo "::error::RELEASE_APP_PRIVATE_KEY is empty or truncated (${#PRIVATE_KEY} bytes)"
+            exit 1
+          fi
+          {%- endraw %}
 
-      # Skipped when either credential is absent or empty, so the release still happens with
-      # GITHUB_TOKEN rather than failing outright. Verified: an empty secret makes the action
-      # exit with `The 'private-key' input must be set to a non-empty string`, which took down
-      # the whole workflow before this guard existed.
+      # Reached only when both credentials passed the check above. Without that check this
+      # action's own failure is opaque: an empty key exits with `DataError: Invalid keyData` and
+      # an asn1 `not enough data`, which reads as a malformed key rather than a missing one.
       - name: Mint the release app token
         id: app-token
-        if: steps.creds.outputs.present == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ '{{' }} vars.RELEASE_APP_CLIENT_ID }}
@@ -76,9 +90,10 @@ jobs:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
 {%- if release_app %}
-          # Falls back when the mint step was skipped. An empty `steps.*.outputs.*` is what a
-          # skipped step yields, so `||` picks GITHUB_TOKEN and the release still runs.
-          token: ${{ '{{' }} steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+          # No `|| secrets.GITHUB_TOKEN` fallback. The step above already failed the run if the
+          # credentials were missing, and a release pull request opened with GITHUB_TOKEN carries
+          # no checks, so falling back would only hide the problem.
+          token: ${{ '{{' }} steps.app-token.outputs.token }}
 {%- else %}
           # GITHUB_TOKEN, so the release pull request will carry no checks. A required check
           # then blocks it, and merging needs an admin override. Set `release_app` and provide

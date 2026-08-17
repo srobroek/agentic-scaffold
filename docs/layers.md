@@ -478,6 +478,15 @@ runs and still opens the pull request; merging it just needs an admin override. 
 says so beside the token it chose, rather than leaving the reader to discover it from a blocked
 pull request.
 
+With it on there is no fallback: a missing or empty credential fails the run. Falling back to
+`GITHUB_TOKEN` would report success while producing a pull request nobody can merge, and the
+failure would surface later as a blocked pull request with nothing pointing at the cause.
+
+The check tests the key's length rather than its presence. An empty secret was written from an
+`op read` whose 1Password session had timed out mid-pipe: the write reported success and stored
+nothing, and every later run died inside `create-github-app-token` with `DataError: Invalid
+keyData`, which reads as a malformed key rather than a missing one.
+
 ### release-please versions, goreleaser publishes
 
 release-please computes the next version from the Conventional Commit subjects, writes

@@ -333,14 +333,21 @@ def test_the_app_token_makes_the_release_pr_trigger_ci(tmp_path: Path) -> None:
     assert mint["with"]["permission-contents"] == "write"
     assert mint["with"]["permission-pull-requests"] == "write"
 
-    # Degrades rather than failing. An empty secret makes the action exit with `The
-    # 'private-key' input must be set to a non-empty string`, which took the whole release down:
-    # a 1Password session had timed out mid-pipe, so `gh secret set` stored nothing and every
-    # later run died at the mint step.
-    assert mint["if"] == "steps.creds.outputs.present == 'true'"
-    # `secrets` is unavailable in a step-level `if`, which actionlint reports, so the check
-    # reaches the condition through env and a step output.
-    creds = next(s for s in steps if s.get("id") == "creds")
-    assert "PRIVATE_KEY" in creds["env"]
-    assert "::warning::" in creds["run"], "a silent downgrade is what this replaced"
-    assert action["with"]["token"].endswith("|| secrets.GITHUB_TOKEN }}")
+    # No GITHUB_TOKEN fallback. A release pull request opened with that token carries no checks,
+    # so falling back would report success while producing a pull request nobody can merge --
+    # the failure would surface later, as a blocked PR, with nothing pointing at the cause.
+    assert action["with"]["token"] == "${{ steps.app-token.outputs.token }}"
+    assert "GITHUB_TOKEN" not in action["with"]["token"]
+
+    # A missing or empty credential fails the run instead. The length check is what catches an
+    # empty secret: one was written from an `op read` whose 1Password session had timed out
+    # mid-pipe, so the write reported success and stored nothing, and every later run died
+    # inside the action with `DataError: Invalid keyData` rather than naming the cause.
+    require = next(s for s in steps if s.get("name") == "Require the release app credentials")
+    assert steps.index(require) < steps.index(mint)
+    # `secrets` is unavailable in a step-level `if`, which actionlint reports, so both are read
+    # through env.
+    assert "PRIVATE_KEY" in require["env"]
+    assert "-lt 1000" in require["run"], "an empty secret has to fail, not just an absent one"
+    assert "::error::" in require["run"]
+    assert "exit 1" in require["run"]
