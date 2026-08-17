@@ -160,3 +160,63 @@ def test_no_test_hardcodes_a_mise_latest_path() -> None:
         "these hardcode a mise `latest` path instead of calling conftest.mise_bin: "
         + ", ".join(offenders)
     )
+
+
+def test_every_binary_a_recipe_invokes_is_pinned() -> None:
+    """A recipe shelling out to an unpinned tool exits 127 in CI while passing locally.
+
+    `just packages` did exactly that: apm came from pipx outside any pin, so the recipe worked
+    here and failed on the runner. The requires_bin check above did not catch it, because no
+    layer declares apm -- the scaffold's own justfile invokes it.
+    """
+    justfile = (REPO_ROOT / "justfile").read_text()
+
+    # Bare command words at the start of a recipe line. Enough to catch a tool nobody pinned
+    # without parsing just's grammar.
+    invoked = set()
+    for line in justfile.splitlines():
+        if not line.startswith(("    ", "\t")):
+            continue
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", "@", "-", "{{", "set ", "if ", "fi", "for ")):
+            continue
+        word = stripped.split()[0]
+        if word.isidentifier() or "-" in word:
+            invoked.add(word)
+
+    # Provided by the runner image, by uv, or by just itself.
+    from_elsewhere = {
+        "git", "python3", "echo", "cd", "mkdir", "cp", "rm", "test", "then", "else", "done",
+        "exit", "printf", "grep", "sed", "awk", "find", "sort", "uniq", "head", "tail", "cat",
+        "just", "uv", "true", "false", "export", "local", "shift", "read", "case", "esac",
+        "while", "do", "trap", "shopt", "diff", "ls", "wc", "tr", "xargs", "bash", "sh", "gh",
+        "cargo", "npm", "npx",
+        # mise cannot pin itself: it is what installs everything else, and mise-action puts it
+        # on the runner's PATH.
+        "mise",
+    }
+
+    pinned = set()
+    for name in pins():
+        pinned.add(name)
+        pinned.add(name.rsplit("/", 1)[-1])
+        pinned.add(name.split(":", 1)[-1])
+    # A backend prefix names the package, not always the binary it installs. Each mapping is
+    # keyed on the pin, so removing the pin removes the binary too -- listing the binaries
+    # unconditionally would defeat the check.
+    BINARY_OF = {
+        "aqua:gastownhall/beads": "bd",
+        "pipx:apm-cli": "apm",
+        "npm:@moonrepo/cli": "moon",
+        "ubi:oasdiff/oasdiff": "oasdiff",
+        "cargo:gitnr": "gitnr",
+    }
+    for spec, binary in BINARY_OF.items():
+        if spec in pins():
+            pinned.add(binary)
+
+    missing = sorted(invoked - from_elsewhere - pinned)
+    assert not missing, (
+        f"these recipes invoke {missing}, which mise.toml does not pin, so they exit 127 on a "
+        "runner while passing locally"
+    )

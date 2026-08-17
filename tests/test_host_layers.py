@@ -886,3 +886,29 @@ def test_the_scan_does_not_fail_before_the_upload(rendered: Path) -> None:
     scan = next(s for s in steps if s.get("name") == "Scan")
     assert "--error" not in str(scan.get("run", "")), "a finding would end the job early"
     assert names.index("Upload results") < names.index("Fail on findings")
+
+
+def test_governance_lets_actions_open_a_release_pull_request(rendered: Path) -> None:
+    """release-please fails outright without it: `GitHub Actions is not permitted to create or
+    approve pull requests`. That happened on the first run of this scaffold's own release
+    workflow.
+
+    `can_approve_pull_request_reviews` is misnamed -- it is the switch that lets Actions CREATE
+    a pull request. Enabling it does not let the token merge anything, since branch protection
+    still requires the `gate` check.
+
+    It lives at `repos/{repo}/actions/permissions/workflow`, not on the repository object, so it
+    needs a request of its own. The script managed only the repository object before, which is
+    why nothing here caught the setting being off.
+    """
+    script = (rendered / "scripts" / "repo_govern.py").read_text()
+    assert "WORKFLOW_PERMISSIONS" in script
+    assert "can_approve_pull_request_reviews" in script
+    assert "actions/permissions/workflow" in script
+
+    # `read` stays the default: every workflow requests what it needs per job, so a write
+    # default would only widen the token for jobs that never asked.
+    assert '"default_workflow_permissions": "read"' in script
+
+    # PUT, not PATCH: the endpoint replaces the whole object.
+    assert '"--method", "PUT", f"repos/{repo}/actions/permissions/workflow"' in script

@@ -46,6 +46,21 @@ REPO_SETTINGS = {
     "has_projects": False,
 }
 
+# Workflow token permissions, which live at their own endpoint rather than on the repository
+# object, so they need their own request.
+#
+# `default_workflow_permissions: read` is the safe baseline: every workflow here requests what
+# it needs per job, so a write default would only widen the token for jobs that never asked.
+#
+# `can_approve_pull_request_reviews` is misnamed. It is the switch that lets Actions CREATE a
+# pull request, and release-please fails outright without it: `GitHub Actions is not permitted
+# to create or approve pull requests`. Enabling it does not let the token merge anything, since
+# branch protection still requires the `gate` check.
+WORKFLOW_PERMISSIONS = {
+    "default_workflow_permissions": "read",
+    "can_approve_pull_request_reviews": True,
+}
+
 # `gate` is the only required check. It lists every other job in `needs:` and receives
 # `toJSON(needs)`, so a new job is covered without touching branch protection: a
 # path-filtered required check that never starts would block every unrelated pull request
@@ -92,6 +107,35 @@ def apply_settings(repo: str, *, check: bool) -> list[str]:
     result = gh(*argv)
     if result.returncode != 0:
         print(f"failed to update settings: {result.stderr.strip()}", file=sys.stderr)
+        raise SystemExit(1)
+    return differences
+
+
+def apply_workflow_permissions(repo: str, *, check: bool) -> list[str]:
+    """Every workflow-permission setting that differs. Applied unless checking."""
+    result = gh("api", f"repos/{repo}/actions/permissions/workflow")
+    if result.returncode != 0:
+        print(f"cannot read workflow permissions: {result.stderr.strip()}", file=sys.stderr)
+        raise SystemExit(1)
+    live = json.loads(result.stdout)
+
+    differences = [
+        f"{key}: {live.get(key)!r} should be {value!r}"
+        for key, value in WORKFLOW_PERMISSIONS.items()
+        if live.get(key) != value
+    ]
+    if check or not differences:
+        return differences
+
+    argv = ["api", "--method", "PUT", f"repos/{repo}/actions/permissions/workflow"]
+    for key, value in WORKFLOW_PERMISSIONS.items():
+        if isinstance(value, bool):
+            argv += ["-F", f"{key}={'true' if value else 'false'}"]
+        else:
+            argv += ["-f", f"{key}={value}"]
+    written = gh(*argv)
+    if written.returncode != 0:
+        print(f"failed to update workflow permissions: {written.stderr.strip()}", file=sys.stderr)
         raise SystemExit(1)
     return differences
 
@@ -169,6 +213,7 @@ def main() -> int:
 
     repo = slug(args.repo)
     problems = apply_settings(repo, check=args.check)
+    problems += apply_workflow_permissions(repo, check=args.check)
     problems += protection_differences(repo, args.branch)
 
     if args.check:
