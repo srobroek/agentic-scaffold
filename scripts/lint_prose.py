@@ -8,6 +8,10 @@ Everything under `docs/`, `rules/`, `profiles/`, plus `AGENTS.md` and `README.md
 
 Given paths, lints those instead of the tracked set, so a hook can pass staged files.
 
+slopvac is not on PyPI yet, so the gate is inactive until it is: the wrapper says so and exits
+0. There is deliberately no `uvx --from <checkout>` fallback -- a gate that builds one
+developer's working copy checks whatever that copy happens to say, which is not a gate.
+
 WHY slopvac AND NOT THE VALE GATE. This called `~/.claude/skills/review-docs/scripts/
 slop-lint.sh` until that script stopped existing: slopvac ba2f21e moved Vale into the linter
 package and replaced the shell gate with this CLI. The installed skill was stale, and its
@@ -37,10 +41,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# slopvac is not on PyPI yet, so a checkout is the fallback its own SKILL.md prescribes:
-# "MUST fall back to `uvx --from <path-to-checkout> slopvac`".
-CHECKOUT = Path.home() / "personal" / "dev" / "slopvac" / "packages" / "slopvac-lint"
-
 # The profile and every override live in slopvac.toml, which is committed. Passing --profile
 # here would silently outrank it.
 CONFIG = REPO_ROOT / "slopvac.toml"
@@ -63,18 +63,18 @@ def tracked() -> list[str]:
 def linter() -> list[str] | None:
     """The argv prefix that runs slopvac, or None when it cannot be reached.
 
-    Published release first, so a machine with it installed does not build a checkout. A
-    checkout that is absent means no gate rather than a failure: the same policy the previous
-    gate had, since prose is checked at commit time and the tests assert the wrapper stays
-    quiet about it.
+    The published release only. A `uvx --from <checkout>` fallback was here while slopvac was
+    unpublished, and it is gone deliberately: a gate that silently builds one developer's working
+    copy checks whatever that copy happens to say, which is not a gate.
+
+    Absent means no gate rather than a failure, matching the policy the previous gate had. The
+    wrapper says so on stderr, and `just lint` still passes -- prose is enforced at commit time
+    and in CI, where the linter is installed.
     """
     if shutil.which("slopvac") is not None:
         return ["slopvac"]
     if shutil.which("uvx") is None:
         return None
-    if CHECKOUT.is_dir():
-        return ["uvx", "--from", str(CHECKOUT), "slopvac"]
-    # A published release, once there is one.
     probe = subprocess.run(
         ["uvx", "slopvac", "--version"], capture_output=True, text=True, check=False
     )
@@ -92,7 +92,7 @@ def main() -> int:
 
     command = linter()
     if command is None:
-        print(f"slopvac not reachable, and no checkout at {CHECKOUT}; skipping", file=sys.stderr)
+        print("slopvac is not installed; skipping the prose gate", file=sys.stderr)
         return 0
 
     files = lintable(args.paths or tracked())

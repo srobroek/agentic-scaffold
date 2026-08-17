@@ -25,12 +25,12 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WRAPPER = REPO_ROOT / "scripts" / "lint_prose.py"
 CONFIG = REPO_ROOT / "slopvac.toml"
-CHECKOUT = Path.home() / "personal" / "dev" / "slopvac" / "packages" / "slopvac-lint"
-
-# The linter is not part of this repository, so on a runner it is absent and the wrapper says so
-# and exits 0. A test asserting a finding would then fail for the wrapper working correctly.
-reachable = shutil.which("slopvac") is not None or CHECKOUT.is_dir()
-needs_linter = pytest.mark.skipif(not reachable, reason="slopvac not reachable")
+# The linter is not part of this repository, and is not on PyPI yet, so it is usually absent: the
+# wrapper says so and exits 0. A test asserting a finding would then fail for the wrapper working
+# correctly. There is no checkout fallback to fall back to -- see the wrapper's docstring.
+needs_linter = pytest.mark.skipif(
+    shutil.which("slopvac") is None, reason="slopvac is not installed"
+)
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
@@ -60,6 +60,25 @@ def test_the_wrapper_passes_no_profile_flag() -> None:
     argv_lines = [line for line in body.splitlines() if "command," in line or "*files" in line]
     assert argv_lines, "could not find where the wrapper builds its argv"
     assert not any("--profile" in line for line in argv_lines)
+
+
+def test_the_wrapper_has_no_checkout_fallback() -> None:
+    """It had one while slopvac was unpublished, and it is gone deliberately.
+
+    A gate that builds a developer's working copy checks whatever that copy happens to say, and
+    two machines then enforce different rules. Absent is honest: the wrapper reports it and exits
+    0, so the gate is off rather than arbitrary.
+    """
+    # Code, not prose: the docstrings say `--from` while explaining why it is gone.
+    body = WRAPPER.read_text()
+    code = [
+        line
+        for line in body.splitlines()
+        if not line.lstrip().startswith("#") and '"' not in line.split("#")[0][:8]
+    ]
+    returns = [line for line in code if "return [" in line]
+    assert returns, "could not find the argv the wrapper returns"
+    assert not any("--from" in line for line in returns)
 
 
 # --- the committed config --------------------------------------------------
