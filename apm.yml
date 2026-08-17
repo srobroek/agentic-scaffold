@@ -1,5 +1,5 @@
 name: project-scaffold
-version: 0.2.2
+version: 0.2.3
 description: >-
   Config-driven project scaffolding as composable copier layers. 36 layers
   covering git, CI, quality gates, release, docs, infrastructure, containers,
