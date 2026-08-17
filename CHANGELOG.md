@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/srobroek/agentic-scaffold/compare/srobroek-project-scaffold--v0.2.2...srobroek-project-scaffold--v0.2.3) (2026-08-17)
+
+
+### Bug Fixes
+
+* move the prose gate to slopvac, and widen the gitnr retry ([7db7c61](https://github.com/srobroek/agentic-scaffold/commit/7db7c61fabe4042ca5de75277a982ca7cb82674e))
+
 ## [0.2.2](https://github.com/srobroek/agentic-scaffold/compare/srobroek-project-scaffold--v0.2.1...srobroek-project-scaffold--v0.2.2) (2026-08-17)
 
 
