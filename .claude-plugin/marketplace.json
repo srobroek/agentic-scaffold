@@ -8,7 +8,7 @@
     {
       "name": "project-scaffold",
       "description": "Scaffold a new project from composable copier layers. Runs the six-question interview, derives the rest from rules/choices.md, picks a profile, runs its generator, renders the layer set in order, and reports every file written and every command that failed.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "tags": [
         "skill",
         "scaffolding",
@@ -20,7 +20,7 @@
     {
       "name": "project-scaffold-update",
       "description": "Change a repository that already exists: adopt a layer it does not have, re-render a layer whose template moved, or retrofit onto a repository that predates this tool. copier update does not work here, since a layer rendered from a local path records no _commit, so the method is re-render plus git diff.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "tags": [
         "skill",
         "scaffolding"
