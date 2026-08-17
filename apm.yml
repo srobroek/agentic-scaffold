@@ -12,9 +12,9 @@ type: hybrid
 # Where compiled skills and steering deploy. kiro is a target rather than a marketplace
 # output, because apm ships no kiro marketplace mapper.
 #
-# release-please rewrites this file to bump `version` and its YAML writer drops comments,
-# so these were lost once already at 0.2.0. test_the_kiro_rationale_survives_a_release
-# fails when that happens again.
+# release-please rewrites this file to bump `version` and its YAML writer drops comments, so
+# these were lost once already at 0.2.0. `just release-restore` puts them back, and
+# test_the_kiro_rationale_survives_a_release fails when neither happened.
 targets:
   - claude
   - codex

@@ -164,6 +164,14 @@ profiles-build:
     echo "every profile rendered and built"
 
 # Everything CI runs
+# Put back what release-please's YAML writer strips from apm.yml
+release-restore:
+    # Called by the release workflow's sync step, after the version bump and before the amend.
+    # release-please rewrites apm.yml to set `version` and drops every comment doing it, which
+    # silently removed the kiro rationale at 0.2.0 -- the one thing about this manifest a reader
+    # cannot infer from the keys. Idempotent: it does nothing when the note is already present.
+    {{ py }} scripts/restore_apm_comments.py
+
 # Regenerate the marketplace catalogs from apm.yml
 package-build:
     # Named to match the recipe the agentic/package layer ships, since the release workflow

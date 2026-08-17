@@ -497,6 +497,15 @@ It needs `release_app`, because the amending commit has to trigger the required 
 an App-token commit does. Pushing that commit with `GITHUB_TOKEN` would leave a pull request
 whose checks never ran.
 
+release-please rewrites `apm.yml` to set `version`, and its YAML writer drops every comment in
+the file. A repository whose manifest carries a rationale nobody can infer from the keys defines
+a `release-restore` recipe, which the sync step calls after the bump and before the amend. The
+call is guarded, so a repository with no comments to restore does not have to define one.
+
+Blocking the release on the missing comment was the first attempt, and it was wrong: the
+comments go missing on every release by construction, so the test blocked the very pull request
+that was supposed to carry the fix. Repairing beats refusing when the damage is predictable.
+
 `persist-credentials: false` on the checkout, with the credential passed in the remote URL
 instead. A token left in `.git/config` is what zizmor reports as `artipacked`, and it is
 avoidable here, so the layer avoids it rather than shipping a suppression file.

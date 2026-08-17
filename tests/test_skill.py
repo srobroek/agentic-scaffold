@@ -13,6 +13,8 @@ document marks fixed or derived, and points at every profile that exists.
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import yaml
@@ -189,11 +191,25 @@ def test_the_tag_pattern_matches_release_please() -> None:
     assert manifest["marketplace"]["build"]["tagPattern"] == "{name}--v{version}"
 
 
-def test_the_versions_agree() -> None:
-    root = yaml.safe_load((REPO_ROOT / "apm.yml").read_text())["version"]
-    package = yaml.safe_load((PACKAGE / "apm.yml").read_text())["version"]
+def test_every_version_matches_its_manifest_entry() -> None:
+    """Each version has to match what release-please tracks for that path, since the marketplace
+    resolves a tag from it.
+
+    Not equal to each other. The root sets `exclude-paths: [packages]`, so a change touching only
+    root files bumps the root alone: 0.2.1 against packages still at 0.2.0. The old assertion
+    required all three to be equal and blocked the second release PR, which is the first time the
+    versions legitimately diverged.
+    """
     tracked = json.loads((REPO_ROOT / ".release-please-manifest.json").read_text())
-    assert root == package == tracked["packages/project-scaffold"]
+
+    root = yaml.safe_load((REPO_ROOT / "apm.yml").read_text())["version"]
+    assert root == tracked["."]
+
+    for path, version in tracked.items():
+        if path == ".":
+            continue
+        manifest = yaml.safe_load((REPO_ROOT / path / "apm.yml").read_text())
+        assert manifest["version"] == version, f"{path} is {manifest['version']}, tracked {version}"
 
 
 def test_the_skill_points_at_the_documents_rather_than_restating_them() -> None:
@@ -307,8 +323,15 @@ def test_the_kiro_rationale_survives_a_release() -> None:
     thing about this manifest a reader cannot infer from the keys. Restoring it by hand after
     every release only works if something notices, so this is what notices.
     """
-    body = (REPO_ROOT / "apm.yml").read_text()
-    assert "kiro is a target rather than a marketplace" in body, (
-        "the kiro rationale is gone from apm.yml; release-please's YAML writer strips comments, "
-        "so restore it after the release"
+    result = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "restore_apm_comments.py"), "--check"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
+    assert result.returncode == 0, result.stderr
+
+    # The restore has to be reachable from the release workflow, or it never runs.
+    sync = (REPO_ROOT / ".github" / "workflows" / "release-please.yml").read_text()
+    assert "just release-restore" in sync
+    assert "\nrelease-restore:" in (REPO_ROOT / "justfile").read_text()
