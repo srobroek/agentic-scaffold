@@ -4,7 +4,7 @@ One file per shape, derived from a survey of 54 repositories. A profile names it
 set, its generator, the answers that are fixed or derived for the shape, and the commands
 that prove a rendered tree is a working project.
 
-`scripts/profiles.py --check` validates every file against `templates/`, so a layer
+`scripts/profiles.py --check` validates each file against `templates/`, so a layer
 renamed or removed breaks here rather than during a render.
 
 ## The shapes
@@ -36,7 +36,7 @@ module with a directory per member, so there is no workspace manifest to render.
 
 The order is not cosmetic. In a monorepo the generator runs AFTER `workspace/monorepo`,
 because `cargo init .` writes a `[package]` root, the layer then skips the manifest it
-finds, and no `[workspace]` section is ever written. A single repository keeps
+finds, and no `[workspace]` section is ever written. One repository keeps
 generator-first.
 
 ## Format

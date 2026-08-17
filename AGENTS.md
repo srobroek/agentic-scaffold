@@ -8,7 +8,7 @@ Layered copier templates plus an agent skill that scaffolds a repository.
 |---|---|
 | The model, and every fixed decision | `docs/architecture.md` |
 | What to derive instead of asking | `rules/choices.md` |
-| How the CI caller is written | `rules/ci-composition.md` |
+| Writing the CI caller | `rules/ci-composition.md` |
 | What `docs/agents/` holds in a rendered repo | `docs/steering.md` |
 | Working context for this repo | `docs/agents/index.md` |
 | Which layers exist, and their variables | `docs/INDEX.md` |

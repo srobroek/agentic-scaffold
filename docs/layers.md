@@ -29,8 +29,8 @@ GitHub keys are lowercase and do not always match the SPDX identifier:
 `AGPL-3.0-only` is `agpl-3.0` there, so the layer normalises `-only` and
 `-or-later` before the call. `gh api /licenses/<key>` also serves identifiers
 absent from the `/licenses` list, `EUPL-1.2` among them. Anything it refuses falls
-back to the SPDX licence list, and an identifier neither carries fails while
-listing what GitHub has. `none` writes no file.
+back to the SPDX licence list, and an identifier absent from both fails while
+listing what GitHub has. `none` does not write a file.
 
 The gitnr template list follows from which language layers rendered, plus
 `Global/{macOS,Windows,Linux}` on every render. The operating system writes
@@ -46,7 +46,7 @@ own their own subtrees.
 
 `base/repo` carries the only `precheck.py`. It requires `git`, `just`, and
 `gitnr`, notes `mise` and `prek` when absent, and refuses a destination with
-uncommitted changes, because copier overwrites and leaves no diff to review.
+uncommitted changes, because copier overwrites and does not leave a diff to review.
 
 `base/gitignore` always ignores what a tool in the repository writes, meaning the
 repomix pack and any generated skill directory.
@@ -147,9 +147,9 @@ workflows already take a `working-directory` input.
 
 Language-blind. Each language layer supplies its own jobs and setup action.
 
-The shared quality and security jobs split across both. The host layer carries
+The shared quality and security jobs split across both. The host layer runs
 actionlint, zizmor, cspell, lychee, taplo, yamllint, markdownlint, and the secret
-scan, which need no language knowledge.
+scan, none of which needs language knowledge.
 
 The rest cannot live here:
 
@@ -172,7 +172,7 @@ claim rather than a gap, which is what `lang/api` states: opengrep matches code 
 and a contract is data.
 
 `--sarif` writes to stdout and is redirected. `--sarif-output=FILE` is documented and
-silently writes nothing: verified against opengrep 1.26.0, where the flag produced no file
+silently writes nothing: verified against opengrep 1.26.0, where the flag did not produce a file
 while the same scan on stdout produced valid SARIF 2.1.0 carrying the finding. A workflow
 trusting the documented flag uploads an empty file and reports a clean scan.
 
@@ -199,7 +199,7 @@ extractor.
 `host/github` renders the governance files and ships `scripts/repo_govern.py` for the rest.
 Measured against a live repository rather than assumed: `gh api repos/<slug>` reports every
 merge and feature setting, a freshly created repository returned zero rulesets and
-`Branch not protected`, and GitHub reads no committed file for any of it. A layer renders a
+`Branch not protected`, and GitHub does not read a committed file for any of it. A layer renders a
 file, so the API surface is a script. `../rules/choices.md` carries the split.
 
 `gate` is the only required check, `just repo-govern` applies the settings, and
@@ -226,7 +226,7 @@ channel a GitLab project has without extra configuration.
 the clone line and `CODEOWNERS`. An empty `org` writes a commented-out rule rather
 than `*  @`, which GitHub reports as a parse error on every pull request.
 
-The pull-request template goes to `.github/PULL_REQUEST_TEMPLATE.md`. A single
+The pull-request template goes to `.github/PULL_REQUEST_TEMPLATE.md`. One
 template inside a `PULL_REQUEST_TEMPLATE/` directory applies only through a query
 parameter, so it silently never loads.
 
@@ -262,7 +262,7 @@ allowlist demands a scope while accepting any spelling of it.
 GitHub lists. mise hides a release younger than its `minimum_release_age`, and
 pinning the hidden one fails to install.
 
-In a monorepo the language layer owns each member's `.pre-commit-config.yaml`
+In a monorepo the language layer writes each member's `.pre-commit-config.yaml`
 and prek unions them, so hooks travel with the language. `quality/hooks` then
 carries the root config and the repository-wide hygiene hooks alone.
 
@@ -296,7 +296,7 @@ rejects it. The layer's tests parse it through
 ### moon alongside just, not instead of it
 
 moon is the second task runner, not a replacement. `just` is the entry point a person
-types and owns every repo-wide task with no member dimension. moon owns the member
+types and defines every repo-wide task with no member dimension. moon defines the member
 graph underneath: it is the only thing here that models a dependency between members.
 
 That distinction is what the layer buys, and it is not caching. Measured on a
@@ -382,7 +382,7 @@ dependency on a recipe no layer rendered is a parse error.
 
 `--git-dir` replaced a `core.hooksPath` override. prek declines to install while an
 ambient global hooksPath is set, which a machine-wide hook manager leaves behind, and it
-writes no shim while printing only a note: a fresh clone silently had no hooks. Verified
+does not write a shim while printing only a note: a fresh clone silently had no hooks. Verified
 on a machine with `git-defender`'s global path set, where the flag installed all six
 shims and a bad commit message was blocked.
 
@@ -391,7 +391,7 @@ gate CI does and cannot land what CI would reject. A project-defined command is
 approved once and re-prompts when edited, so that line changing is visible.
 
 Of the ten hooks worktrunk offers, the layer sets two. `pre-commit` is left to
-prek, which owns the git-level hooks already. `post-commit`, `post-merge`, and
+prek, which installs the git-level hooks already. `post-commit`, `post-merge`, and
 `pre-switch` describe work that belongs to CI or to the source worktree.
 `pre-remove` would fire on every `wt merge`, since the user config sets
 `remove = true`.
@@ -426,7 +426,7 @@ auto-merge workflow in `astro-up.github.io` consumes.
 
 Both tools render, rather than one or the other as bailiff offered. renovate disables
 its own `github-actions` manager, because dependabot's `fetch-metadata` action reports
-the semver level of a bump and renovate emits no equivalent. Enabling both would open
+the semver level of a bump and renovate does not emit an equivalent. Enabling both would open
 two pull requests per action version.
 
 `pep621` is the manager covering a uv `pyproject.toml`. There is no `uv` manager, and a
@@ -497,7 +497,7 @@ user downloads.
 goreleaser does not install syft, so the workflow does. Without that step the release fails at
 the cataloguing stage with the archives already built.
 
-A pairing check runs before the attestation and fails when `dist/` holds no SBOM, because an
+A pairing check runs before the attestation and fails when `dist/` does not hold an SBOM, because an
 `sboms` block that produced nothing is a silent downgrade to no SBOM at all and the release
 would otherwise succeed looking attested. Emptiness is tested with `${sboms[*]+x}` rather than
 a length: under `set -u` an empty array reads as unbound on the runner's bash, which aborted
@@ -554,7 +554,7 @@ testable before an extractor exists.
 `gen-api-refs.mjs` owns the page shape. An extractor owns one language and communicates only
 through the IR documented in that file's header. A symbol whose `doc` is empty fails the run,
 since a reference page with empty descriptions reads as complete while documenting nothing.
-Every missing doc is collected and reported at once, because fixing them one run at a time is
+Missing docs are collected and reported at once, because fixing them one run at a time is
 the slowest possible order.
 
 `check-api-refs-fresh.sh` checks two things:
@@ -618,7 +618,7 @@ packages by hand.
 - Marketplace outputs are **claude and codex only**. `apm targets` also lists kiro, and
   the layer deploys the skill there, but `marketplace.outputs` has no kiro mapper and
   rejects the key. Deploy target and marketplace output are different axes: `targets:`
-  names where a compiled skill lands, `outputs:` names which discovery catalog is built.
+  names where a compiled skill is installed, `outputs:` names which discovery catalog is built.
 - The codex output requires `category` on every package, so it is a mandatory question
   rather than a free-text one.
 - `apm pack` writes the repository-root catalogs, and none of the per-package
@@ -653,13 +653,13 @@ Registering a marketplace with a runtime is a separate matter. `apm marketplace 
 to `~/.claude/plugins/`, which is machine-global, so `agentic/marketplace` reports the
 command rather than any layer running it.
 
-`agentic/apm` writes the manifest but runs no install. `apm install` reaches the
+`agentic/apm` writes the manifest but does not run an install. `apm install` reaches the
 network and needs uvx, so it would fail a render that had otherwise succeeded;
 `just apm-install` performs it instead, against a pinned `apm_cli_version`.
 
 Marketplace registration is machine-global, not per-project: `apm marketplace add`
 writes to `~/.claude/plugins/`, so no template can seed it. `just apm-marketplaces`
-is a one-time step per machine. A dependency locator carries its own source inline,
+is a one-time step per machine. A dependency locator names its own source inline,
 so a package resolves whether or not its marketplace was registered.
 
 An empty `apm_packages` is valid. bailiff refused it with a validator, which made the
@@ -692,21 +692,21 @@ walk of the live tree.
 
 A separate metadata-only map was tried and dropped. It answered nothing the pack could
 not, and keeping one artefact removes repomix's `--no-files` trap: there is no `--files`,
-so a config carrying `files: false` cannot be overridden from the command line, and a
+so a config setting `files: false` cannot be overridden from the command line, and a
 recipe pointing at such a config produces a metadata-only pack while calling itself
 full.
 
 Guarding the read belongs to the `token-savings` package, which already denies a
 whole-file read of `repomix-full.xml` on both `Read` and `Bash`, so `cat pack` is
 caught too. It carries a `TOKEN_SAVINGS_ALLOW_PACK_READ=1` escape hatch. This
-layer ships no hook; `agentic/apm` names the package instead.
+layer does not ship a hook; `agentic/apm` names the package instead.
 
 The pack needs its own config file. repomix has `--no-files` but no `--files`, so
-the map's `files: false` cannot be overridden from the command line, and a single
-config would silently produce a metadata-only pack. Both configs carry the same
+the map's `files: false` cannot be overridden from the command line, and one
+config would silently produce a metadata-only pack. Both configs set the same
 `include` and `ignore`, or the pack would index what the map hides.
 
-Every index artefact is ignored, including repomix's own default output names.
+The index artefacts are ignored, repomix's own default output names among them.
 An unignored artefact is packed into the next one, which measured 38 percent of one
 repository's whole pack, and `graphify update` has no output flag so it writes into
 the tree regardless.
@@ -721,13 +721,13 @@ cross-runtime enforcement that the single-plugin marketplace does not carry.
 The repomix marketplace is not seeded either, because its MCP server earns
 nothing over the CLI. `mcp-repomix`'s own refresh hook shells out to
 `repomix --style xml --output <path> <root>`, and a pack costs 1.4s for 1,269
-files or 3.6s for 4,107. No snapshot is stored: `docs/agents/index.md` names the
+files or 3.6s for 4,107. repomix does not cache a pack: `docs/agents/index.md` names the
 tool and the invocation, scoped with `--include`.
 
 ### `agentic/speckit`
 
 That merge happened: `speckit`, `speckit-beads`, and `steering-speckit` are now one
-package at `srobroek/speckit-conductor`, so the layer names a single pinned locator.
+package at `srobroek/speckit-conductor`, so the layer names one pinned locator.
 
 The layer is thin, because the package's own `speckit-setup` skill does the scaffolding.
 Rendering a `.specify/` tree here would fork what `specify init` produces. It exists for
@@ -735,7 +735,7 @@ three things a skill installed under `apm_modules/` cannot do:
 
 - The setup script appends `specs/**/spec-status.md` to the root `.gitignore`, and
   `base/gitignore` rebuilds that file from `.gitignore.d/`, so the entry is dropped on the
-  next render. The layer carries it as a fragment instead, the same fix `agentic/beads`
+  next render. The layer ships it as a fragment instead, the same fix `agentic/beads`
   applies to bd's own appended block.
 - `apm.yml` belongs to `agentic/apm` and is skip-guarded, so the locator is added by an
   idempotent edit. The `[]` placeholder that layer writes for an empty list is replaced
@@ -806,7 +806,7 @@ and then vanish.
 bd installs two separate sets. Its git hooks are five 1.3KB shims running
 `bd hooks run <event>` for `pre-commit`, `post-merge`, `post-checkout`,
 `pre-push`, and `prepare-commit-msg`; `quality/hooks` reproduces those as local
-prek entries, since prek supports all five stages. What made `--skip-hooks`
+prek entries, since prek supports the five stages these use. What made `--skip-hooks`
 necessary was the ambient hook binaries copied in alongside them.
 
 What each event earns, from bd's own git-integration reference:
@@ -907,7 +907,7 @@ warns that the option will become required, and nothing else here uses yarn.
 
 ### One root module, not one per environment
 
-`infra/` is a single root module. An environment is a pair of files under
+`infra/` is one root module. An environment is a pair of files under
 `infra/envs/`, `<env>.tfbackend` and `<env>.tfvars`, rather than a directory of its
 own.
 
@@ -927,11 +927,11 @@ the `../` form fails under plan and test alike.
 `bootstrap` is the exception, a second root module keeping local state, because it
 creates the bucket the first one stores its state in.
 
-### What the tools require, measured
+### Tool requirements, measured
 
 | Constraint | Consequence if ignored |
 |---|---|
-| tflint reads no parent directory's config | every directory lints with the default rules, reporting findings `.tflint.hcl` disabled |
+| tflint does not read a parent directory's config | every directory lints with the default rules, reporting findings `.tflint.hcl` disabled |
 | tflint's failure threshold is error | a run exits 0 having printed real warnings |
 | `tflint --init` needs a GitHub token | 403 rate limit, then "Plugin not found" per directory |
 | `terraform_required_version` covers child modules | the lint gate fails on `modules/*` |
@@ -969,7 +969,7 @@ existing manifest rather than creating one.
 
 `workspace/monorepo` precedes `lang/*` so the manifest exists before members render.
 
-The generator's position depends on the shape. In a single repository it runs first,
+The generator's position depends on the shape. In one repository it runs first,
 against the repository root, and a language layer patches the manifest it wrote. In a
 monorepo it cannot: `cargo init .` writes a `[package]` root, `workspace/monorepo`
 then skips the file it finds, and no `[workspace]` section is ever written, so the
@@ -978,7 +978,7 @@ repository silently is not a workspace. Verified by rendering in that order.
 A monorepo therefore renders the root manifest first and runs the generator per member,
 which is what `just add` does. Members resolve through the manifest's glob, so a
 directory created under it is a member with no edit to the root: confirmed against
-cargo, uv, and bun, and go needs no registration because a member is a directory in
+cargo, uv, and bun, and go does not need a registration because a member is a directory in
 one module.
 
 `agentic/beads` follows `docs/*` because bd appends to an existing `AGENTS.md` and
@@ -1017,10 +1017,10 @@ answers fixed or derived for it, and the commands that prove a rendered tree bui
 `profiles/README.md` carries the format and the survey counts.
 
 Thirteen shapes, matching the generator table in `../docs/architecture.md`.
-`scripts/profiles.py` validates every one against `templates/`, and `just profiles-build`
+`scripts/profiles.py` validates each against `templates/`, and `just profiles-build`
 renders each into a temporary directory and runs its own build.
 
-That check earns its cost. A tree that renders is not a project that builds, and it caught
+That check is worth its runtime. A tree that renders is not a project that builds, and it caught
 two ordering bugs no unit test did:
 
 - `lang/api` declared `after: host/github` while `host/github` declares `after: lang/*`,
@@ -1087,7 +1087,7 @@ result.
 
 Most tests render a layer and run the real tool against the result, which is what catches
 the defects a template read cannot. That makes the suite wait on toolchains rather than on
-CPU, and every test renders into its own `tmp_path` sharing no state, so it parallelises
+CPU, and each test renders into its own `tmp_path` without shared state, so it parallelises
 cleanly.
 
 | Command | Measured on 14 cores |
@@ -1137,7 +1137,7 @@ rewritten, because they carry recorded false-positive fixes: the bare
 `users.noreply.github.com` domain was removed after an ordinary human co-author trailer was
 reported as AI attribution.
 
-The rest stayed behind, and the fragment records why beside the three that moved.
+The rest are unchanged, and the fragment records why beside the three that moved.
 `hooks-quality` fires on an edit, which git never sees. `reset --hard`, `clean -fd`, and
 `checkout --` are pre-execution guards: by the time a git hook runs, the work is already gone.
 Only the force-push guard has an event, and `pre-push` is it.
@@ -1148,11 +1148,11 @@ of the local one.
 
 ### Hook fragments
 
-In a monorepo each package carries a real `.pre-commit-config.yaml`, and prek's
+In a monorepo each package gets a real `.pre-commit-config.yaml`, and prek's
 workspace mode unions them with hooks namespaced `<dir>:<hook-id>`. Nothing
 merges.
 
-In a single directory two language layers cannot both own the root config, so
+In one directory two language layers cannot both write the root config, so
 `just hooks-merge` concatenates `.pre-commit.d/*.yaml`. prek skips dot-prefixed
 directories during discovery, so the fragment directory is invisible to it until
 that recipe runs.
@@ -1166,7 +1166,7 @@ Two, both through `_external_data`, which resolves against the destination:
 | `lang/rust` | `base/license` | the SPDX identifier for `Cargo.toml`, without which `cargo-deny` fails against the crate itself |
 | `docs/deploy-*` | `docs/site` | the engine and the site URL |
 
-Every other shared value is threaded by the agent, which writes one answers file
+The other shared values are threaded by the agent, which writes one answers file
 per layer.
 
 ## Dropped
@@ -1177,7 +1177,7 @@ per layer.
 | `agentic/agentic` | per-harness configuration comes from a marketplace |
 | `agentic/agent-hooks` | same |
 | `docs/mkdocs` | starlight and fumadocs cover it |
-| `docs/starlight` | replaced by `docs/site`, which needs no TypeScript project |
+| `docs/starlight` | replaced by `docs/site`, which does not need a TypeScript project |
 | `iac/cloudformation` | absent from every repository surveyed |
 | `repo/gitlab-repo` | folded into `host/gitlab` |
 | `repo/package-add` | replaced by `just add`, owned by `workspace/monorepo` |

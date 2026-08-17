@@ -32,7 +32,7 @@ Rules:
 `quality` carries a `commits` job that reads the whole pull request range. A
 commit-message hook runs at `commit-msg`, which `--no-verify` defeats, and it sees only the
 message being written; neither property survives a pull request, where a bypassed commit
-stays bypassed and a branch carries several messages. It needs `fetch-depth: 0`, since the
+stays bypassed and a branch holds several messages. It needs `fetch-depth: 0`, since the
 range resolves from the merge base, and runs only on `pull_request`, because nothing else
 defines a range.
 
@@ -40,7 +40,7 @@ That job also refuses a hand-made version tag in the range. release-please deriv
 version from tags, so a tag pushed by hand makes it compute the wrong one, and a tag is
 pushed rather than committed, so no hook ever sees it.
 
-`quality` and `security` need no path filter. Both already skip their
+`quality` and `security` do not need a path filter. Both already skip their
 language-dependent jobs when no fragment supplies one, and their language-blind
 jobs (the secret scan, the workflow audit, the prose and YAML checks) apply to any
 change.
@@ -56,7 +56,7 @@ required check that never runs leaves the pull request unmergeable.
 
 ## GitLab
 
-Write no caller. `.gitlab-ci.yml` from the `host/gitlab` layer ends with:
+Do not write a caller. `.gitlab-ci.yml` from the `host/gitlab` layer ends with:
 
 ```yaml
 include:

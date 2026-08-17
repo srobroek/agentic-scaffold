@@ -11,7 +11,7 @@ How this repository scaffolds projects, and which decisions are fixed.
 
 A project is a **profile** plus **layers**.
 
-Each layer is one copier template directory holding files for a single tool or
+Each layer is one copier template directory holding files for one tool or
 concern, and a profile names the layer set plus the destination for each. Layers
 render in sequence into one destination; each writes only its own files.
 
@@ -80,8 +80,8 @@ below is an enum `create-better-t-stack schema --name <axis>` emits:
 
 `api` is `orpc` rather than `trpc`, and the deciding evidence is not weight. Both scaffold
 the same `apps/{web,server}` shape and land within one dependency of each other, 45 against
-44. orpc ships `@orpc/openapi` and its generated server carries an `OpenAPIHandler` and an
-`OpenAPIReferencePlugin`, so the contract exists as a document. trpc emits no OpenAPI at
+44. orpc ships `@orpc/openapi` and its generated server registers an `OpenAPIHandler` and an
+`OpenAPIReferencePlugin`, so the contract exists as a document. trpc does not emit an OpenAPI at
 all. `lang/api` gates that document with vacuum and oasdiff, so orpc is what makes the
 contract layer mean anything for a `ts-app`.
 
@@ -136,7 +136,7 @@ has a native mechanism instead of a merge script.
 | projen's `.gitignore` | `project.gitignore.addPatterns()` |
 
 prek has no include directive and skips dot-prefixed directories during
-discovery, so a `.pre-commit.d/` fragment directory does not work. A single
+discovery, so a `.pre-commit.d/` fragment directory does not work. One
 directory with two language layers concatenates fragments in a `just` recipe.
 
 `just` has no glob import either, so one line per fragment has to be written, which
@@ -167,7 +167,7 @@ Inclusion follows from which layers render, not from a conditional in a
 filename. A conditional filename containing a quote breaks jinja compilation.
 
 GitHub needs a caller workflow wiring `needs:` between the reusable workflows;
-the agent writes it from `rules/ci-composition.md`. GitLab needs no caller,
+the agent writes it from `rules/ci-composition.md`. GitLab does not need a caller,
 because the glob include resolves the same set.
 
 Both hosts are supported. `*` in a GitLab include matches one level; `**`
@@ -211,7 +211,7 @@ Deploy topology depends on whether the build needs the code:
 The second topology exists because API reference extraction needs the
 language toolchains, which live with the code. It costs a deploy key, and its
 content replacement must preserve `.git` and `.github`: removing the sibling
-repo's workflow leaves no workflow to trigger on the next push.
+repo's workflow does not leave a workflow to trigger on the next push.
 
 Both need `.nojekyll`, an explicit `site:` in the Astro config for sitemap
 generation, and `concurrency: group: docs-${{ github.ref }}` scoped per ref.
@@ -282,17 +282,17 @@ whatever is there.
 A repository names one structural tool in `docs/agents/index.md`, either repomix
 or gitnexus, with the invocation scoped by `--include` for that profile.
 
-No snapshot is stored. A pack costs 1.4s for 1,269 files and 3.6s for 4,107, and
+repomix does not cache a pack. One costs 1.4s for 1,269 files and 3.6s for 4,107, and
 every stored form needs a fetch step the reader has to know about, which a fresh
 clone does not.
 
-Prose is the weakest of the surfaces that keep the tool in use:
+Prose is the weakest of the mechanisms that keep the tool in use:
 
 | Surface | Cost | Survives compaction |
 |---|---|---|
 | `docs/agents/index.md` naming the tool | none | no |
 | `just pack-check` comparing HEAD against the pack's marker | about 80ms | n/a |
-| `PreToolUse` on `Grep\|Glob` surfacing a reminder | none | yes |
+| `PreToolUse` on `Grep\|Glob` printing a reminder | none | yes |
 
 `just pack` writes the HEAD it packed to `repomix-full.xml.sha`, and `just pack-check`
 reports how many commits the pack is behind. The marker holds a commit, since a checkout or
@@ -329,7 +329,7 @@ The split follows from what each can see. A check that reads committed state run
 in CI. A check that rewrites, or that needs the index, stays a hook.
 
 prek installs into `.git/hooks` once `core.hooksPath` is set repo-locally, and
-its `pre-push` shim fires from there even where another tool owns the global
+its `pre-push` shim fires from there even where another tool sets the global
 hooks path.
 
 `prek install` writes one shim per entry in `default_install_hook_types`, so that
@@ -361,7 +361,7 @@ a test docstring when a test pins it, a comment beside the code that works aroun
 it, or the decision record that measured it. Prose collected separately drifts from
 whatever enforces it, and nothing fails when it does.
 
-`AGENTS.md` is an index. Detail lives in `docs/agents`, reached through
+`AGENTS.md` is an index. Detail sits in `docs/agents`, reached through
 `.apm/context` pointers that `apm compile` weaves in. Directory structure is
 not documented here: gitnexus and repomix answer structural questions, and
 `index.md` names which of them this repository has.
@@ -389,7 +389,7 @@ leaves a required check pending forever.
 | Rejected | Reason |
 |---|---|
 | structkit | hooks are never rendered; documented behavior absent in three of three features tested |
-| better-t-stack as a forked library | `template-processor.ts` performs no layered merge; the processors encode turbo-versus-nx knowledge |
+| better-t-stack as a forked library | `template-processor.ts` does not perform a layered merge; the processors encode turbo-versus-nx knowledge |
 | projen for python or typescript | generates `requirements.txt`; no `pyproject.toml` |
 | ultracite | 366 pinned rules, fixed formatter profile, single maintainer |
 | oxfmt | output identical to biome's; second formatter conflicts on import grouping |

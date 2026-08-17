@@ -1,10 +1,10 @@
 # Environment
 
 <!-- BEGIN GENERATED: env -->
-No variable is required to render a layer or run the scripts.
+Rendering a layer and running the scripts do not read the environment.
 <!-- END GENERATED: env -->
 
-## Needed by what a rendered project does
+## Read by a rendered project
 
 Names only. A value never enters this file.
 

@@ -95,7 +95,7 @@ visibility back to the user and wait for confirmation before running it.
 The configuration surface that is neither a template file nor a CI job. Measured against
 a live repository rather than assumed: `gh api repos/<owner>/<repo>` reports every merge
 and feature setting, `/rulesets` and `/branches/<branch>/protection` report the rest, and
-GitHub reads no committed file for any of them. A freshly created repository returned zero
+GitHub does not read a committed file for any of them. A freshly created repository returned zero
 rulesets and `Branch not protected`.
 
 So the split is not a judgement call:
@@ -107,7 +107,7 @@ So the split is not a judgement call:
 | organisation versus personal owner, and visibility | asked, questions 5 and 6 |
 | environment secrets | never automated: a secret in a script is a secret in a shell history |
 
-`host/github` owns the files and ships the script. A layer renders a file, and GitHub reads
+`host/github` renders the files and ships the script. A layer renders a file, and GitHub reads
 no file for any of these settings, so the API surface is a script.
 
 Fixed settings, applied by the script:

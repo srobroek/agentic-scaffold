@@ -4,7 +4,7 @@ Rules a linter does not catch.
 
 ## Layers
 
-A layer owns its files and nothing else, so no path is written by more than one layer.
+A layer writes its own files and nothing else, so no path is written by more than one layer.
 
 A layer that contributes to a shared configuration file writes a fragment and
 lets a native mechanism combine them. `docs/architecture.md` lists the mechanism
