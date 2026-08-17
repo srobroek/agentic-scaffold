@@ -109,6 +109,14 @@ fix:
 test:
     {{ py }} pytest -q -n auto
 
+# Run the tests with CI=true, which is what a runner sets
+test-ci:
+    # Several tools branch on this variable, so a suite that only ever runs without it tests a
+    # configuration no runner uses. projen picks `npm ci` over `npm install` when CI is truthy,
+    # which errored five CDK tests in GitHub Actions while they passed locally. This recipe
+    # reproduces that in one command instead of a push.
+    CI=true {{ py }} pytest -q -n auto
+
 # Run the tests serially, for a readable failure or a debugger
 test-serial:
     {{ py }} pytest -q

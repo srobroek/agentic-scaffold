@@ -105,7 +105,24 @@ def _synth_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     assert run(cdk, "npm", "init", "-y").returncode == 0
     install = run(cdk, "npm", "install", "--no-audit", "--no-fund", PROJEN, TSX)
     assert install.returncode == 0, install.stderr[-2000:]
-    synth = run(cdk, "npx", "tsx", ".projenrc.ts")
+    # CI unset for the synth, deliberately. projen branches on `process.env.CI`
+    # (node-package.js:588): truthy picks its `install:ci` task, which runs `npm ci`. The synth
+    # is the step that ADDS the CDK dependencies to package.json, so at that moment the lockfile
+    # predates them and `npm ci` refuses with EUSAGE `Missing: aws-cdk@... from lock file`. An
+    # `npm install` is the correct command for a tree whose manifest just changed.
+    #
+    # This is why five CDK tests errored only in CI. Reproduced locally with `CI=true pytest`.
+    env = node_env()
+    env.pop("CI", None)
+    synth = subprocess.run(
+        ("npx", "tsx", ".projenrc.ts"),
+        cwd=cdk,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+        timeout=900,
+    )
     # The HEAD of each stream, not the tail. npm prints its own usage when it rejects an
     # argument, and that usage is long enough that a tail-truncated message shows only the
     # flag list and hides the one line naming the cause. Two CI cycles were spent guessing
