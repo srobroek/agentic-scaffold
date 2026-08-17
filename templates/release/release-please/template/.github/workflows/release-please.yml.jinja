@@ -37,8 +37,29 @@ jobs:
       #
       # `vars` for the client id and `secrets` for the key: the id is not sensitive, and keeping
       # it visible makes a wrong-app failure readable.
+      # Whether both credentials are present, as a step output. `secrets` is not available in a
+      # step-level `if`, which actionlint reports, so the check reaches the condition below
+      # through env instead.
+      - name: Check for the release app credentials
+        id: creds
+        env:
+          CLIENT_ID: ${{ '{{' }} vars.RELEASE_APP_CLIENT_ID }}
+          PRIVATE_KEY: ${{ '{{' }} secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          if [ -n "$CLIENT_ID" ] && [ -n "$PRIVATE_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::no release app credentials; the release pull request will carry no checks"
+          fi
+
+      # Skipped when either credential is absent or empty, so the release still happens with
+      # GITHUB_TOKEN rather than failing outright. Verified: an empty secret makes the action
+      # exit with `The 'private-key' input must be set to a non-empty string`, which took down
+      # the whole workflow before this guard existed.
       - name: Mint the release app token
         id: app-token
+        if: steps.creds.outputs.present == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ '{{' }} vars.RELEASE_APP_CLIENT_ID }}
@@ -55,7 +76,9 @@ jobs:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
 {%- if release_app %}
-          token: ${{ '{{' }} steps.app-token.outputs.token }}
+          # Falls back when the mint step was skipped. An empty `steps.*.outputs.*` is what a
+          # skipped step yields, so `||` picks GITHUB_TOKEN and the release still runs.
+          token: ${{ '{{' }} steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 {%- else %}
           # GITHUB_TOKEN, so the release pull request will carry no checks. A required check
           # then blocks it, and merging needs an admin override. Set `release_app` and provide

@@ -326,10 +326,21 @@ def test_the_app_token_makes_the_release_pr_trigger_ci(tmp_path: Path) -> None:
     # The mint has to precede the action, and the action has to actually use the token.
     action = next(s for s in steps if "release-please-action" in str(s.get("uses", "")))
     assert steps.index(mint) < steps.index(action)
-    assert action["with"]["token"] == "${{ steps.app-token.outputs.token }}"
 
     # Scoped, not blanket. An App token defaults to every permission its installation holds,
     # which zizmor reports as `github-app` at HIGH. CI caught this and a local run did not: the
     # audit needs a GitHub token, and without one zizmor quietly drops it.
     assert mint["with"]["permission-contents"] == "write"
     assert mint["with"]["permission-pull-requests"] == "write"
+
+    # Degrades rather than failing. An empty secret makes the action exit with `The
+    # 'private-key' input must be set to a non-empty string`, which took the whole release down:
+    # a 1Password session had timed out mid-pipe, so `gh secret set` stored nothing and every
+    # later run died at the mint step.
+    assert mint["if"] == "steps.creds.outputs.present == 'true'"
+    # `secrets` is unavailable in a step-level `if`, which actionlint reports, so the check
+    # reaches the condition through env and a step output.
+    creds = next(s for s in steps if s.get("id") == "creds")
+    assert "PRIVATE_KEY" in creds["env"]
+    assert "::warning::" in creds["run"], "a silent downgrade is what this replaced"
+    assert action["with"]["token"].endswith("|| secrets.GITHUB_TOKEN }}")
