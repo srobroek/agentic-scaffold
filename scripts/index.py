@@ -10,6 +10,7 @@ naming the command that fixes it.
 from __future__ import annotations
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -28,9 +29,14 @@ Design lives in `layers.md`; this file is the inventory.
 """
 
 
-def layers() -> list[tuple[str, Path]]:
+def layers(files: set[Path]) -> list[tuple[str, Path]]:
+    """Every layer git tracks a copier.yml for. See `tracked` for why git rather than the
+    filesystem: an uncommitted layer in one working tree would otherwise land in the index and
+    read as stale everywhere else."""
     found = []
-    for config in sorted(TEMPLATES.rglob("copier.yml")):
+    for config in sorted(files):
+        if config.name != "copier.yml" or config.parent.parent.parent != TEMPLATES:
+            continue
         found.append((str(config.parent.relative_to(TEMPLATES)), config.parent))
     return found
 
@@ -50,30 +56,50 @@ def questions(config: dict) -> list[tuple[str, str, str]]:
     return rows
 
 
-def rendered_paths(path: Path) -> list[str]:
+def tracked() -> set[Path]:
+    """Every file git tracks, as absolute paths.
+
+    The index is derived from what the repository contains, not from what happens to sit in a
+    working tree. Walking the filesystem put two `__pycache__/*.pyc` paths from a local
+    bytecode cache into the committed index, which then read as stale on every CI run: the
+    runner has no such files. `.gitignore` already covers them, so git is the authority.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "ls-files", "-z", "--", "templates"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return {REPO_ROOT / entry for entry in result.stdout.split("\0") if entry}
+
+
+def rendered_paths(path: Path, files: set[Path]) -> list[str]:
     subdir = path / "template"
     if not subdir.is_dir():
         return []
     out = []
-    for item in sorted(subdir.rglob("*")):
-        if item.is_file():
-            rel = str(item.relative_to(subdir))
-            if rel.startswith("{{ _copier_conf.answers_file }}"):
-                continue
-            out.append(rel.removesuffix(".jinja"))
+    for item in sorted(files):
+        if subdir not in item.parents:
+            continue
+        rel = str(item.relative_to(subdir))
+        if rel.startswith("{{ _copier_conf.answers_file }}"):
+            continue
+        out.append(rel.removesuffix(".jinja"))
     return out
 
 
 def build() -> str:
     parts = [HEADER]
-    found = layers()
+    files = tracked()
+    found = layers(files)
 
     parts.append("\n## Layers\n")
     parts.append("| Layer | Questions | Files |")
     parts.append("|---|---|---|")
     for name, path in found:
         config = yaml.safe_load((path / "copier.yml").read_text()) or {}
-        parts.append(f"| `{name}` | {len(questions(config))} | {len(rendered_paths(path))} |")
+        written = len(rendered_paths(path, files))
+        parts.append(f"| `{name}` | {len(questions(config))} | {written} |")
 
     for name, path in found:
         config = yaml.safe_load((path / "copier.yml").read_text()) or {}
@@ -95,7 +121,7 @@ def build() -> str:
                 parts.append(f"| `{key}` | {kind} | {default} |")
             parts.append("")
 
-        paths = rendered_paths(path)
+        paths = rendered_paths(path, files)
         if paths:
             parts.append("Writes:\n")
             parts.append("```")
@@ -122,7 +148,7 @@ def main() -> int:
 
     INDEX.parent.mkdir(parents=True, exist_ok=True)
     INDEX.write_text(content)
-    print(f"wrote {INDEX.relative_to(REPO_ROOT)} ({len(layers())} layers)")
+    print(f"wrote {INDEX.relative_to(REPO_ROOT)} ({len(layers(tracked()))} layers)")
     return 0
 
 

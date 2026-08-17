@@ -36,7 +36,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `lang/python` | 3 | 12 |
 | `lang/rust` | 3 | 14 |
 | `lang/ts` | 2 | 13 |
-| `quality/hooks` | 3 | 14 |
+| `quality/hooks` | 3 | 12 |
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
 | `release/goreleaser` | 7 | 6 |
@@ -705,8 +705,6 @@ Writes:
 .pre-commit.d/beads.yaml
 .pre-commit.d/git-actions.yaml
 .pre-commit.d/hygiene.yaml
-scripts/__pycache__/attribution_patterns.cpython-314.pyc
-scripts/__pycache__/close_keywords.cpython-314.pyc
 scripts/attribution_guard.py
 scripts/attribution_patterns.py
 scripts/close_keywords.py
