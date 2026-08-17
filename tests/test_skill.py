@@ -285,6 +285,10 @@ def test_the_catalogs_are_gated_against_drift() -> None:
     """
     justfile = (REPO_ROOT / "justfile").read_text()
     assert "\npackages:" in justfile, "no recipe checks the committed catalogs"
+    # The release workflow's sync step calls `package-build` by that name, matching what the
+    # agentic/package layer ships. Without it the sync fails with `justfile does not contain
+    # recipe`, which is how this repository broke its own release run.
+    assert "\npackage-build:" in justfile
     assert "--check-clean --dry-run" in justfile
     assert "--check-versions --dry-run" in justfile
 

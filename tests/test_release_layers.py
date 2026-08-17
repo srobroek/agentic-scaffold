@@ -377,6 +377,10 @@ def test_the_sync_step_amends_the_catalogs_onto_the_release_branch(tmp_path: Pat
     assert branch.rstrip().endswith("|| '' }}")
 
     assert "just package-build" in sync["run"]
+    # Checked rather than assumed. just reports `justfile does not contain recipe` and exits 1,
+    # which reads as a broken workflow rather than a layer that never rendered -- this repository
+    # hit exactly that, because its own justfile named the check `packages` and shipped no build.
+    assert "does not contain recipe" in sync["run"] or "no package-build recipe" in sync["run"]
     # Nothing to amend is a normal outcome, not a failure.
     assert "git diff --quiet" in sync["run"]
 

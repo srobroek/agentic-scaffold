@@ -164,6 +164,13 @@ profiles-build:
     echo "every profile rendered and built"
 
 # Everything CI runs
+# Regenerate the marketplace catalogs from apm.yml
+package-build:
+    # Named to match the recipe the agentic/package layer ships, since the release workflow
+    # calls it by that name. This repository publishes its own packages, so it needs both the
+    # build and the check that `packages` runs.
+    apm pack --offline
+
 # Fail when the committed marketplace catalogs no longer match apm.yml
 packages:
     # The catalogs are committed generated artefacts, so a package added to apm.yml without a

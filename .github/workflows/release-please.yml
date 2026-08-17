@@ -133,6 +133,13 @@ jobs:
           git fetch "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" "$RELEASE_BRANCH"
           git checkout FETCH_HEAD
 
+          # `package-build` is the recipe agentic/package ships. Checked rather than assumed:
+          # just reports `justfile does not contain recipe` and exits 1, which reads as a broken
+          # workflow rather than a layer that never rendered. This repository hit exactly that.
+          if ! just --list 2>/dev/null | grep -q 'package-build'; then
+            echo "::error::no package-build recipe; sync_generated needs the agentic/package layer"
+            exit 1
+          fi
           just package-build
 
           if git diff --quiet; then
