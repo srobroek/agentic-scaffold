@@ -912,3 +912,20 @@ def test_governance_lets_actions_open_a_release_pull_request(rendered: Path) -> 
 
     # PUT, not PATCH: the endpoint replaces the whole object.
     assert '"--method", "PUT", f"repos/{repo}/actions/permissions/workflow"' in script
+
+
+def test_gitlab_ships_no_governance_script(gitlab: Path) -> None:
+    """The asymmetry with host/github, asserted so the documented claim cannot go stale.
+
+    Everything file-based is there. What is absent is the API half: protected branches, approval
+    rules, push rules, and merge trains, several of which GitLab gates by instance version and
+    tier. A script written against one instance would silently do less on another.
+
+    If a GitLab governance script is ever added, this test fails and docs/layers.md has to change
+    with it -- which is the point.
+    """
+    scripts = sorted(p.name for p in (gitlab / "scripts").glob("*.py"))
+    assert scripts == ["gen_gitlab_stages.py"], f"unexpected scripts: {scripts}"
+
+    layers_doc = (REPO_ROOT / "docs" / "layers.md").read_text()
+    assert "it does not ship a governance script" in layers_doc

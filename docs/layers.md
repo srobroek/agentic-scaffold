@@ -210,6 +210,13 @@ history.
 `host/gitlab` was written rather than ported: bailiff had no GitLab CI package, only
 `repo/gitlab-repo`, so its four language fragments had no pipeline to be included by.
 
+Unlike `host/github`, it does not ship a governance script. The file-based half is there:
+CODEOWNERS, the issue and merge request templates, and the three governance documents. The rest
+is applied through the API, meaning protected branches, approval rules, push rules, and merge
+trains, and GitLab gates several of those by instance version and tier. A script written against
+one instance would silently do less on another, so the layer renders the files and leaves those
+settings to be applied by hand. `psc-hfx` holds the decision.
+
 The `stages:` list is generated from what the `.gitlab/ci/*.yml` fragments declare.
 GitLab fails the whole pipeline when a job names a stage the list omits rather than
 skipping that job, and the include is a glob, so a language layer adopted later
