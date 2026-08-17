@@ -18,6 +18,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MISE = REPO_ROOT / "mise.toml"
@@ -96,3 +97,41 @@ def test_the_config_linters_resolve_through_mise() -> None:
             f"{tool} resolves to {result.stdout.strip()}, outside mise, so the pin in "
             "mise.toml is not what lint-config runs"
         )
+
+
+@needs_mise
+def test_every_runtime_a_layer_requires_is_pinned() -> None:
+    """A layer declaring `requires_bin` refuses to render without it, so an absent runtime
+    fails a test rather than skipping it.
+
+    15 tests failed in CI on `lang/ts needs bun on PATH` and `agentic/beads needs bd on PATH`
+    while passing locally, where both happened to be installed outside mise.
+    """
+    required = set()
+    for config in sorted(REPO_ROOT.glob("templates/*/*/copier.yml")):
+        config_data = yaml.safe_load(config.read_text()) or {}
+        meta = config_data.get("_scaffold") or {}
+        for binary in meta.get("requires_bin") or []:
+            required.add(binary)
+
+    # Supplied by the ubuntu-latest runner image rather than by mise, confirmed by CI: the run
+    # that failed 15 tests on absent bun and bd reported nothing about these.
+    from_elsewhere = {"git", "python3", "gh", "cargo"}
+
+    # mise.toml is what a fresh runner installs from. `mise which` is not the test: it resolves
+    # from whatever is already in the install cache, so it answers for this machine and passes
+    # even when the tool was never pinned. That is the exact failure being guarded against.
+    #
+    # A backend prefix names its own binary: `aqua:gastownhall/beads` provides `bd`.
+    provided = set()
+    for name in pins():
+        provided.add(name)
+        provided.add(name.rsplit("/", 1)[-1])
+        provided.add(name.split(":", 1)[-1])
+    provided |= {"bd"} if "aqua:gastownhall/beads" in pins() else set()
+
+    missing = sorted(required - from_elsewhere - provided)
+    assert not missing, (
+        f"layers require {missing} and mise.toml pins none of them, so every test that renders "
+        "such a layer fails instead of skipping"
+    )

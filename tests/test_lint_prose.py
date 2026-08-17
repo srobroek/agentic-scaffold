@@ -37,7 +37,16 @@ def test_generated_files_are_not_linted() -> None:
     assert "INDEX.md" not in result.stdout
 
 
+@pytest.mark.skipif(not GATE.is_file(), reason="prose gate not installed")
 def test_wrapper_runs_clean_and_prints_nothing_on_stderr() -> None:
+    """Clean means clean: a warning on stderr from a passing run is noise that trains people to
+    ignore the gate.
+
+    Gated on the gate being installed, like the test below. The skill lives under
+    ~/.claude/skills and is not part of this repository, so on a runner the wrapper prints
+    `prose gate absent at ..., skipping` -- which is the wrapper working, not a defect. CI
+    failed here on exactly that message.
+    """
     result = run()
     assert result.returncode == 0, result.stdout + result.stderr
     assert result.stderr.strip() == "", f"unexpected stderr: {result.stderr}"

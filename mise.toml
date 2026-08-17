@@ -33,3 +33,13 @@ hadolint = "2.14.0"
 trivy = "latest"
 "npm:@moonrepo/cli" = "2.4.6"
 "ubi:oasdiff/oasdiff" = "1.26.1"
+
+# Language runtimes the tests need to render a layer at all, not just to exercise it. A layer
+# declaring `requires_bin` refuses to render without it, so an absent runtime fails the test
+# rather than skipping it: 15 tests failed in CI on `lang/ts needs bun on PATH` and
+# `agentic/beads needs bd on PATH` while passing locally, where all four happened to be
+# installed. Pinned to what the assertions were written against.
+bun = "1.3.13"
+node = "24.13.0"
+go = "1.26.2"
+"aqua:gastownhall/beads" = "1.1.2"

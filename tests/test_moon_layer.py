@@ -47,9 +47,22 @@ def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[
 
 
 def git_repo(path: Path) -> None:
-    subprocess.run(["git", "init", "-q", str(path)], check=True)
+    """A repo with a commit on the branch moon's `vcs.defaultBranch` names.
+
+    `-b main` and the empty base commit both matter. moon resolves a merge base against that
+    branch to decide what changed, and a fresh repo with no commit has none: it warns `Unable to
+    resolve a merge base between the base and head revisions` and the run fails. Locally the
+    warning never appeared because `init.defaultBranch` is already `main` here, so three tests
+    passed on this machine and failed in CI.
+    """
+    subprocess.run(["git", "init", "-q", "-b", "main", str(path)], check=True)
     for key, value in (("user.email", "t@e.com"), ("user.name", "T")):
         subprocess.run(["git", "-C", str(path), "config", key, value], check=True)
+    subprocess.run(
+        ["git", "-C", str(path), "commit", "-q", "--allow-empty", "-m", "base"],
+        check=True,
+        capture_output=True,
+    )
 
 
 def commit(path: Path) -> None:
