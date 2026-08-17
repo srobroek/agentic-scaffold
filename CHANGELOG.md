@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/srobroek/agentic-scaffold/compare/srobroek-project-scaffold--v0.2.1...srobroek-project-scaffold--v0.2.2) (2026-08-17)
+
+
+### Documentation
+
+* **gitlab:** record that the layer ships no governance script ([932a0ed](https://github.com/srobroek/agentic-scaffold/commit/932a0edfffa34fa71458c7e0c6d4bebf35e615de))
+
 ## [0.2.1](https://github.com/srobroek/agentic-scaffold/compare/srobroek-project-scaffold--v0.2.0...srobroek-project-scaffold--v0.2.1) (2026-08-17)
 
 
