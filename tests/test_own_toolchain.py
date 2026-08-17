@@ -220,3 +220,40 @@ def test_every_binary_a_recipe_invokes_is_pinned() -> None:
         f"these recipes invoke {missing}, which mise.toml does not pin, so they exit 127 on a "
         "runner while passing locally"
     )
+
+
+def test_every_template_compiles_as_jinja() -> None:
+    """A template that fails to compile is invisible until something renders it.
+
+    `${#name}` opens jinja's comment tag, so a bash array length or string length in a workflow
+    body made copier abort with `Missing end of comment tag` -- naming no file and no line. The
+    render left the previous output in place, so linting the "rendered" file passed against a
+    stale copy and the defect shipped twice. Wrapping the body in `{% raw %}` is the fix; this
+    test is what makes the next one fail here rather than in CI.
+
+    Compilation only. Rendering needs each layer's answers, which the per-layer tests supply.
+    """
+    from jinja2 import Environment, TemplateSyntaxError
+
+    # copier's own delimiters. The defaults would not reproduce the failure.
+    env = Environment(
+        block_start_string="{%",
+        block_end_string="%}",
+        variable_start_string="{{",
+        variable_end_string="}}",
+        comment_start_string="{#",
+        comment_end_string="#}",
+        keep_trailing_newline=True,
+    )
+
+    broken = []
+    for path in sorted((REPO_ROOT / "templates").rglob("*.jinja")):
+        try:
+            env.parse(path.read_text(encoding="utf-8"))
+        except TemplateSyntaxError as error:
+            broken.append(f"{path.relative_to(REPO_ROOT)}:{error.lineno}: {error.message}")
+        except UnicodeDecodeError:
+            # A binary asset that happens to end in .jinja is not a template defect.
+            continue
+
+    assert not broken, "templates that do not compile:\n  " + "\n  ".join(broken)
