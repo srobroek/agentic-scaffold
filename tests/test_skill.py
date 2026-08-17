@@ -223,3 +223,68 @@ def test_the_profile_table_names_shapes_rather_than_layer_sets() -> None:
     assert "base/repo" not in section
     assert "quality/hooks" not in section
     assert "Read the file" in section
+
+
+def test_the_repository_can_actually_release_itself() -> None:
+    """The release-please config and manifest were committed with no workflow to read them.
+
+    Nothing caught it: test_the_repository_is_its_own_agentic_repo checks the apm.yml shape,
+    test_release_please_tracks_it checks the manifest entry, and neither asks whether anything
+    runs. The repository publishes two APM packages whose versions release-please owns, so with
+    no workflow it could never tag, never write a changelog, and never bump either apm.yml --
+    while every test about publishing passed.
+    """
+    workflow_path = REPO_ROOT / ".github" / "workflows" / "release-please.yml"
+    assert workflow_path.is_file(), (
+        "release-please-config.json exists but no workflow reads it, so no release can happen"
+    )
+    workflow = yaml.safe_load(workflow_path.read_text())
+
+    # The config filenames are inputs, so a rename here silently stops the release.
+    step = workflow["jobs"]["release-please"]["steps"][0]
+    assert step["with"]["config-file"] == "release-please-config.json"
+    assert step["with"]["manifest-file"] == ".release-please-manifest.json"
+    assert (REPO_ROOT / step["with"]["config-file"]).is_file()
+    assert (REPO_ROOT / step["with"]["manifest-file"]).is_file()
+
+    # Triggers on the default branch, not per pull request: the release PR is built from the
+    # commits already merged.
+    assert workflow[True]["push"]["branches"] == ["main"]
+
+    # The gate deliberately carries neither, which is why this is a separate workflow.
+    permissions = workflow["jobs"]["release-please"]["permissions"]
+    assert permissions["contents"] == "write"
+    assert permissions["pull-requests"] == "write"
+
+
+def test_every_package_release_please_tracks_is_published() -> None:
+    """The two manifests have to agree, or release-please bumps a package the marketplace never
+    ships, or the marketplace ships one whose version nothing maintains."""
+    config = json.loads((REPO_ROOT / "release-please-config.json").read_text())
+    tracked = {path for path in config["packages"] if path != "."}
+
+    manifest = yaml.safe_load((REPO_ROOT / "apm.yml").read_text())
+    published = {
+        entry["source"].removeprefix("./") for entry in manifest["marketplace"]["packages"]
+    }
+    assert tracked == published, f"release-please tracks {tracked}, marketplace ships {published}"
+
+
+def test_the_catalogs_are_gated_against_drift() -> None:
+    """`just check` has to fail when a package reaches apm.yml and the catalogs stay behind.
+
+    Verified against apm rather than assumed: dropping one plugin from
+    `.claude-plugin/marketplace.json` made `just packages` exit 4, and restoring it exit 0.
+    `--dry-run` is load-bearing on `--check-clean`, because without it the run regenerates the
+    catalogs first and then passes against what it just wrote.
+    """
+    justfile = (REPO_ROOT / "justfile").read_text()
+    assert "\npackages:" in justfile, "no recipe checks the committed catalogs"
+    assert "--check-clean --dry-run" in justfile
+    assert "--check-versions --dry-run" in justfile
+
+    # In `check`, so a contributor and CI run it without asking.
+    check = next(
+        line for line in justfile.splitlines() if line.startswith("check:")
+    )
+    assert "packages" in check.split(), f"`packages` is not in the gate: {check}"

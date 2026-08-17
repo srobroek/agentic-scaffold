@@ -639,6 +639,13 @@ and `srobroek/break-stuff` both do: both track `.claude-plugin/marketplace.json`
 without committing, and regenerate and commit at release. Committing them is what lets a
 consumer resolve the marketplace from a clone with no build step.
 
+The drift check runs from the host layer's `Generated files current` step, beside
+`just-check` and `gitlab-check`. Same class of failure: a generated file that a fragment
+change made stale. Without it the layer's `package-check` recipe exists and never fires, so a
+package added to `apm.yml` without a repack leaves the catalogs behind and a consumer never
+sees it. Measured against apm: dropping one plugin from a catalog exits 4, and restoring it
+exits 0.
+
 `srobroek/speckit-conductor` commits neither, because the repository is the package rather
 than a marketplace over several. A single-package bundle drops the fragment.
 

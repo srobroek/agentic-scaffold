@@ -373,3 +373,34 @@ def test_the_fragments_reach_the_aggregating_layers(tmp_path: Path) -> None:
     gitignore = (dest / ".gitignore").read_text()
     assert "apm_modules/" in gitignore
     assert "build/" in gitignore
+
+
+def test_the_catalog_drift_check_reaches_ci(tmp_path: Path) -> None:
+    """The layer ships `package-check` and `package-versions`, and something has to run them.
+
+    Without this the recipes exist and never fire: the catalogs are committed generated
+    artefacts, so a package added to apm.yml without a repack leaves them behind and a consumer
+    resolving the marketplace from a clone never sees it. The scaffold's own repository shipped
+    exactly that hole.
+
+    The host layer's `Generated files current` step is where it belongs, beside `just-check`
+    and `gitlab-check`: same class of failure, a generated file that a fragment change made
+    stale.
+    """
+    workflow = (
+        REPO_ROOT
+        / "templates"
+        / "host"
+        / "github"
+        / "template"
+        / ".github"
+        / "workflows"
+        / "wc-quality.yml.jinja"
+    ).read_text()
+
+    assert "just package-check" in workflow
+    assert "just package-versions" in workflow
+    # Guarded, since a repository without agentic/package has no apm.yml to pack.
+    assert "grep -q 'marketplace:' apm.yml" in workflow
+    # `--dry-run` lives in the recipe, and the reason is recorded where the guard is.
+    assert "load-bearing" in workflow

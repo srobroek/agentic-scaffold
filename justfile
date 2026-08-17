@@ -159,5 +159,17 @@ profiles-build:
     echo "every profile rendered and built"
 
 # Everything CI runs
-check: lint lint-config index-check profiles test
+# Fail when the committed marketplace catalogs no longer match apm.yml
+packages:
+    # The catalogs are committed generated artefacts, so a package added to apm.yml without a
+    # repack leaves them behind and a consumer resolving from a clone never sees it. This
+    # repository shipped exactly that gap: two packages in apm.yml, nothing checking the
+    # catalogs, and no release workflow to regenerate them.
+    #
+    # `--dry-run` is load-bearing on `--check-clean`. Without it the run regenerates the
+    # catalogs first, so the check passes against what it just wrote.
+    apm pack --offline --check-clean --dry-run
+    apm pack --offline --check-versions --dry-run
+
+check: lint lint-config index-check profiles packages test
     @echo "ok"
