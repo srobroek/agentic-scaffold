@@ -42,6 +42,13 @@ jobs:
         with:
           app-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          # Scoped, not blanket. An App token defaults to every permission its installation
+          # holds, which zizmor reports as `github-app` at HIGH: the token would carry write
+          # access to anything the App can reach, in a job that only needs to open one pull
+          # request. These two are what release-please uses -- commits and tags, then the pull
+          # request itself.
+          permission-contents: write
+          permission-pull-requests: write
 
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:

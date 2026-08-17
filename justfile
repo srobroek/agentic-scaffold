@@ -93,6 +93,11 @@ lint-config:
       # pins whose comment lied, including a SHA pointing at v3.0.2 under a `# v4.0.2` comment.
       # An offline run reports none of them. With no token it degrades to the offline set rather
       # than failing, so this works either way.
+      #
+      # That degradation is quiet, which has bitten once: a local run skipped `github-app` and
+      # passed, and CI reported it at HIGH -- an App token inheriting blanket installation
+      # permissions. A green local run is therefore weaker evidence than a green CI run. Set
+      # GH_TOKEN to get the full set.
       zizmor --min-severity medium .github/workflows
     fi
 

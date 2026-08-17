@@ -327,3 +327,9 @@ def test_the_app_token_makes_the_release_pr_trigger_ci(tmp_path: Path) -> None:
     action = next(s for s in steps if "release-please-action" in str(s.get("uses", "")))
     assert steps.index(mint) < steps.index(action)
     assert action["with"]["token"] == "${{ steps.app-token.outputs.token }}"
+
+    # Scoped, not blanket. An App token defaults to every permission its installation holds,
+    # which zizmor reports as `github-app` at HIGH. CI caught this and a local run did not: the
+    # audit needs a GitHub token, and without one zizmor quietly drops it.
+    assert mint["with"]["permission-contents"] == "write"
+    assert mint["with"]["permission-pull-requests"] == "write"
