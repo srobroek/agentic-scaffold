@@ -42,6 +42,15 @@ release_app:
     RELEASE_APP_PRIVATE_KEY secret on the repository.
   default: false
 
+sync_generated:
+  type: bool
+  help: >-
+    Regenerate the marketplace catalogs onto the release branch. release-please bumps the
+    version in apm.yml and stops, so a catalog carrying that version per package goes stale the
+    moment the release pull request opens. Needs `release_app`, since the amending commit has to
+    trigger the required checks.
+  default: false
+
 # Empty means a single-package repository. A monorepo passes the member directories,
 # which `just release-sync` reads from the workspace manifest rather than asking twice.
 release_packages:

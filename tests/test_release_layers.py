@@ -351,3 +351,63 @@ def test_the_app_token_makes_the_release_pr_trigger_ci(tmp_path: Path) -> None:
     assert "-lt 1000" in require["run"], "an empty secret has to fail, not just an absent one"
     assert "::error::" in require["run"]
     assert "exit 1" in require["run"]
+
+
+def test_the_sync_step_amends_the_catalogs_onto_the_release_branch(tmp_path: Path) -> None:
+    """release-please bumps the version in apm.yml and stops. The marketplace catalogs carry
+    that version per package, so they go stale the moment the release pull request opens and
+    `just packages` fails on the drift -- measured on this scaffold's own PR #2, two differences,
+    one per package.
+    """
+    dest = tmp_path / "sync"
+    dest.mkdir()
+    subprocess.run(["git", "init", "-q", str(dest)], check=True)
+    answers = RP_ANSWERS + "release_app: true\nsync_generated: true\n"
+    assert render("release/release-please", dest, answers).returncode == 0
+
+    steps = workflow_of(dest)["jobs"]["release-please"]["steps"]
+    sync = next(s for s in steps if "Sync the generated catalogs" in s.get("name", ""))
+
+    # Only when a release pull request exists.
+    assert sync["if"] == "${{ steps.release.outputs.pr }}"
+    # Step-level `env` evaluates even when `if` is false, so the parse is guarded too: a bare
+    # `fromJSON('')` aborts the whole job with "Error reading JToken".
+    branch = sync["env"]["RELEASE_BRANCH"]
+    assert branch.startswith("${{ steps.release.outputs.pr &&")
+    assert branch.rstrip().endswith("|| '' }}")
+
+    assert "just package-build" in sync["run"]
+    # Nothing to amend is a normal outcome, not a failure.
+    assert "git diff --quiet" in sync["run"]
+
+
+def test_the_sync_step_does_not_persist_the_token(tmp_path: Path) -> None:
+    """A token left in `.git/config` is what zizmor reports as `artipacked`. It is avoidable
+    here, so the layer avoids it rather than suppressing the audit: the credential goes in the
+    remote URL, where the runner masks it because it came from a secret."""
+    dest = tmp_path / "nopersist"
+    dest.mkdir()
+    subprocess.run(["git", "init", "-q", str(dest)], check=True)
+    answers = RP_ANSWERS + "release_app: true\nsync_generated: true\n"
+    assert render("release/release-please", dest, answers).returncode == 0
+
+    steps = workflow_of(dest)["jobs"]["release-please"]["steps"]
+    checkout = next(s for s in steps if "actions/checkout" in str(s.get("uses", "")))
+    assert checkout["with"]["persist-credentials"] is False
+    # The release branch is fetched by name, so a shallow clone will not do.
+    assert checkout["with"]["fetch-depth"] == 0
+
+    sync = next(s for s in steps if "Sync the generated catalogs" in s.get("name", ""))
+    assert "x-access-token:$GH_TOKEN" in sync["run"]
+
+    # This job pushes onto a branch that will be released, so a poisoned cache entry would
+    # reach a published artefact.
+    mise = next(s for s in steps if "mise-action" in str(s.get("uses", "")))
+    assert mise["with"]["cache"] is False
+
+
+def test_the_sync_step_is_absent_without_the_app(release_please: Path) -> None:
+    """The amending commit has to trigger the required checks, and only an App-token commit
+    does. Syncing with GITHUB_TOKEN would push a commit that no check ever sees."""
+    steps = workflow_of(release_please)["jobs"]["release-please"]["steps"]
+    assert not any("Sync the generated catalogs" in s.get("name", "") for s in steps)

@@ -40,7 +40,7 @@ Design lives in `layers.md`; this file is the inventory.
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
 | `release/goreleaser` | 7 | 6 |
-| `release/release-please` | 5 | 4 |
+| `release/release-please` | 6 | 4 |
 | `workspace/devcontainer` | 4 | 1 |
 | `workspace/just` | 0 | 3 |
 | `workspace/monorepo` | 12 | 6 |
@@ -790,6 +790,7 @@ Requires `git` on `PATH`.
 | `initial_version` | str | `0.1.0` |
 | `default_branch` | str | `main` |
 | `release_app` | bool | `False` |
+| `sync_generated` | bool | `False` |
 | `release_packages` | yaml | `[]` |
 
 Writes:

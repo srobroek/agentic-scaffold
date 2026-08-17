@@ -415,7 +415,7 @@ the developer has.
 
 | Layer | Writes | Variables |
 |---|---|---|
-| `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow, `.just.d/release.just` | `release_type`, `initial_version`, `default_branch`, `release_packages`, `release_app` |
+| `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow, `.just.d/release.just` | `release_type`, `initial_version`, `default_branch`, `release_packages`, `release_app`, `sync_generated` |
 | `release/cocogitto` | `cog.toml`, `.just.d/cog.just` | `initial_version`, `release_scopes` |
 | `release/goreleaser` | `.goreleaser.yaml`, `.github/workflows/goreleaser.yml`, `.just.d/goreleaser.just`, plus the mise, gitignore, and quality fragments | `goreleaser_main`, `goreleaser_targets`, `goreleaser_version`, `go_version`, `goreleaser_sbom`, `syft_version` |
 | `release/dep-updates` | `renovate.json`, `.github/dependabot.yml`, and the auto-merge workflow | `default_branch`, `auto_merge`, `renovate_timezone` |
@@ -486,6 +486,20 @@ The check tests the key's length rather than its presence. An empty secret was w
 `op read` whose 1Password session had timed out mid-pipe: the write reported success and stored
 nothing, and every later run died inside `create-github-app-token` with `DataError: Invalid
 keyData`, which reads as a malformed key rather than a missing one.
+
+`sync_generated` amends the marketplace catalogs onto the release branch. release-please writes
+the version into `apm.yml` and the manifest and stops there. Each catalog repeats that version
+per package, so both go stale as soon as release-please opens its pull request, and `just
+packages` fails on the drift. Measured on PR #2 of this repository: two differences, one per
+package.
+
+It needs `release_app`, because the amending commit has to trigger the required checks and only
+an App-token commit does. Pushing that commit with `GITHUB_TOKEN` would leave a pull request
+whose checks never ran.
+
+`persist-credentials: false` on the checkout, with the credential passed in the remote URL
+instead. A token left in `.git/config` is what zizmor reports as `artipacked`, and it is
+avoidable here, so the layer avoids it rather than shipping a suppression file.
 
 ### release-please versions, goreleaser publishes
 
