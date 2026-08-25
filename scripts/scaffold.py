@@ -815,7 +815,7 @@ def cmd_render(args: argparse.Namespace) -> int:
             return 5
 
     dest = args.dest
-    if not (dest / ".git").exists():
+    if not args.pretend and not (dest / ".git").exists():
         dest.mkdir(parents=True, exist_ok=True)
         subprocess.run(["git", "init", "-q", str(dest)], check=True)
 
