@@ -43,8 +43,8 @@ before the recipe set is proposed. Work the open decisions in rounds:
 - A round is every question whose prerequisites are settled, numbered, each carrying
   your recommended answer so one word accepts it.
 - In scope: the generator's axes (`generator_answers`: frontend, backend, runtime, api,
-  addons), auth and persistence, deployment target, the host contacts, which
-  marketplaces the machine trusts.
+  addons), auth and persistence, deployment target, the host contacts.
+- Not here: marketplaces stay at the install gate, where registering is imminent.
 - Out of scope: anything a tree, toolchain, or rule derives, and any padding question
   `check-answers` would not report.
 - Stop when the frontier is empty.
