@@ -903,6 +903,14 @@ def main() -> int:
     update.add_argument("--data", action="append", default=[], metavar="KEY=VALUE")
 
     args = parser.parse_args()
+
+    # plan, render, and check-answers all take --data-file, and all three would otherwise
+    # hand a mistyped path to copier, which reports it as its own failure: exit 4, with a
+    # copier traceback, for what is a usage error.
+    data_file = getattr(args, "data_file", None)
+    if data_file is not None and not data_file.is_file():
+        die(2, f"no such data file: {data_file}")
+
     handlers = {
         "list": cmd_list,
         "check": cmd_check,
