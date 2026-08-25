@@ -3,19 +3,19 @@ status: accepted
 date: 2026-07-29
 ---
 
-# Layers
+# Recipes
 
-36 layers and 105 asked variables, from 30 packages and 247 questions. Every
-variable listed here is asked or derived; anything absent is fixed in the layer
+36 recipes and 105 asked variables, from 30 packages and 247 questions. Every
+variable listed here is asked or derived; anything absent is fixed in the recipe
 per `../rules/choices.md`.
 
 ## base
 
 Renders first. `base/license` is separate from `base/repo` because `lang/rust`
 reads its answers file for the SPDX identifier, and `_external_data` reads a
-sibling layer.
+sibling recipe.
 
-| Layer | Writes | Variables |
+| Recipe | Writes | Variables |
 |---|---|---|
 | `base/license` | `LICENSE` | `license`, `copyright_name`, `copyright_year` |
 | `base/repo` | `README.md`, `.editorconfig`, `.gitattributes`, `docs/{adr,architecture}/`, `scripts/`, `tests/` | `project_name`, `description`, `org` |
@@ -26,16 +26,16 @@ sibling layer.
 the source.
 
 GitHub keys are lowercase and do not always match the SPDX identifier:
-`AGPL-3.0-only` is `agpl-3.0` there, so the layer normalises `-only` and
+`AGPL-3.0-only` is `agpl-3.0` there, so the recipe normalises `-only` and
 `-or-later` before the call. `gh api /licenses/<key>` also serves identifiers
 absent from the `/licenses` list, `EUPL-1.2` among them. Anything it refuses falls
 back to the SPDX licence list, and an identifier absent from both fails while
 listing what GitHub has. `none` does not write a file.
 
-The gitnr template list follows from which language layers rendered, plus
+The gitnr template list follows from which language recipes rendered, plus
 `Global/{macOS,Windows,Linux}` on every render. The operating system writes
 `.DS_Store`, `._*`, `Thumbs.db`, and `*~` whatever the project is, and a docs-only
-repository renders no language layer to derive them from.
+repository renders no language recipe to derive them from.
 
 Editor directories are left out. `.vscode/` and `.idea/` follow the developer
 rather than the project, so they belong in a global `core.excludesFile` rather than
@@ -57,7 +57,7 @@ bytes.
 
 ## lang
 
-Each language layer writes the same six kinds of file, which is what makes
+Each language recipe writes the same six kinds of file, which is what makes
 adding a language a one-directory change.
 
 ```
@@ -72,7 +72,7 @@ lang/<name>/template/
   .gitlab/ci/<name>.yml
 ```
 
-| Layer | Tool configs | Variables |
+| Recipe | Tool configs | Variables |
 |---|---|---|
 | `lang/rust` | `rust-toolchain.toml`, `rustfmt.toml`, `clippy.toml`, `deny.toml` | `crate_kind`, `rust_edition` |
 | `lang/python` | `ruff.toml`, `pytest.ini`, `noxfile.py` | `python_version`, `python_layout`, `python_framework` |
@@ -114,8 +114,8 @@ Go vendor mode.
 
 ### In a monorepo
 
-`just add <name> <lang>` renders the language layer at the member path. A
-language layer therefore has two destination roots: the member directory for its
+`just add <name> <lang>` renders the language recipe at the member path. A
+language recipe therefore has two destination roots: the member directory for its
 tool configs and its `.pre-commit-config.yaml`, and the repository root for
 `.mise/conf.d/`, `.just.d/`, and the CI files, which are repository-wide.
 
@@ -134,20 +134,20 @@ invisible until the cache is rescanned. `add_member.py` runs `prek list --refres
 once, which is enough: verified against prek 0.4.11, where `prek list` showed only
 root hooks beforehand and kept listing `packages/svc:ruff-format` after.
 
-The same script registers the member with release-please when that layer rendered, for
+The same script registers the member with release-please when that recipe rendered, for
 the same reason: `just add` is where the path becomes known, and release-please resolves
 no globs.
 
-CI stays inside the language layer rather than in a layer of its own. A separate
-CI layer would have to know which languages sit at which paths; inside the
-language layer, a monorepo gets the right jobs by construction, and the reusable
+CI stays inside the language recipe rather than in a recipe of its own. A separate
+CI recipe would have to know which languages sit at which paths; inside the
+language recipe, a monorepo gets the right jobs by construction, and the reusable
 workflows already take a `working-directory` input.
 
 ## host
 
-Language-blind. Each language layer supplies its own jobs and setup action.
+Language-blind. Each language recipe supplies its own jobs and setup action.
 
-The shared quality and security jobs split across both. The host layer runs
+The shared quality and security jobs split across both. The host recipe runs
 actionlint, zizmor, cspell, lychee, taplo, yamllint, markdownlint, and the secret
 scan, none of which needs language knowledge.
 
@@ -160,11 +160,11 @@ The rest cannot live here:
 | trivy | filesystem mode against dependencies, configuration mode against IaC |
 | OSV | keys off which lockfiles exist |
 
-Each language layer therefore drops `.github/quality.d/<lang>.yml` and
+Each language recipe therefore drops `.github/quality.d/<lang>.yml` and
 `.github/security.d/<lang>.yml`, and the shared workflow builds its matrix by
 reading that directory at run time.
 
-The security fragment also names the layer's opengrep packs, which is the same inversion
+The security fragment also names the recipe's opengrep packs, which is the same inversion
 applied to a ruleset: `lang/python` asks for `p/python`, `iac/terraform` for `p/terraform`,
 and the discovery step unions them, deduplicated. `lang/ts` and `iac/cdk` both ask for
 `p/typescript`, and passing it twice would run the same rules twice. An empty list is a
@@ -183,14 +183,14 @@ the security tab. A later step reads the file back and fails there. The GitLab j
 than a GitHub feature, and two copies would disagree about which rules run.
 
 A `discover` job parses the fragments and emits the matrix as JSON, so a new
-`lang/*` layer contributes its jobs without the host layer or a caller changing.
+`lang/*` recipe contributes its jobs without the host recipe or a caller changing.
 `discover` also emits a count per matrix, because a matrix of zero entries is a
 workflow error rather than a skip, and a docs-only repository renders no language
-layer at all. A fragment states `codeql.supported: false` positively rather than
+recipe at all. A fragment states `codeql.supported: false` positively rather than
 omitting the key, which is how `lang/rust` records that CodeQL has no Rust
 extractor.
 
-| Layer | Writes | Variables |
+| Recipe | Writes | Variables |
 |---|---|---|
 | `host/github` | `workflows/{wc-changes,wc-gate,wc-quality,wc-security}.yml`, `actions/ci-gate/`, `CODEOWNERS`, issue and pull-request templates, `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` | `security_contact`, `coc_contact`, `default_branch`, `job_timeout_minutes` |
 
@@ -199,7 +199,7 @@ extractor.
 `host/github` renders the governance files and ships `scripts/repo_govern.py` for the rest.
 Measured against a live repository rather than assumed: `gh api repos/<slug>` reports every
 merge and feature setting, a freshly created repository returned zero rulesets and
-`Branch not protected`, and GitHub does not read a committed file for any of it. A layer renders a
+`Branch not protected`, and GitHub does not read a committed file for any of it. A recipe renders a
 file, so the API surface is a script. `../rules/choices.md` carries the split.
 
 `gate` is the only required check, `just repo-govern` applies the settings, and
@@ -221,14 +221,14 @@ The rest is applied through the API:
 | approval rules, merge trains | gated by tier |
 | push rules | gated by tier |
 
-A script written against one instance would silently do less on another, so the layer renders
+A script written against one instance would silently do less on another, so the recipe renders
 the files and leaves those settings to a person. `psc-hfx` holds the decision.
 
 The `stages:` list is generated from what the `.gitlab/ci/*.yml` fragments declare.
 GitLab fails the whole pipeline when a job names a stage the list omits rather than
-skipping that job, and the include is a glob, so a language layer adopted later
+skipping that job, and the include is a glob, so a language recipe adopted later
 contributes a fragment the list has to learn about. `quality` and `security` are
-unconditional, because this layer's own two jobs sit there. A stage no `STAGE_ORDER`
+unconditional, because this recipe's own two jobs sit there. A stage no `STAGE_ORDER`
 entry covers fails the generator, where the message can name the fragment.
 
 Governance wording differs between the hosts, though the substance does not. GitLab
@@ -251,7 +251,7 @@ after rendering.
 
 ## quality
 
-| Layer | Writes | Variables |
+| Recipe | Writes | Variables |
 |---|---|---|
 | `quality/hooks` | `.pre-commit.d/{hygiene,beads}.yaml`, the generated root `.pre-commit-config.yaml`, `.mise/conf.d/hooks.toml`, `.just.d/hooks.just`, `scripts/merge_hooks.py` | `hook_exclude_patterns`, `max_file_kb`, `commit_scopes` |
 
@@ -259,11 +259,11 @@ Every hygiene check is on. prek is the manager.
 
 `default_install_hook_types` is computed from the stages the folded hooks declare
 rather than fixed. `prek install` writes one shim per entry, so a stage missing
-from that list is a hook that never fires and reports nothing. A language layer
+from that list is a hook that never fires and reports nothing. A language recipe
 contributing a `pre-push` hook is what makes this necessary.
 
 The merge runs from `scripts/merge_hooks.py` in the generated project, and the
-copier task calls that same copy. A second copy in the layer would let the recipe
+copier task calls that same copy. A second copy here would let `just hooks-merge`
 and the render fold fragments differently.
 
 Conventional-commit checking uses `compilerla/conventional-pre-commit`, which
@@ -276,13 +276,13 @@ allowlist demands a scope while accepting any spelling of it.
 GitHub lists. mise hides a release younger than its `minimum_release_age`, and
 pinning the hidden one fails to install.
 
-In a monorepo the language layer writes each member's `.pre-commit-config.yaml`
+In a monorepo the language recipe writes each member's `.pre-commit-config.yaml`
 and prek unions them, so hooks travel with the language. `quality/hooks` then
 carries the root config and the repository-wide hygiene hooks alone.
 
 ## workspace
 
-| Layer | Writes | Variables |
+| Recipe | Writes | Variables |
 |---|---|---|
 | `workspace/monorepo` | the workspace manifest (`[workspace] members`, uv workspace, bun workspaces, or one go module), `scripts/add_member.py`, `.just.d/monorepo.just` | `layout`, `members`, `project_name` |
 | `workspace/just` | `justfile` carrying `setup`, the aggregates, and one `import?` per `.just.d/*.just`, plus `scripts/gen_justfile.py` and `.mise/conf.d/just.toml` | none |
@@ -304,7 +304,7 @@ rather than failing, so the install would report success having installed nothin
 container calls `just setup` rather than repeating its steps, so the two cannot drift.
 
 `devcontainer.json` is JSONC, so it carries its reasoning in comments and `json.load`
-rejects it. The layer's tests parse it through
+rejects it. The recipe's tests parse it through
 `@devcontainers/cli read-configuration`, which is what an editor uses.
 
 ### moon alongside just, not instead of it
@@ -313,7 +313,7 @@ moon is the second task runner, not a replacement. `just` is the entry point a p
 types and defines every repo-wide task with no member dimension. moon defines the member
 graph underneath: it is the only thing here that models a dependency between members.
 
-That distinction is what the layer buys, and it is not caching. Measured on a
+That distinction is what the recipe buys, and it is not caching. Measured on a
 three-member chain where `core` is depended on by `api`, which is depended on by `web`:
 
 | Scenario | moon | the equivalent `just` loop |
@@ -359,9 +359,9 @@ file is a parse error that takes down every recipe in the justfile, so a fragmen
 deleted by hand would break `just` entirely rather than only its own recipes.
 
 Every fragment shares one flat namespace, and just rejects a name defined twice.
-Prefixing each recipe with its layer name is what keeps that from happening, and
-`gen_justfile.py` refuses a colliding set while naming both fragments, since just's
-own error breaks the whole file rather than the pair.
+Prefixing each `just` recipe with the fragment's own name is what keeps that from
+happening. `gen_justfile.py` refuses a colliding set and names both fragments,
+because just's own error breaks the whole file rather than the pair.
 
 The aggregate recipes probe rather than depend. `check` and `each <phase>` ask
 `just --show <name>` which per-language recipes exist, so one language renders and
@@ -391,8 +391,8 @@ The language installs are close to free when a copy warmed them, well under a se
 each of uv, cargo, and go. They earn their place by catching a branch whose lockfile
 moved, where the copied tree would otherwise build stale.
 
-Both recipes probe with `just --show` rather than declaring dependencies, since a
-dependency on a recipe no layer rendered is a parse error.
+Both `just` recipes probe with `just --show` rather than declaring dependencies, since a
+dependency on one that nothing rendered is a parse error.
 
 `--git-dir` replaced a `core.hooksPath` override. prek declines to install while an
 ambient global hooksPath is set, which a machine-wide hook manager leaves behind, and it
@@ -404,7 +404,7 @@ shims and a bad commit message was blocked.
 gate CI does and cannot land what CI would reject. A project-defined command is
 approved once and re-prompts when edited, so that line changing is visible.
 
-Of the ten hooks worktrunk has, the layer sets two. `pre-commit` is left to
+Of the ten hooks worktrunk has, the recipe sets two. `pre-commit` is left to
 prek, which installs the git-level hooks already. `post-commit`, `post-merge`, and
 `pre-switch` describe work that belongs to CI or to the source worktree.
 `pre-remove` would fire on every `wt merge`, since the user config sets
@@ -427,14 +427,14 @@ the developer has.
 
 ## release
 
-| Layer | Writes | Variables |
+| Recipe | Writes | Variables |
 |---|---|---|
 | `release/release-please` | `release-please-config.json`, `.release-please-manifest.json`, the workflow, `.just.d/release.just` | `release_type`, `initial_version`, `default_branch`, `release_packages`, `release_app`, `sync_generated` |
 | `release/cocogitto` | `cog.toml`, `.just.d/cog.just` | `initial_version`, `release_scopes` |
 | `release/goreleaser` | `.goreleaser.yaml`, `.github/workflows/goreleaser.yml`, `.just.d/goreleaser.just`, plus the mise, gitignore, and quality fragments | `goreleaser_main`, `goreleaser_targets`, `goreleaser_version`, `go_version`, `goreleaser_sbom`, `syft_version` |
 | `release/dep-updates` | `renovate.json`, `.github/dependabot.yml`, and the auto-merge workflow | `default_branch`, `auto_merge`, `renovate_timezone` |
 
-Ecosystems follow from the language layers. renovate covers the language
+Ecosystems follow from the language recipes. renovate covers the language
 ecosystems; dependabot covers action versions, which is what the existing
 auto-merge workflow in `astro-up.github.io` consumes.
 
@@ -504,8 +504,8 @@ keyData`, which reads as a malformed key rather than a missing one.
 `sync_generated` amends the marketplace catalogs onto the release branch. release-please writes
 the version into `apm.yml` and the manifest and stops there. Each catalog repeats that version
 per package, so both go stale as soon as release-please opens its pull request, and `just
-packages` fails on the drift. Measured on PR #2 of this repository: two differences, one per
-package.
+packages` fails on the drift. Measured on a two-package publisher: two differences, one
+per package.
 
 It needs `release_app`, because the amending commit has to trigger the required checks and only
 an App-token commit does. Pushing that commit with `GITHUB_TOKEN` would leave a pull request
@@ -513,7 +513,7 @@ whose checks never ran.
 
 release-please rewrites `apm.yml` to set `version`, and its YAML writer drops every comment in
 the file. A repository whose manifest carries a rationale nobody can infer from the keys defines
-a `release-restore` recipe, which the sync step calls after the bump and before the amend. The
+a `release-restore` recipe, which the sync step calls after the bump and before the amend. That
 call is guarded, so a repository with no comments to restore does not have to define one.
 
 Blocking the release on the missing comment was the first attempt, and it was wrong: the
@@ -522,14 +522,14 @@ that was supposed to carry the fix. Repairing beats refusing when the damage is 
 
 `persist-credentials: false` on the checkout, with the credential passed in the remote URL
 instead. A token left in `.git/config` is what zizmor reports as `artipacked`, and it is
-avoidable here, so the layer avoids it rather than shipping a suppression file.
+avoidable here, so the recipe avoids it rather than shipping a suppression file.
 
 ### release-please versions, goreleaser publishes
 
 release-please computes the next version from the Conventional Commit subjects, writes
 `CHANGELOG.md`, and pushes the tag. `release/goreleaser` triggers on that tag and attaches
 what it built. Each tool covers what the other cannot, which is why they are separate
-layers.
+recipes.
 
 `changelog.disable: true` and `release.mode: append` are what keep them from colliding: the
 changelog already exists before the tag does, and generating a second one from the same
@@ -546,7 +546,7 @@ build.
 binary users download, which zizmor reports as cache-poisoning, and a release is infrequent
 enough that a cold module download costs seconds nobody waits on.
 
-`go-lib` does not render this layer. A Go library is consumed by module path and publishes no
+`go-lib` does not render this recipe. A Go library is consumed by module path and publishes no
 artefact.
 
 ### SBOM and provenance
@@ -581,7 +581,7 @@ exists only once the artefact does.
 
 ## docs
 
-| Layer | Writes | Variables |
+| Recipe | Writes | Variables |
 |---|---|---|
 | `docs/site` | `docs/site/{astro.config.mjs,package.json,src/}`, `.gitignore.d/site`, `.mise/conf.d/site.toml`, `.just.d/site.just` | `docs_engine`, `site_url`, `project_name`, `description`, `node_version`, `repo_url`, `sidebar_autogenerate` |
 | `docs/agents` | `docs/agents/**`, the `AGENTS.md` body, the `CLAUDE.md` symlink | none |
@@ -632,7 +632,7 @@ the slowest possible order.
   makes the staleness check meaningless. With no extractor yet this step exits early, since a
   directory no render created is not evidence of nondeterminism.
 
-Each deploy layer writes its own workflow. Pages deployment needs `pages: write` and `id-token: write`,
+Each deploy recipe writes its own workflow. Pages deployment needs `pages: write` and `id-token: write`,
 which the gate does not carry, and both are scoped to the deploy job rather than the whole
 workflow.
 
@@ -655,7 +655,7 @@ workflow to report a status.
 
 ## agentic
 
-| Layer | Writes | Variables |
+| Recipe | Writes | Variables |
 |---|---|---|
 | `agentic/apm` | `apm.yml`, `.just.d/apm.just`, `.gitignore.d/apm` | `apm_packages`, `apm_target`, `apm_cli_version` |
 | `agentic/package` | `apm.yml` with a marketplace block, `packages/<name>/{apm.yml, .apm/skills, plugin manifests}`, `release-please-config.json` + manifest, `.just.d/package.just`, `.gitignore.d/package` | `project_name`, `package_name`, `category`, `marketplace_outputs`, `deploy_kiro`, `apm_cli_version` |
@@ -672,24 +672,24 @@ No per-harness configuration file. `agentic/marketplace` runs last.
 Both own `apm.yml`, so a repository takes one, never both. `agentic/apm` writes a
 consumer's manifest, a `dependencies` block naming packages to install.
 `agentic/package` writes a publisher's manifest, a `marketplace` block, and the
-repository becomes its own marketplace. The `agentic-repo` profile, the 17-repo shape with no language layer,
+repository becomes its own marketplace. The `agentic-repo` profile, the 17-repo shape with no language recipe,
 is where `agentic/package` belongs.
 
-The layer scaffolds the single-package shape shared by break-stuff and clerk: one
+The recipe scaffolds the single-package shape shared by break-stuff and clerk: one
 package under `packages/<name>`, published from the repository root. It grows to many
 packages by hand.
 
 ### What apm requires, measured against 0.26.0
 
 - Marketplace outputs are **claude and codex only**. `apm targets` also lists kiro, and
-  the layer deploys the skill there, but `marketplace.outputs` has no kiro mapper and
+  the recipe deploys the skill there, but `marketplace.outputs` has no kiro mapper and
   rejects the key. Deploy target and marketplace output are different axes: `targets:`
   names where a compiled skill is installed, `outputs:` names which discovery catalog is built.
 - The codex output requires `category` on every package, so it is a mandatory question
   rather than a free-text one.
 - `apm pack` writes the repository-root catalogs, and none of the per-package
   `.claude-plugin/plugin.json` or `.codex-plugin/plugin.json`. Claude's `/plugin install`
-  reads the per-package manifest at the catalog's `source:` path, so the layer renders
+  reads the per-package manifest at the catalog's `source:` path, so the recipe renders
   those statically; without them a package lists but does not install.
 - Each package needs its own `apm.yml`, or `apm pack --check-versions` reports it as
   `no_apm_yml`.
@@ -705,9 +705,9 @@ and `srobroek/break-stuff` both do: both track `.claude-plugin/marketplace.json`
 without committing, and regenerate and commit at release. Committing them is what lets a
 consumer resolve the marketplace from a clone with no build step.
 
-The drift check runs from the host layer's `Generated files current` step, beside
+The drift check runs from the host recipe's `Generated files current` step, beside
 `just-check` and `gitlab-check`. Same class of failure: a generated file that a fragment
-change made stale. Without it the layer's `package-check` recipe exists and never fires, so a
+change made stale. Without it `just package-check` exists and never fires, so a
 package added to `apm.yml` without a repack leaves the catalogs behind and a consumer never
 sees it. Measured against apm: dropping one plugin from a catalog exits 4, and restoring it
 exits 0.
@@ -724,7 +724,7 @@ verify the tag exists.
 
 Registering a marketplace with a runtime is a separate matter. `apm marketplace add` writes
 to `~/.claude/plugins/`, which is machine-global, so `agentic/marketplace` reports the
-command rather than any layer running it.
+command rather than any recipe running it.
 
 `agentic/apm` writes the manifest but does not run an install. `apm install` reaches the
 network and needs uvx, so it would fail a render that had otherwise succeeded;
@@ -736,10 +736,10 @@ is a one-time step per machine. A dependency locator names its own source inline
 so a package resolves whether or not its marketplace was registered.
 
 An empty `apm_packages` is valid. bailiff refused it with a validator, which made the
-layer unusable until someone had chosen packages.
+recipe unusable until someone had chosen packages.
 
-The agent then reads the rendered layer set and recommends packages against it:
-`language-rust` and `rust-quality` for a rust layer, `mcp-tauri` for a Tauri
+The agent then reads the rendered recipe set and recommends packages against it:
+`language-rust` and `rust-quality` for a rust recipe, `mcp-tauri` for a Tauri
 shell, `steering-infrastructure` for terraform, `speckit` when SpecKit is in use.
 That match is judgement, so it belongs to the agent rather than a template.
 
@@ -773,7 +773,7 @@ full.
 Guarding the read belongs to the `token-savings` package, which already denies a
 whole-file read of `repomix-full.xml` on both `Read` and `Bash`, so `cat pack` is
 caught too. It carries a `TOKEN_SAVINGS_ALLOW_PACK_READ=1` escape hatch. This
-layer does not ship a hook; `agentic/apm` names the package instead.
+recipe does not ship a hook; `agentic/apm` names the package instead.
 
 The pack needs its own config file. repomix has `--no-files` but no `--files`, so
 the map's `files: false` cannot be overridden from the command line, and one
@@ -801,18 +801,18 @@ tool and the invocation, scoped with `--include`.
 ### `agentic/speckit`
 
 That merge happened: `speckit`, `speckit-beads`, and `steering-speckit` are now one
-package at `srobroek/speckit-conductor`, so the layer names one pinned locator.
+package at `srobroek/speckit-conductor`, so the recipe names one pinned locator.
 
-The layer is thin, because the package's own `speckit-setup` skill does the scaffolding.
+The recipe is thin, because the package's own `speckit-setup` skill does the scaffolding.
 Rendering a `.specify/` tree here would fork what `specify init` produces. It exists for
 three things a skill installed under `apm_modules/` cannot do:
 
 - The setup script appends `specs/**/spec-status.md` to the root `.gitignore`, and
   `base/gitignore` rebuilds that file from `.gitignore.d/`, so the entry is dropped on the
-  next render. The layer ships it as a fragment instead, the same fix `agentic/beads`
+  next render. The recipe ships it as a fragment instead, the same fix `agentic/beads`
   applies to bd's own appended block.
 - `apm.yml` belongs to `agentic/apm` and is skip-guarded, so the locator is added by an
-  idempotent edit. The `[]` placeholder that layer writes for an empty list is replaced
+  idempotent edit. The `[]` placeholder that recipe writes for an empty list is replaced
   rather than appended to, since a list cannot hold both.
 - The script hardcodes twelve extensions and exits 0 when one could not be installed: a
   custom-source failure warns on stderr and continues. `agent-assign` is the one that
@@ -868,7 +868,7 @@ scp-style address first. `export.auto` is set in slopvac, `dolt.auto-commit: bat
 platevault, and `repos.additional` in skymath for cross-repository hydration.
 
 `metrics.*` and `no-git-ops` are set in the user's own `~/.config/bd/config.yaml`, so no
-layer writes them. `metadata.json` holds bd's generated `project_id` and database name,
+recipe writes them. `metadata.json` holds bd's generated `project_id` and database name,
 which are per-clone rather than per-template.
 
 bd also appends four ignore patterns to the root `.gitignore` under a header with no
@@ -927,18 +927,18 @@ is therefore not used.
 
 ## container
 
-| Layer | Writes | Variables |
+| Recipe | Writes | Variables |
 |---|---|---|
 | `container/image` | `Dockerfile`, `.dockerignore`, `.just.d/container.just`, the mise, hook, CI, and security fragments | `container_language`, `container_runtime_base`, `registry`, `expose_port`, `trivy_severity`, `container_attest` |
 
 `docs/architecture.md` carries the measured base image policy and the build-scan-push
-order. The layer's own `Dockerfile` repeats the measurement beside the `FROM` line, so the
+order. The recipe's own `Dockerfile` repeats the measurement beside the `FROM` line, so the
 reason for the base is where the choice is made.
 
 Only hadolint runs at commit time. Building an image takes minutes and needs a daemon, so
 the build and the image scan are CI. `trivy` runs twice against different things: `config`
 mode reads the Dockerfile in the language-blind security workflow, and `image` mode reads
-the built image in this layer's own job.
+the built image in this recipe's own job.
 
 `container_attest` is on by default and attests the pushed image's provenance. The subject is
 the digest the registry returned, taken from the push step's own output, rather than a tag: a
@@ -957,7 +957,7 @@ same flag on setup-go.
 
 ## iac
 
-| Layer | Writes | Variables |
+| Recipe | Writes | Variables |
 |---|---|---|
 | `iac/terraform` | `infra/{bootstrap,modules,envs,tests}`, `.tflint.hcl`, `.pre-commit.d/terraform.yaml` | `environments`, `aws_region`, `state_bucket` |
 | `iac/cdk` | `.projenrc.ts` with `runner: tsx()`, `app: npx tsx`, and `github: false`, plus `.just.d/cdk.just` and the mise, gitignore, and security fragments | `cdk_version`, `projen_version`, `tsx_version`, `node_version` |
@@ -1012,7 +1012,7 @@ creates the bucket the first one stores its state in.
 | the hook ids are `terraform_*`, and tflint's is `terraform_tflint` | prek rejects the fragment on an unknown id |
 | just shares jinja's `{{ }}` | an unwrapped fragment loses every recipe parameter |
 
-Each was found by rendering the layer and running the tool, not by reading the
+Each was found by rendering the recipe and running the tool, not by reading the
 template.
 
 ## Render order
@@ -1036,14 +1036,14 @@ base/gitignore
 agentic/marketplace
 ```
 
-The generator runs before every layer. `cargo init` writes no `license` key and
-`uv init` writes its own `pyproject.toml`, so a language layer patches an
+The generator runs before every recipe. `cargo init` writes no `license` key and
+`uv init` writes its own `pyproject.toml`, so a language recipe patches an
 existing manifest rather than creating one.
 
 `workspace/monorepo` precedes `lang/*` so the manifest exists before members render.
 
 The generator's position depends on the shape. In one repository it runs first,
-against the repository root, and a language layer patches the manifest it wrote. In a
+against the repository root, and a language recipe patches the manifest it wrote. In a
 monorepo it cannot: `cargo init .` writes a `[package]` root, `workspace/monorepo`
 then skips the file it finds, and no `[workspace]` section is ever written, so the
 repository silently is not a workspace. Verified by rendering in that order.
@@ -1063,16 +1063,16 @@ config, and `iac/terraform` contributes a fragment. Rendering it earlier would
 leave that fragment out, with nothing to report the omission: prek reads the merged
 file and never sees the fragment directory.
 
-Re-rendering any fragment-contributing layer therefore needs the merge again.
+Re-rendering any fragment-contributing recipe therefore needs the merge again.
 `just hooks-install` and `just hooks-all` both run it first, so the config cannot
 lag the fragments.
 
-`workspace/just` and `base/gitignore` aggregate what earlier layers contributed,
+`workspace/just` and `base/gitignore` aggregate what earlier recipes contributed,
 so they follow every contributor including `agentic/*`: apm and beads add
 ignores for `apm_modules/` and `.beads/dolt/`, and may contribute a
 `.just.d/apm.just`.
 
-Both of the generated files can therefore go stale when a layer is adopted later.
+Both of the generated files can therefore go stale when a recipe is adopted later.
 `just just-check` and `just hooks-all` catch each case, and the quality workflow runs
 the first, so a pull request cannot merge a justfile that omits a fragment. Both
 compare in a copy rather than rewriting, since a check that fixes what it checks
@@ -1080,55 +1080,55 @@ leaves a dirty tree and passes on the rerun.
 
 `agentic/marketplace` reads the finished tree.
 
-A profile states this order directly. 34 layers with a fixed order need no
+A profile states this order directly. 36 recipes with a fixed order need no
 dependency solver.
 
 ## Profiles
 
-`profiles/*.yml` names, per shape, its layer set in render order, its generator, the
+`profiles/*.yml` names, per shape, its recipe set in render order, its generator, the
 answers fixed or derived for it, and the commands that prove a rendered tree builds.
 `profiles/README.md` carries the format and the survey counts.
 
 Thirteen shapes, matching the generator table in `../docs/architecture.md`.
-`scripts/profiles.py` validates each against `templates/`, and `just profiles-build`
+`scripts/scaffold.py check` validates each against `recipes/`, and `just profiles-build`
 renders each into a temporary directory and runs its own build.
 
 That check is worth its runtime. A tree that renders is not a project that builds, and it caught
 two ordering bugs no unit test did:
 
 - `lang/api` declared `after: host/github` while `host/github` declares `after: lang/*`,
-  a cycle no profile could satisfy. Every other language layer renders before the host,
+  a cycle no profile could satisfy. Every other language recipe renders before the host,
   because the host's matrix discovers the fragments they contribute.
 - `rust-gui` put `workspace/moon` after `workspace/just`, so the justfile's import block
   never learned about `.just.d/moon.just`. The rendered tree then failed
   `just just-check`.
 
-The second is why the validator checks aggregation separately from each layer's own
+The second is why the validator checks aggregation separately from each recipe's own
 `after`. A contributor has to precede its aggregator, and `workspace/just` cannot express
 that by naming every present and future contributor in its own list.
 
-A build command asserts only what the layers produce. `render_profile.py` does not run the
+A build command asserts only what the recipes produce. `scaffold render` does not run the
 generator, since `cargo new` and `create-better-t-stack` reach the network or need a
 toolchain the machine may lack, so `cargo build` there would fail for a missing manifest
-rather than for anything a layer got wrong.
+rather than for anything a recipe got wrong.
 
 ### Integration cases
 
-A profile covers one shape and a unit test covers one layer. Neither covers what happens when
-two layers meet, which is where the ordering bugs above came from. `tests-integration/` holds
-that middle ground: a case names a layer set, an order, and a build, and `just integration`
+A profile covers one shape and a unit test covers one recipe. Neither covers what happens when
+two recipes meet, which is where the ordering bugs above came from. `tests-integration/` holds
+that middle ground: a case names a recipe set, an order, and a build, and `just integration`
 renders each into a scratch tree and runs it.
 
 | Case | The interaction |
 |---|---|
-| `layer-added-after-aggregator` | a language layer adopted after `workspace/just` leaves the import block stale |
+| `layer-added-after-aggregator` | a language recipe adopted after `workspace/just` leaves the import block stale |
 | `monorepo-rust-two-members` | two members added through `add_member.py`, and whether the second replaces the first's mise fragment |
-| `both-hosts-mirrored` | both hosts over one language layer, each folding the same fragments into its own generated file |
-| `retrofit-onto-existing` | layers over a populated tree, and which side wins |
+| `both-hosts-mirrored` | both hosts over one language recipe, each folding the same fragments into its own generated file |
+| `retrofit-onto-existing` | recipes over a populated tree, and which side wins |
 
 Out of `just check` on purpose. A case renders a whole tree and runs its build, and a gate slow
 enough to skip is worse than a suite someone has to remember. `tests/test_integration_cases.py`
-reads the case files without rendering, so a mistyped layer or a case duplicating a profile
+reads the case files without rendering, so a mistyped recipe or a case duplicating a profile
 fails in the fast suite instead.
 
 Each case states in `gap` what is not already covered, because a case that repeats a profile
@@ -1150,7 +1150,7 @@ files an agent will actually read, and nothing reaches the network, so
 |---|---|
 | `justfile` and `.just.d/*` | the command surface in `index.md` |
 | `.mise/conf.d/*.toml` | the toolchain pin table |
-| each language layer's tool config | one `quality/<lang>.md` leaf, plus its index row |
+| each language recipe's tool config | one `quality/<lang>.md` leaf, plus its index row |
 | `.github/workflows/*` | the job list and the gate's role |
 | `release-please-config.json` | the tool and the real tag shape |
 | the workflows and the Dockerfile | variable names, never values |
@@ -1171,18 +1171,18 @@ is the property `docs/steering.md` asks for.
 `just lint` covers the python and the prose. `just lint-config` covers the structural
 surface: yamllint, taplo, JSON parsing, actionlint, and zizmor.
 
-Both run in `just check`. The layers put these tools in a generated project's CI, and a
+Both run in `just check`. The recipes put these tools in a generated project's CI, and a
 scaffold that does not run them on itself has 87 unchecked YAML files and a workflow nobody
 audits, which is what this repository had until the gate existed.
 
-They skip `templates/`. A `.jinja` file is deliberately not valid YAML, TOML, or JSON: it
-holds jinja delimiters, and a conditional filename is not a path a parser accepts. The layer
+They skip `recipes/`. A `.jinja` file is deliberately not valid YAML, TOML, or JSON: it
+holds jinja delimiters, and a conditional filename is not a path a parser accepts. The recipe
 tests cover those instead, by rendering the template and running the real parser against the
 result.
 
 ## Running the tests
 
-Most tests render a layer and run the real tool against the result, which is what catches
+Most tests render a recipe and run the real tool against the result, which is what catches
 the defects a template read cannot. That makes the suite wait on toolchains rather than on
 CPU, and each test renders into its own `tmp_path` without shared state, so it parallelises
 cleanly.
@@ -1203,7 +1203,7 @@ reads.
 | Contributed as | Combined by |
 |---|---|
 | `.gitignore.d/<name>` | `gitnr create` in `base/gitignore` |
-| `.github/{quality,security}.d/<name>.yml` | a matrix in the host layer's shared workflow |
+| `.github/{quality,security}.d/<name>.yml` | a matrix in the host recipe's shared workflow |
 | `.pre-commit.d/<name>.yaml` | see below |
 | `.mise/conf.d/<name>.toml` | mise reads the directory |
 | `.just.d/<name>.just` | `import?` lines written by `gen_justfile.py` in `workspace/just` |
@@ -1249,22 +1249,22 @@ In a monorepo each package gets a real `.pre-commit-config.yaml`, and prek's
 workspace mode unions them with hooks namespaced `<dir>:<hook-id>`. Nothing
 merges.
 
-In one directory two language layers cannot both write the root config, so
+In one directory two language recipes cannot both write the root config, so
 `just hooks-merge` concatenates `.pre-commit.d/*.yaml`. prek skips dot-prefixed
 directories during discovery, so the fragment directory is invisible to it until
 that recipe runs.
 
-## Cross-layer reads
+## Cross-recipe reads
 
 Two, both through `_external_data`, which resolves against the destination:
 
-| Layer | Reads | For |
+| Recipe | Reads | For |
 |---|---|---|
 | `lang/rust` | `base/license` | the SPDX identifier for `Cargo.toml`, without which `cargo-deny` fails against the crate itself |
 | `docs/deploy-*` | `docs/site` | the engine and the site URL |
 
 The other shared values are threaded by the agent, which writes one answers file
-per layer.
+per recipe.
 
 ## Dropped
 
