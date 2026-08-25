@@ -44,7 +44,7 @@ node = "24.13.0"
 go = "1.26.2"
 "aqua:gastownhall/beads" = "1.1.2"
 
-# `just packages` shells out to apm, so without this the recipe exits 127 in CI while passing
-# locally where pipx had installed it outside any pin. Pinned to the version the catalog
-# assertions were written against; 0.28.0 is current.
+# The `agentic/package` tests run the real apm CLI against rendered output, so without this
+# they skip in CI while passing locally where pipx had installed it outside any pin. Pinned to
+# the version those assertions were written against; 0.28.0 is current.
 "pipx:apm-cli" = "0.26.0"
