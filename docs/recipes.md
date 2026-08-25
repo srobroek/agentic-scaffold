@@ -699,10 +699,13 @@ recipe running one.
 
 A Claude-native marketplace serves OMP as-is, verified live: `omp plugin marketplace
 add` accepted a catalog carrying only `.claude-plugin/marketplace.json`, installed a
-pure Claude-format plugin from it, and a fresh session loaded its skill. The
-boundaries are two. Rules and agents load in OMP only for a plugin whose
-`package.json` carries the `omp` marker, while its skills load regardless; and
-Claude hooks are inert in OMP, whose CLI contains no `hooks.json` handling at all.
+pure Claude-format plugin from it, and a fresh session loaded its skill. Two
+boundaries carry the whole compatibility story:
+
+- Rules and agents load in OMP only for a plugin whose `package.json` carries the
+  `omp` marker; its skills load regardless.
+- Claude hooks are inert in OMP, whose CLI contains no `hooks.json` handling at all.
+
 A plugin that leans on hooks or unmarked rules therefore serves one runtime and
 silently under-delivers in the other -- which is why this recipe's starter ships
 both manifests and the marker.
