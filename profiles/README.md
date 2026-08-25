@@ -46,7 +46,8 @@ name: <profile>
 summary: <one line>
 generator: <command, or `none`>
 layers: [<group>/<name>, ...]  # recipe ids, in render order
-answers: {<key>: <value>}      # fixed or derived for this shape
+answers: {<key>: <value>}      # fixed or derived for this shape; every key a selected recipe asks
+generator_answers: {<key>: <value>}  # the generator's own axes, read by the agent and no recipe
 build: [<command>, ...]        # each runs in the destination and must exit 0
 ```
 

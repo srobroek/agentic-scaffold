@@ -369,6 +369,26 @@ def check_profile(path: Path) -> list[str]:
     return problems
 
 
+def dead_answers(path: Path) -> list[str]:
+    """Profile answer keys no selected recipe declares as a question.
+
+    A warning rather than a refusal: shared keys flow to many recipes
+    legitimately, so the comparison is against the union of the selected
+    recipes' questions -- anything outside that union is answered into the
+    void. python_framework was exactly this: asked, recorded, read by nothing.
+    """
+    profile = yaml.safe_load(path.read_text()) or {}
+    answers = profile.get("answers") or {}
+    recipes = [r for r in profile.get("layers") or [] if recipe_exists(r)]
+    declared: set[str] = set()
+    for recipe in recipes:
+        config = yaml.safe_load((RECIPES / recipe / "copier.yml").read_text()) or {}
+        declared |= {k for k, v in config.items() if not k.startswith("_") and isinstance(v, dict)}
+    return [
+        f"answers `{key}`, which no selected recipe asks" for key in answers if key not in declared
+    ]
+
+
 # --- planning ------------------------------------------------------------
 
 
@@ -801,15 +821,20 @@ def cmd_check(args: argparse.Namespace) -> int:
         if args.profiles
         else sorted(PROFILES.glob("*.yml"))
     )
+    warnings = 0
     for path in paths:
         problems = check_profile(path)
         if problems:
             failures += 1
             for problem in problems:
                 print(f"{path.stem}: {problem}", file=sys.stderr)
+            continue
+        for warning in dead_answers(path):
+            warnings += 1
+            print(f"{path.stem}: warning: {warning}", file=sys.stderr)
     if failures:
         return 1
-    print(f"ok: {len(paths)} profile(s)")
+    print(f"ok: {len(paths)} profile(s)" + (f", {warnings} warning(s)" if warnings else ""))
     return 0
 
 

@@ -5,9 +5,10 @@ date: 2026-07-29
 
 # Recipes
 
-36 recipes and 105 asked variables, from 30 packages and 247 questions. Every
-variable listed here is asked or derived; anything absent is fixed in the recipe
-per `../rules/choices.md`.
+31 recipes and 140 declared variables. Every variable listed here is asked or
+derived; anything absent is fixed in the recipe per `../rules/choices.md`, and a
+question whose answer the tree, the toolchain, or the generator already carries
+is not asked at all.
 
 ## base
 
@@ -290,21 +291,6 @@ carries the root config and the repository-wide hygiene hooks alone.
 | `workspace/worktrunk` | `.config/wt.toml`, `.worktreeinclude` | `forge_platform`, `forge_hostname`, `worktree_includes` |
 
 `workspace/monorepo` owns `just add`.
-
-### The devcontainer has one toolchain source
-
-`mise` is the only toolchain feature, and `postCreateCommand` is
-`mise trust && mise install && just setup`. A per-language devcontainer feature would
-pin a second copy of a compiler that could then disagree with what CI and a laptop
-resolve from `.mise/conf.d/`.
-
-`mise trust` has to precede `mise install`: an untrusted config is skipped silently
-rather than failing, so the install would report success having installed nothing. The
-container calls `just setup` rather than repeating its steps, so the two cannot drift.
-
-`devcontainer.json` is JSONC, so it carries its reasoning in comments and `json.load`
-rejects it. The recipe's tests parse it through
-`@devcontainers/cli read-configuration`, which is what an editor uses.
 
 ### moon alongside just, not instead of it
 
@@ -992,9 +978,7 @@ the first, so a pull request cannot merge a justfile that omits a fragment. Both
 compare in a copy rather than rewriting, since a check that fixes what it checks
 leaves a dirty tree and passes on the rerun.
 
-`agentic/marketplace` reads the finished tree.
-
-A profile states this order directly. 36 recipes with a fixed order need no
+A profile states this order directly. 31 recipes with a fixed order need no
 dependency solver.
 
 ## Profiles

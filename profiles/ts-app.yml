@@ -35,10 +35,12 @@ answers:
   docs_engine: starlight
   # starlight is off as a better-t-stack addon, because docs/site supersedes it.
 
-  # The generator's own axes, verified against `create-better-t-stack schema`. api is orpc
-  # rather than trpc because orpc emits an OpenAPI document and trpc emits none, which is
-  # what makes lang/api's vacuum and oasdiff gates mean anything here. database, orm, auth,
-  # and payments are asked rather than derived, so `none` is the starting point.
+# The generator's own axes, verified against `create-better-t-stack schema`, read by the
+# agent when it runs the generator and by no recipe. api is orpc rather than trpc because
+# orpc emits an OpenAPI document and trpc emits none, which is what makes lang/api's
+# vacuum and oasdiff gates mean anything here. database, orm, auth, and payments are
+# asked rather than derived, so `none` is the starting point.
+generator_answers:
   bts_frontend: tanstack-router
   bts_backend: hono
   bts_runtime: bun

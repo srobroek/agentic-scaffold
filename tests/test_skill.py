@@ -87,8 +87,9 @@ def test_the_frontmatter_carries_a_matching_trigger(path: Path) -> None:
 @pytest.mark.parametrize("path", [SCAFFOLD_SKILL, UPDATE_SKILL], ids=NAMES)
 def test_it_stays_under_the_line_budget(path: Path) -> None:
     """A skill long enough to skim is a skill nobody reads. The ceiling rose from 120 when
-    both absorbed the retired runner's interview, answers-file, and beads semantics."""
-    assert len(path.read_text().splitlines()) <= 140
+    both absorbed the retired runner's semantics, and to 160 when the interview grew the
+    grill-the-shape rounds."""
+    assert len(path.read_text().splitlines()) <= 160
 
 
 def test_the_scaffold_skill_names_the_verbs_a_person_types() -> None:
@@ -110,16 +111,18 @@ def interview() -> str:
     return skill_body().partition("## Interview")[2].partition("## Propose the recipe set")[0]
 
 
-def test_it_asks_exactly_the_six_questions() -> None:
-    """rules/choices.md fixes the count, and a seventh question is one whose answer the
-    document already derives."""
+def test_the_opening_round_stays_six_questions_and_the_shape_gets_grilled() -> None:
+    """rules/choices.md fixes the opening count -- a seventh up-front question is one whose
+    answer the document already derives. What nothing derives is grilled in rounds instead,
+    and that section has to exist or the non-derivable decisions default silently."""
     numbered = [
         line
         for line in interview().splitlines()
         if line.strip()[:2] in {f"{n}." for n in range(1, 10)}
     ]
-    assert len(numbered) == 6, f"expected six questions, found {len(numbered)}"
-    assert "six questions" in skill_body().lower()
+    assert len(numbered) == 6, f"expected six opening questions, found {len(numbered)}"
+    assert "## grill the shape" in skill_body().lower()
+    assert "generator_answers" in skill_body()
 
 
 def test_it_asks_nothing_the_choices_table_derives() -> None:

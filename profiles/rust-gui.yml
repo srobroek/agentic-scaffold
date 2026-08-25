@@ -35,7 +35,10 @@ answers:
   members: "crates/*"
   crate_kind: bin
   rust_edition: "2024"
-  # The shell needs no starlight: docs/site supersedes it, and the addon is off by default.
+
+# Read by the agent when it runs the generator; no recipe asks it. The shell needs no
+# starlight: docs/site supersedes it, and the addon is off by default.
+generator_answers:
   ts_framework: none
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a

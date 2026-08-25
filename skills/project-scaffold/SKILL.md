@@ -13,8 +13,9 @@ uv run scripts/scaffold.py <list|check|plan|render|check-answers|update>
 
 ## Interview
 
-Six questions, one per turn. `rules/choices.md` fixes or derives everything else, and a
-question it already answers invites a reply that contradicts the tree.
+A short opening round, one question per turn. `rules/choices.md` fixes or derives
+everything else, and a question it already answers invites a reply that contradicts
+the tree.
 
 1. **What are you building?** Name plus one line.
 2. **Which language?** rust, python, go, ts, or none for an agentic repository.
@@ -23,15 +24,30 @@ question it already answers invites a reply that contradicts the tree.
 5. **Create the remote now?**
 6. **Private or public**, if yes.
 
-Two more where the answers demand them, both in `rules/choices.md`. Ask `api` and `database`
+More where the answers demand them, all in `rules/choices.md`. Ask `api` and `database`
 for a `ts-app`: a CLI or a static site needs neither, and no project name says which. Ask
-about infrastructure where the first answer implies it.
+about infrastructure where the first answer implies it. Marketplaces are asked at the
+install gate, when registering is imminent, not here.
 
 Classify before asking: an answer is **strong** when the user stated it or `rules/choices.md`
-derives it, a **gap** otherwise. Grill the gaps one question per turn, because each answer
-narrows the next, and read a choice question's options verbatim from that recipe's `copier.yml`.
-Licence answers are open strings: normalise the obvious, say the correction, do not ask --
-`apache2` is `Apache-2.0`. A miss lists every SPDX key GitHub carries; correct and re-render.
+derives it, a **gap** otherwise. Read a choice question's options verbatim from that recipe's
+`copier.yml`. Licence answers are open strings: normalise the obvious, say the correction,
+do not ask -- `apache2` is `Apache-2.0`. A miss lists every SPDX key GitHub carries; correct
+and re-render.
+
+## Grill the shape
+
+The rounds above settle what the tool derives; what the application IS gets grilled
+before the recipe set is proposed. Work the open decisions in rounds:
+
+- A round is every question whose prerequisites are settled, numbered, each carrying
+  your recommended answer so one word accepts it.
+- In scope: the generator's axes (`generator_answers`: frontend, backend, runtime, api,
+  addons), auth and persistence, deployment target, the host contacts, which
+  marketplaces the machine trusts.
+- Out of scope: anything a tree, toolchain, or rule derives, and any padding question
+  `check-answers` would not report.
+- Stop when the frontier is empty.
 
 ## Propose the recipe set
 
@@ -130,7 +146,7 @@ catalog repository serves both.
 
 ## Rules
 
-- Ask six questions. `rules/choices.md` marks the rest fixed or derived.
+- Ask what nothing derives; `rules/choices.md` marks the rest fixed or derived.
 - Never name a marketplace the user did not. No check catches a suggested source, and one
   registration reaches every project on the machine.
 - Say a generator reaches the network before running it.

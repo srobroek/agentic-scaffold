@@ -27,7 +27,8 @@ What renders comes from three inputs:
 | Derived | `rules/choices.md`, applied by the agent | task runner, license, CI job set |
 | Asked | interview, one question at a time | project name, language, repo visibility |
 
-The interview is six questions. Everything else is fixed or derived.
+The interview asks what nothing derives -- a short opening round, then rounds
+grilling the application's shape. Everything else is fixed or derived.
 
 ## Plan before render
 
@@ -83,6 +84,25 @@ touched, since folding is the generated repository's own work.
 
 A remote copier template keeps its `_commit`, so `copier update` remains the
 right tool for that source.
+
+## Recipe authoring rules
+
+Applied across every recipe in the 2026-08 question audit; a new recipe follows
+them or its review says why not.
+
+| Rule | Example |
+|---|---|
+| A question may not ask what the tree already says | `release_type` reads rust-toolchain.toml, pyproject.toml, package.json, go.mod; `simple` is the no-marker fallback |
+| A question may not ask what the toolchain or generator already decided | an empty `rust_edition` keeps what `cargo init` wrote; `go_version` reads go.mod's directive back |
+| A version pin resolves latest at render, with a verified floor as the offline fallback | `resolve_versions.py` asks `mise latest` for opentofu and tflint |
+| A blank a user must fill stays blank, never guessed | `aws_region` and `state_bucket` render empty and fail at `tofu init` with their own message |
+| A question consumed by nothing is deleted, not defaulted | `python_framework` was asked, recorded, and read by nothing |
+
+Settling happens in a `_tasks` script that rewrites only an exact placeholder the
+render produced, so a hand-tuned file is never touched -- the same contract
+`_skip_if_exists` gives a re-render. A value that decides template-time structure
+(a Dockerfile body, a conditional filename) cannot settle afterwards and is
+derived by the skill from the same markers instead.
 
 ## Run record
 
