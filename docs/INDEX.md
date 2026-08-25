@@ -486,7 +486,7 @@ Requires `git` on `PATH`.
 |---|---|---|
 | `project_name` | str |  |
 | `environments` | yaml | `['dev', 'prod']` |
-| `aws_region` | str | `eu-west-1` |
+| `aws_region` | str |  |
 | `state_bucket` | str |  |
 | `opentofu_version` | str |  |
 | `tflint_version` | str |  |

@@ -39,16 +39,19 @@ environments:
     Order is kept, so the first is what a bare `just plan` uses.
   default: [dev, prod]
 
+# Both stay blank rather than guessed: cloud setup is the user's, and the agent
+# customises after the mechanical render. A blank value fails at `tofu init`
+# with its own message, which is the right place to learn it is unset.
 aws_region:
   type: str
-  help: Region the provider and the backend both default to.
-  default: eu-west-1
+  help: Region the provider and the backend both default to. Blank until the user sets it.
+  default: ""
 
 state_bucket:
   type: str
   help: >-
-    S3 bucket holding state, which `infra/bootstrap` creates. Empty renders
-    `<project_name>-tofu-state`.
+    S3 bucket holding state, which `infra/bootstrap` creates. Blank until the
+    user sets it.
   default: ""
 
 opentofu_version:
