@@ -14,8 +14,8 @@ into one destination.
 | `just` | the entry points in this repository's justfile |
 
 A recipe declares the binaries it needs in its own `copier.yml`, and `scaffold
-render` names the missing one instead of failing inside copier: `gitnr` for
-`base/gitignore`, `gh` for `base/license`, `bd` for `agentic/beads`, `node` for
+render` names the missing one instead of failing inside copier: `gh` for
+`base/license` and `base/gitignore`, `bd` for `agentic/beads`, `node` for
 `iac/cdk`.
 
 `base/repo` refuses a destination holding uncommitted changes. copier

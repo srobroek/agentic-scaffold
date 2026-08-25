@@ -25,6 +25,6 @@ go_version:
 go_vendor:
   type: bool
   help: >-
-    Whether to commit vendor/. gitnr's Go template cannot express this, so the
+    Whether to commit vendor/. The upstream Go template cannot express this, so the
     gitignore fragment carries it.
   default: false

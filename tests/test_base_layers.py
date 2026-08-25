@@ -131,7 +131,7 @@ def test_precheck_refuses_a_dirty_destination(tmp_path: Path) -> None:
 def test_gitignore_always_ignores_generated_output(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
-    result = render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    result = render("base/gitignore", dest, 'gitignore_templates: ""\n')
     assert result.returncode == 0, result.stderr
     body = (dest / ".gitignore").read_text()
     assert "repomix.xml" in body
@@ -153,12 +153,12 @@ def test_gitignore_covers_the_os_artifacts_with_no_language_layer(
     """The OS writes these whatever the project is, so no derived list gates them.
 
     A docs-only repository renders no language layer at all, and one of these files
-    still reached a template directory in this repository. They come from gitnr's
-    three Global templates rather than a hand-rolled list here.
+    still reached a template directory in this repository. They come from the three
+    Global templates in github/gitignore rather than a hand-rolled list here.
     """
     dest = tmp_path / "d"
     dest.mkdir()
-    result = render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    result = render("base/gitignore", dest, 'gitignore_templates: ""\n')
     assert result.returncode == 0, result.stderr
     assert artifact in (dest / ".gitignore").read_text(), (
         f"{artifact} is unignored, though it is written by {written_by}"
@@ -168,14 +168,14 @@ def test_gitignore_covers_the_os_artifacts_with_no_language_layer(
 def test_a_pattern_holding_a_carriage_return_survives(tmp_path: Path) -> None:
     """GitHub's macOS template carries `Icon[\\r]`, a filename with a literal CR.
 
-    Reading gitnr's output with `text=True` enables universal newlines, which rewrites
+    Reading the fetched template with `text=True` enables universal newlines, which rewrites
     that CR to LF and splits the pattern across two lines. What is left, `Icon[`, is an
     unterminated character class, and every tool that reads .gitignore errors on it:
     zizmor exited 1 with "error parsing glob 'Icon['" while auditing workflows.
     """
     dest = tmp_path / "d"
     dest.mkdir()
-    result = render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    result = render("base/gitignore", dest, 'gitignore_templates: ""\n')
     assert result.returncode == 0, result.stderr
 
     raw = (dest / ".gitignore").read_bytes()
@@ -192,7 +192,7 @@ def test_gitignore_leaves_editor_directories_to_the_developer(tmp_path: Path) ->
     """
     dest = tmp_path / "d"
     dest.mkdir()
-    render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    render("base/gitignore", dest, 'gitignore_templates: ""\n')
     body = (dest / ".gitignore").read_text()
     assert ".vscode/" not in body
     assert ".idea/" not in body
@@ -204,7 +204,7 @@ def test_gitignore_folds_the_fragments(tmp_path: Path) -> None:
     (dest / ".gitignore.d").mkdir()
     (dest / ".gitignore.d" / "rust").write_text("/target\nCargo.lock\n")
 
-    result = render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    result = render("base/gitignore", dest, 'gitignore_templates: ""\n')
 
     assert result.returncode == 0
     body = (dest / ".gitignore").read_text()
@@ -218,7 +218,7 @@ def test_a_fragment_with_its_own_comment_is_not_double_headed(tmp_path: Path) ->
     (dest / ".gitignore.d").mkdir()
     (dest / ".gitignore.d" / "beads").write_text("# beads\n.beads/dolt/\n")
 
-    render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    render("base/gitignore", dest, 'gitignore_templates: ""\n')
 
     assert (dest / ".gitignore").read_text().count("# beads") == 1
 
@@ -229,23 +229,23 @@ def test_gitignore_is_rebuilt_identically(tmp_path: Path) -> None:
     (dest / ".gitignore.d").mkdir()
     (dest / ".gitignore.d" / "rust").write_text("/target\n")
 
-    render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    render("base/gitignore", dest, 'gitignore_templates: ""\n')
     first = (dest / ".gitignore").read_text()
-    render("base/gitignore", dest, 'gitnr_templates: ""\n')
+    render("base/gitignore", dest, 'gitignore_templates: ""\n')
 
     assert (dest / ".gitignore").read_text() == first
 
 
-# --- the gitnr fetch -------------------------------------------------------
+# --- the template fetch ------------------------------------------------------
 
 FOLD = REPO_ROOT / "recipes" / "base" / "gitignore" / "tasks" / "fold_gitignore.py"
 
 
-def gitnr_shim(directory: Path, body: str) -> dict[str, str]:
-    """A fake gitnr on PATH, so the retry is exercised without waiting for a real outage."""
+def gh_shim(directory: Path, body: str) -> dict[str, str]:
+    """A fake gh on PATH, so the retry is exercised without waiting for a real outage."""
     shim = directory / "bin"
     shim.mkdir(parents=True, exist_ok=True)
-    executable = shim / "gitnr"
+    executable = shim / "gh"
     executable.write_text(body)
     executable.chmod(0o755)
     env = dict(os.environ)
@@ -254,14 +254,14 @@ def gitnr_shim(directory: Path, body: str) -> dict[str, str]:
     return env
 
 
-def test_the_gitnr_fetch_recovers_from_a_transient_failure(tmp_path: Path) -> None:
-    """gitnr fetches over the network, and one render failed under `pytest -n auto` while the
-    same command succeeded on a rerun and across twelve concurrent renders.
+def test_the_template_fetch_recovers_from_a_transient_failure(tmp_path: Path) -> None:
+    """The templates arrive over the network, and one render failed under `pytest -n auto`
+    while the same command succeeded on a rerun and across twelve concurrent renders.
 
-    A template is cached for an hour, so the second attempt is usually local. Without the retry
-    a transient fetch fails a whole render, and the layer writes no .gitignore at all.
+    Without the retry a transient fetch fails a whole render, and the layer writes no
+    .gitignore at all.
     """
-    env = gitnr_shim(
+    env = gh_shim(
         tmp_path,
         "#!/usr/bin/env bash\n"
         'n=$(cat "$COUNTER" 2>/dev/null || echo 0)\n'
@@ -282,7 +282,10 @@ def test_the_gitnr_fetch_recovers_from_a_transient_failure(tmp_path: Path) -> No
         timeout=300,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert (tmp_path / "count").read_text().strip() == "3", "it did not retry"
+    # Templates fetch one `gh` call per source, and the three Global templates share
+    # the shim's counter: the first source fails twice and recovers on call 3, the
+    # other two succeed on calls 4 and 5.
+    assert (tmp_path / "count").read_text().strip() == "5", "it did not retry"
     # Five attempts available, so recovering on the third leaves headroom.
     assert "of 5 failed" in result.stderr
     # The recovered output is what lands, not an empty file.
@@ -291,16 +294,16 @@ def test_the_gitnr_fetch_recovers_from_a_transient_failure(tmp_path: Path) -> No
     assert "attempt 1 of 5 failed" in result.stderr
 
 
-def test_the_gitnr_fetch_gives_up_and_says_how_many_times(tmp_path: Path) -> None:
+def test_the_template_fetch_gives_up_and_says_how_many_times(tmp_path: Path) -> None:
     """A retry that hides a systematic failure is worse than no retry. The message names the
     attempt count and the tool's own last words."""
-    env = gitnr_shim(
+    env = gh_shim(
         tmp_path,
         '#!/usr/bin/env bash\necho "always broken" >&2\nexit 1\n',
     )
     # Otherwise this spends 2+4+8+16 seconds sleeping to prove a message. The backoff itself is
     # asserted by its own measurement, not here.
-    env["GITNR_BACKOFF_SECONDS"] = "0"
+    env["GITIGNORE_FETCH_BACKOFF_SECONDS"] = "0"
     dest = tmp_path / "tree"
     dest.mkdir()
     result = subprocess.run(

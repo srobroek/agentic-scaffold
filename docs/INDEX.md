@@ -179,13 +179,13 @@ Writes:
 
 ## `base/gitignore`
 
-Concatenates gitnr templates and every .gitignore.d fragment into .gitignore. Renders after every layer that contributes one.
+Concatenates upstream github/gitignore templates and every .gitignore.d fragment into .gitignore. Renders after every layer that contributes one.
 
-Requires `gitnr` on `PATH`.
+Requires `gh` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
-| `gitnr_templates` | str |  |
+| `gitignore_templates` | str |  |
 
 
 ## `base/license`

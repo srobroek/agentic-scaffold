@@ -185,7 +185,7 @@ def test_bds_ignore_lines_move_into_a_fragment(beads: Path) -> None:
 @needs_bd
 def test_the_ignore_lines_survive_a_gitignore_rebuild(beads: Path) -> None:
     """The end-to-end case the render order exists for."""
-    result = render("base/gitignore", beads, 'gitnr_templates: ""\n')
+    result = render("base/gitignore", beads, 'gitignore_templates: ""\n')
     assert result.returncode == 0, result.stderr
 
     body = (beads / ".gitignore").read_text()

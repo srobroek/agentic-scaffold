@@ -2,7 +2,6 @@
 python = "3.13"
 uv = "latest"
 just = "latest"
-"cargo:gitnr" = "latest"
 prek = "latest"
 
 # The structural linters `just lint-config` runs over this repository's own configuration.

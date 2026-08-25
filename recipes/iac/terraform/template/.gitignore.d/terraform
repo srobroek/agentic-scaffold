@@ -1,6 +1,6 @@
 # OpenTofu / Terraform.
 #
-# gitnr has no OpenTofu template and its Terraform one predates .tofu files, so this
+# github/gitignore's Terraform template predates .tofu files, so this
 # fragment carries the whole set rather than supplementing it.
 
 # Provider and module downloads. Per root module, so the glob is not anchored.

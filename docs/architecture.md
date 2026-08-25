@@ -212,7 +212,7 @@ has a native mechanism instead of a merge script.
 | Target | Mechanism |
 |---|---|
 | `.pre-commit-config.yaml` | prek workspace mode: one config per directory, unioned and namespaced `<dir>:<hook-id>` |
-| `.gitignore` | `gitnr create <templates> -s` concatenates sources |
+| `.gitignore` | `base/gitignore` fetches github/gitignore templates through `gh api` and concatenates the fragments |
 | `.mise/conf.d/` | mise reads the directory |
 | `justfile` | `import?` per fragment, one flat namespace, written by `gen_justfile.py` |
 | `.gitlab-ci.yml` | `include: - local: .gitlab/ci/*.yml` |

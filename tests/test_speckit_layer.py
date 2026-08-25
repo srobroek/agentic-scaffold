@@ -154,7 +154,7 @@ def test_the_status_artefact_is_carried_as_a_fragment(speckit: Path) -> None:
 
 def test_the_entry_survives_a_gitignore_rebuild(speckit: Path) -> None:
     """The end-to-end case the fragment exists for."""
-    assert render("base/gitignore", speckit, 'gitnr_templates: ""\n').returncode == 0
+    assert render("base/gitignore", speckit, 'gitignore_templates: ""\n').returncode == 0
     assert "specs/**/spec-status.md" in (speckit / ".gitignore").read_text()
 
 

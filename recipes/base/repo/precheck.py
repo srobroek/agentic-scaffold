@@ -21,7 +21,7 @@ from pathlib import Path
 REQUIRED = {
     "git": "version control",
     "just": "the task surface every layer contributes recipes to",
-    "gitnr": "concatenates the gitignore sources in base/gitignore",
+    "gh": "fetches the licence body and the gitignore templates",
 }
 
 OPTIONAL = {

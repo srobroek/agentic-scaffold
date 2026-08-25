@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
-"""Build .gitignore from gitnr templates plus every .gitignore.d fragment.
+"""Build .gitignore from upstream github/gitignore templates plus every .gitignore.d fragment.
 
-    fold_gitignore.py <dest> [gitnr-sources]
+    fold_gitignore.py <dest> [template-sources]
 
-gitnr covers the bulk per language. A fragment carries what gitnr cannot express:
-`Cargo.lock` ignored for a library but committed for a binary, `vendor/` under Go
-vendor mode, or a tool's output path.
+The upstream templates cover the bulk per language. A fragment carries what a
+template cannot express: `Cargo.lock` ignored for a library but committed for a
+binary, `vendor/` under Go vendor mode, or a tool's output path.
 
 Always ignored regardless of language, because a layer or a hook writes them:
 the repomix pack, generated skill directories, and the beads Dolt database.
 
 Idempotent: the whole file is rebuilt from its sources every run.
 
-gitnr fetches its templates over the network, so the fetch is retried. It failed once under
-`pytest -n auto` while the same command succeeded on a rerun and across twelve concurrent
-renders, which is a transient fetch rather than a systematic one.
+Templates are fetched through `gh api` from the github/gitignore repository --
+`gh` is already required for the repository creation the interview offers, so
+this adds no binary. The fetch is retried: one render failed under
+`pytest -n auto` while the same command succeeded on a rerun and across twelve
+concurrent renders, which is a transient fetch rather than a systematic one.
 """
 
 from __future__ import annotations
@@ -26,30 +28,29 @@ import sys
 import time
 from pathlib import Path
 
-GITNR_TIMEOUT_SECONDS = 120
+FETCH_TIMEOUT_SECONDS = 120
 
 # Five attempts with exponential backoff, so the waits are 2, 4, 8, and 16 seconds and a render
 # survives roughly half a minute of upstream trouble.
 #
 # Sized against a real outage rather than guessed. `raw.githubusercontent.com` returned 429 and
 # then 503 for the gitignore templates, verified with curl: three attempts over six seconds
-# failed thirteen tests, and `Global/macOS` passed only because gitnr still had it cached from an
-# earlier run. A template is cached for an hour, so a successful attempt makes the next render
-# local and the backoff costs nothing on a normal day.
+# failed thirteen tests. The API route `gh api` takes is authenticated, which is what keeps it
+# clear of the anonymous rate limit that outage hit.
 #
 # It does not survive a sustained outage, and it is not meant to. The alternative was vendoring
 # the three OS templates, which trades an upstream dependency for three files to keep current.
-GITNR_ATTEMPTS = 5
+FETCH_ATTEMPTS = 5
 # Overridable so a test exercising the give-up path does not spend thirty seconds sleeping. Not a
 # knob for a person to turn: the default is the measured one.
-GITNR_BACKOFF_SECONDS = float(os.environ.get("GITNR_BACKOFF_SECONDS", "2"))
+FETCH_BACKOFF_SECONDS = float(os.environ.get("GITIGNORE_FETCH_BACKOFF_SECONDS", "2"))
 
 # The operating system writes these whatever the project is, so they are added for
 # every render rather than derived from the language layers. Finder writes a
 # `.DS_Store` into any directory it displays, and one reached a template directory
 # in this repository.
 #
-# gitnr carries them, so nothing here is hand-rolled: `Global/macOS` covers
+# github/gitignore carries them, so nothing here is hand-rolled: `Global/macOS` covers
 # `.DS_Store` and the `._*` resource forks, `Global/Windows` covers `Thumbs.db` and
 # `desktop.ini`, `Global/Linux` covers `*~` and the trash directories.
 #
@@ -69,50 +70,66 @@ repomix-*.xml
 """
 
 
-def gitnr_output(sources: list[str]) -> str:
-    if not sources:
-        return ""
-    if shutil.which("gitnr") is None:
-        print("gitnr absent from PATH, skipping its templates", file=sys.stderr)
-        return ""
-    # Bytes, not text. `text=True` enables universal newlines, which rewrites a lone
-    # CR to LF, and GitHub's macOS template carries two patterns holding a literal CR:
-    # `Icon[\r]` and `.HFS+ Private Directory Data[\r]`. Converting it splits each
-    # across two lines, leaving `Icon[` behind, which is an unterminated character
-    # class. Every tool reading the file then errors on it, zizmor among them.
-    # Retried, because the fetch is the failure. gitnr caches a template for an hour, so a cold
-    # cache is the only time this touches the network, and that is when it broke: one render
-    # exited non-zero under `pytest -n auto` while the same command succeeded on a rerun and
-    # across twelve concurrent renders. A warm cache makes the second attempt local, so the
-    # backoff exists for the case where the cache is cold for every attempt.
+def template_path(source: str) -> str:
+    """`gh:Global/macOS` -> `Global/macOS.gitignore` in github/gitignore."""
+    return f"{source.removeprefix('gh:')}.gitignore"
+
+
+def fetch_template(source: str) -> str:
+    """One template through `gh api`, retried.
+
+    Bytes, not text. `text=True` enables universal newlines, which rewrites a lone
+    CR to LF, and GitHub's macOS template carries two patterns holding a literal CR:
+    `Icon[\\r]` and `.HFS+ Private Directory Data[\\r]`. Converting it splits each
+    across two lines, leaving `Icon[` behind, which is an unterminated character
+    class. Every tool reading the file then errors on it, zizmor among them.
+    """
+    command = [
+        "gh",
+        "api",
+        "-H",
+        "Accept: application/vnd.github.raw",
+        f"repos/github/gitignore/contents/{template_path(source)}",
+    ]
     detail = ""
-    for attempt in range(1, GITNR_ATTEMPTS + 1):
+    for attempt in range(1, FETCH_ATTEMPTS + 1):
         try:
             result = subprocess.run(
-                ["gitnr", "create", *sources],
+                command,
                 capture_output=True,
                 check=False,
-                timeout=GITNR_TIMEOUT_SECONDS,
+                timeout=FETCH_TIMEOUT_SECONDS,
             )
         except subprocess.TimeoutExpired:
-            detail = f"timed out after {GITNR_TIMEOUT_SECONDS}s"
+            detail = f"timed out after {FETCH_TIMEOUT_SECONDS}s"
         else:
             if result.returncode == 0:
                 return result.stdout.decode(errors="replace")
             detail = result.stderr.decode(errors="replace").strip() or f"exit {result.returncode}"
 
-        if attempt < GITNR_ATTEMPTS:
+        if attempt < FETCH_ATTEMPTS:
             # Said out loud. A silent retry turns a systematic failure into a slow render
             # nobody investigates.
             print(
-                f"gitnr attempt {attempt} of {GITNR_ATTEMPTS} failed ({detail}), retrying",
+                f"gh api attempt {attempt} of {FETCH_ATTEMPTS} failed for {source} "
+                f"({detail}), retrying",
                 file=sys.stderr,
             )
-            time.sleep(GITNR_BACKOFF_SECONDS * 2 ** (attempt - 1))
+            time.sleep(FETCH_BACKOFF_SECONDS * 2 ** (attempt - 1))
 
-    raise SystemExit(
-        f"gitnr failed for {' '.join(sources)} after {GITNR_ATTEMPTS} attempts: {detail}"
-    )
+    raise SystemExit(f"gh api failed for {source} after {FETCH_ATTEMPTS} attempts: {detail}")
+
+
+def templates_output(sources: list[str]) -> str:
+    if not sources:
+        return ""
+    if shutil.which("gh") is None:
+        print("gh absent from PATH, skipping the upstream templates", file=sys.stderr)
+        return ""
+    blocks = []
+    for source in sources:
+        blocks.append(f"# {source}\n{fetch_template(source).strip()}\n")
+    return "\n".join(blocks)
 
 
 def fragments(dest: Path) -> str:
@@ -152,7 +169,7 @@ def main() -> int:
     if fragment_text:
         parts.append(fragment_text)
 
-    remote = gitnr_output(sources)
+    remote = templates_output(sources)
     if remote:
         parts.append(remote)
 
@@ -161,7 +178,7 @@ def main() -> int:
     counted = (
         len(list((dest / ".gitignore.d").iterdir())) if (dest / ".gitignore.d").is_dir() else 0
     )
-    print(f".gitignore written from {len(sources)} gitnr source(s) and {counted} fragment(s)")
+    print(f".gitignore written from {len(sources)} upstream template(s) and {counted} fragment(s)")
     return 0
 
 

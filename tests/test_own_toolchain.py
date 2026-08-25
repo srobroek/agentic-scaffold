@@ -27,7 +27,7 @@ needs_mise = pytest.mark.skipif(shutil.which("mise") is None, reason="mise absen
 
 # Pins mise cannot enumerate, with why. `latest` is not a version to check, and a backend
 # whose registry has no ls-remote entry would report every pin as missing.
-UNCHECKABLE = {"python", "uv", "just", "prek", "cargo:gitnr"}
+UNCHECKABLE = {"python", "uv", "just", "prek"}
 
 # `latest` on purpose. Every other entry in mise.toml's pinned block is a version some test
 # asserts behaviour against; trivy's findings come from a vulnerability database rather than
@@ -215,7 +215,6 @@ def test_every_binary_a_recipe_invokes_is_pinned() -> None:
         "pipx:apm-cli": "apm",
         "npm:@moonrepo/cli": "moon",
         "ubi:oasdiff/oasdiff": "oasdiff",
-        "cargo:gitnr": "gitnr",
     }
     for spec, binary in BINARY_OF.items():
         if spec in pins():

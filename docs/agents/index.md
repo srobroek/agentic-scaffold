@@ -32,7 +32,7 @@ and every fixed choice, `../steering.md` for what a scaffolded repository gets,
 ## Toolchain
 
 Pinned in `mise.toml`. Python for the scripts, `copier` >= 9.16, `just`,
-`gitnr`, `prek`.
+`prek`.
 
 ## Layout
 

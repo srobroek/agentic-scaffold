@@ -19,7 +19,7 @@ sibling recipe.
 |---|---|---|
 | `base/license` | `LICENSE` | `license`, `copyright_name`, `copyright_year` |
 | `base/repo` | `README.md`, `.editorconfig`, `.gitattributes`, `docs/{adr,architecture}/`, `scripts/`, `tests/` | `project_name`, `description`, `org` |
-| `base/gitignore` | `.gitignore`, through `gitnr create <templates> file:.gitignore.d/* -s` | none |
+| `base/gitignore` | `.gitignore`, from github/gitignore templates through `gh api` plus every `.gitignore.d/*` fragment | none |
 
 `license` takes any licence identifier and fetches the body through
 `gh api /licenses/<key>`. No text is vendored here, since a copy would drift from
@@ -32,7 +32,7 @@ absent from the `/licenses` list, `EUPL-1.2` among them. Anything it refuses fal
 back to the SPDX licence list, and an identifier absent from both fails while
 listing what GitHub has. `none` does not write a file.
 
-The gitnr template list follows from which language recipes rendered, plus
+The template list follows from which language recipes rendered, plus
 `Global/{macOS,Windows,Linux}` on every render. The operating system writes
 `.DS_Store`, `._*`, `Thumbs.db`, and `*~` whatever the project is, and a docs-only
 repository renders no language recipe to derive them from.
@@ -45,7 +45,7 @@ in every repository this scaffolds.
 own their own subtrees.
 
 `base/repo` carries the only `precheck.py`. It requires `git`, `just`, and
-`gitnr`, notes `mise` and `prek` when absent, and refuses a destination with
+`gh`, notes `mise` and `prek` when absent, and refuses a destination with
 uncommitted changes, because copier overwrites and does not leave a diff to review.
 
 `base/gitignore` always ignores what a tool in the repository writes, meaning the
@@ -107,7 +107,7 @@ baseline ref, and a first commit on a fresh branch has no merge base, so it belo
 where the pull request defines one. With no baseline reachable it exits 0 rather than
 blocking the commit that introduces the contract.
 
-`.gitignore.d/<name>` carries the conditional lines alone. gitnr's own templates
+`.gitignore.d/<name>` carries the conditional lines alone. The upstream templates
 cover `/target`, `__pycache__`, and `node_modules`; what it cannot express is
 `Cargo.lock` ignored for a library and committed for a binary, or `vendor/` under
 Go vendor mode.
@@ -1200,7 +1200,7 @@ reads.
 
 | Contributed as | Combined by |
 |---|---|
-| `.gitignore.d/<name>` | `gitnr create` in `base/gitignore` |
+| `.gitignore.d/<name>` | the `gh api` fold in `base/gitignore` |
 | `.github/{quality,security}.d/<name>.yml` | a matrix in the host recipe's shared workflow |
 | `.pre-commit.d/<name>.yaml` | see below |
 | `.mise/conf.d/<name>.toml` | mise reads the directory |
