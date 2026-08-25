@@ -34,7 +34,10 @@ security_contact:
 
 coc_contact:
   type: str
-  help: where to report a code-of-conduct violation.
+  help: >-
+    Where to report a code-of-conduct violation. Empty renders no
+    CODE_OF_CONDUCT.md at all: a code of conduct with no reporting channel asks
+    people to trust a process that does not exist.
   default: ""
 
 default_branch:

@@ -33,14 +33,16 @@ security_contact:
   type: str
   help: >-
     Where to report a vulnerability privately. Empty points at GitHub's private
-    reporting form, which has to be enabled once under Settings, Code security.
+    reporting form, which `just repo-govern` enables with the rest of the
+    repository settings.
   default: ""
 
 coc_contact:
   type: str
   help: >-
-    Where to report a code-of-conduct violation. Empty renders a placeholder that
-    says it must be filled in before the repository goes public.
+    Where to report a code-of-conduct violation. Empty renders no
+    CODE_OF_CONDUCT.md at all: a code of conduct with no reporting channel asks
+    people to trust a process that does not exist.
   default: ""
 
 # Threaded by the agent from base/repo rather than read through _external_data.
