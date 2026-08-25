@@ -1,10 +1,12 @@
-"""profiles/: the layer set per shape, and the validator that keeps it honest.
+"""profiles/: the recipe set per shape, and `scaffold check`, which keeps it honest.
 
-The validator is not decoration. It caught two real ordering bugs the unit tests could
-not: `lang/api` declared `after: host/github` when every other language layer renders
+The check is not decoration. It caught two real ordering bugs the unit tests could
+not: `lang/api` declared `after: host/github` when every other language recipe renders
 before the host, and `rust-gui` put `workspace/moon` after `workspace/just`, which left the
 justfile's import block missing the moon fragment. The second surfaced only when a rendered
 profile ran `just just-check`.
+
+A profile still names its recipes under the key `layers`.
 """
 
 from __future__ import annotations
@@ -12,19 +14,18 @@ from __future__ import annotations
 import fnmatch
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
+from conftest import load_scaffold, scaffold
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PROFILES = REPO_ROOT / "profiles"
-TEMPLATES = REPO_ROOT / "templates"
-VALIDATOR = REPO_ROOT / "scripts" / "profiles.py"
+RECIPES = REPO_ROOT / "recipes"
 
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
-import profiles  # noqa: E402  -- needs the path above
+# The REQUIRES table lives in the CLI and is validated against there. A copy here drifts.
+CLI = load_scaffold()
 
 # Named in docs/architecture.md's generator table. A profile missing here is a shape the
 # architecture claims to support and does not.
@@ -71,7 +72,7 @@ def test_a_profile_parses_and_carries_every_key(path: Path) -> None:
 def test_every_named_layer_exists(path: Path) -> None:
     """A profile names layers by path, so a renamed layer leaves it pointing at nothing."""
     for layer in load(path)["layers"]:
-        assert (TEMPLATES / layer / "copier.yml").is_file(), f"{layer} has no copier.yml"
+        assert (RECIPES / layer / "copier.yml").is_file(), f"{layer} has no copier.yml"
 
 
 @pytest.mark.parametrize("path", profile_paths(), ids=ids(profile_paths()))
@@ -85,7 +86,7 @@ def test_the_order_respects_each_layer_declared_after(path: Path) -> None:
     position = {layer: index for index, layer in enumerate(layers)}
 
     for layer in layers:
-        config = yaml.safe_load((TEMPLATES / layer / "copier.yml").read_text()) or {}
+        config = yaml.safe_load((RECIPES / layer / "copier.yml").read_text()) or {}
         for pattern in (config.get("_scaffold") or {}).get("after") or []:
             for earlier in layers:
                 if earlier == layer or not fnmatch.fnmatch(earlier, pattern):
@@ -114,7 +115,7 @@ def test_a_fragment_contributor_precedes_the_aggregator(path: Path) -> None:
         for layer in layers:
             if layer == aggregator:
                 continue
-            template = TEMPLATES / layer / "template"
+            template = RECIPES / layer / "template"
             if not (template / directory).is_dir():
                 continue
             assert position[layer] < position[aggregator], (
@@ -137,7 +138,7 @@ def test_a_layer_that_needs_another_gets_it(path: Path) -> None:
     has to push, so without docs/site it writes into a directory no build reads, and under
     docs/deploy-sibling the build runs where the extractors cannot."""
     layers = set(load(path)["layers"])
-    for layer, needed in profiles.REQUIRES.items():
+    for layer, needed in CLI.REQUIRES.items():
         if layer not in layers:
             continue
         assert set(needed) <= layers, f"{path.stem}: {layer} without {set(needed) - layers}"
@@ -163,29 +164,21 @@ def test_the_monorepo_axis_renders_the_root_manifest_first() -> None:
                 assert index > root, f"{path.stem}: {layer} renders before the workspace root"
 
 
-def test_the_validator_agrees(tmp_path: Path) -> None:
-    """The script `just check` runs, against the committed set."""
-    result = subprocess.run(
-        [sys.executable, str(VALIDATOR)], capture_output=True, text=True, check=False
-    )
+def test_the_check_agrees() -> None:
+    """What `just check` runs, against the committed set."""
+    result = scaffold("check")
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def validator_against(directory: Path) -> subprocess.CompletedProcess[str]:
-    """Run the validator with PROFILES pointed at a copy.
+def check_against(directory: Path) -> subprocess.CompletedProcess[str]:
+    """Run `scaffold check` with PROFILES pointed at a copy.
 
     The failure-path tests used to write a `zz-test-*.yml` into the real profiles/
     directory, which made them fail under `-n auto`: one worker saw another worker's
     fixture, and `test_a_build_asserts_only_what_layers_produce` read it as a real profile.
     A shared mutable directory is not a fixture.
     """
-    return subprocess.run(
-        [sys.executable, str(VALIDATOR)],
-        capture_output=True,
-        text=True,
-        check=False,
-        env={**os.environ, "SCAFFOLD_PROFILES": str(directory)},
-    )
+    return scaffold("check", env={**os.environ, "SCAFFOLD_PROFILES": str(directory)})
 
 
 def copied_profiles(tmp_path: Path, extra: dict[str, str]) -> Path:
@@ -198,8 +191,8 @@ def copied_profiles(tmp_path: Path, extra: dict[str, str]) -> Path:
     return directory
 
 
-def test_the_validator_rejects_an_unknown_layer(tmp_path: Path) -> None:
-    """A validator that passes everything is not a validator, so the failure path is
+def test_the_check_rejects_an_unknown_layer(tmp_path: Path) -> None:
+    """A check that passes everything is not a check, so the failure path is
     exercised rather than assumed."""
     directory = copied_profiles(
         tmp_path,
@@ -208,12 +201,12 @@ def test_the_validator_rejects_an_unknown_layer(tmp_path: Path) -> None:
             "layers:\n  - base/repo\n  - nope/missing\nbuild:\n  - true\n"
         },
     )
-    result = validator_against(directory)
+    result = check_against(directory)
     assert result.returncode == 1
     assert "nope/missing" in result.stderr
 
 
-def test_the_validator_rejects_a_bad_order(tmp_path: Path) -> None:
+def test_the_check_rejects_a_bad_order(tmp_path: Path) -> None:
     """base/gitignore aggregates .gitignore.d, and lang/rust contributes to it."""
     directory = copied_profiles(
         tmp_path,
@@ -222,12 +215,12 @@ def test_the_validator_rejects_a_bad_order(tmp_path: Path) -> None:
             "layers:\n  - base/repo\n  - base/gitignore\n  - lang/rust\nbuild:\n  - true\n"
         },
     )
-    result = validator_against(directory)
+    result = check_against(directory)
     assert result.returncode == 1
     assert "base/gitignore" in result.stderr
 
 
-def test_the_validator_rejects_a_missing_requirement(tmp_path: Path) -> None:
+def test_the_check_rejects_a_missing_requirement(tmp_path: Path) -> None:
     """No committed profile selects docs/api-refs yet, so the rule holds vacuously across the
     set and this is the only thing proving it fires at all."""
     directory = copied_profiles(
@@ -237,9 +230,25 @@ def test_the_validator_rejects_a_missing_requirement(tmp_path: Path) -> None:
             "layers:\n  - base/repo\n  - docs/site\n  - docs/api-refs\nbuild:\n  - true\n"
         },
     )
-    result = validator_against(directory)
+    result = check_against(directory)
     assert result.returncode == 1
     assert "docs/deploy-split" in result.stderr
+
+
+def test_the_check_rejects_two_recipes_in_one_exclusive_group(tmp_path: Path) -> None:
+    """`agentic/apm` and `agentic/package` both write apm.yml, and no committed profile names
+    both, so the assertion above holds vacuously. This is what proves the declaration is
+    load-bearing rather than a comment."""
+    directory = copied_profiles(
+        tmp_path,
+        {
+            "zz-both.yml": "name: zz-both\nsummary: probe\ngenerator: none\n"
+            "layers:\n  - base/repo\n  - agentic/apm\n  - agentic/package\nbuild:\n  - true\n"
+        },
+    )
+    result = check_against(directory)
+    assert result.returncode == 1
+    assert "exclusive_group 'apm-manifest'" in result.stderr
 
 
 def test_the_largest_shape_needs_no_language_layer() -> None:
@@ -251,8 +260,8 @@ def test_the_largest_shape_needs_no_language_layer() -> None:
 
 
 def test_a_build_asserts_only_what_layers_produce() -> None:
-    """render_profile.py does not run the generator, so a command needing generator output
-    would fail for a missing manifest rather than for anything a layer got wrong."""
+    """`scaffold render --profile` does not run the generator, so a command needing generator
+    output would fail for a missing manifest rather than for anything a layer got wrong."""
     forbidden = ("cargo build", "go build", "bun install", "uv sync", "npx projen")
     for path in profile_paths():
         for command in load(path)["build"]:

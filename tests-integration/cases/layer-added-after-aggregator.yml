@@ -2,7 +2,7 @@ name: layer-added-after-aggregator
 summary: A language layer adopted after workspace/just leaves the import block stale.
 
 gap: |
-  scripts/profiles.py refuses this ordering inside a profile, and tests/test_profiles.py
+  `scaffold check` refuses this ordering inside a profile, and tests/test_profiles.py
   asserts the refusal. Neither renders the bad order and shows what the tree looks like
   afterwards, which is what a person adopting a layer by hand actually produces.
 

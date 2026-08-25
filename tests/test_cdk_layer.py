@@ -16,15 +16,12 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
-
-from conftest import mise_bin
+from conftest import mise_bin, render_recipe
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 ANSWERS = "project_name: demo-cdk\ndefault_branch: main\n"
 
@@ -52,14 +49,7 @@ def node_env() -> dict[str, str]:
 
 
 def render(dest: Path) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(ANSWERS)
-    return subprocess.run(
-        [sys.executable, str(RENDER), "iac/cdk", str(dest), "--answers", str(answers_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    return render_recipe("iac/cdk", dest, ANSWERS)
 
 
 def run(dest: Path, *args: str, timeout: int = 900) -> subprocess.CompletedProcess[str]:

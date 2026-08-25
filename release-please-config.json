@@ -1,9 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "separate-pull-requests": false,
-  "tag-separator": "--",
   "bootstrap-sha": "fd1159f16bf0200e7a87b66d7bc9049693f38419",
-  "include-component-in-tag": true,
   "changelog-sections": [
     { "type": "feat", "section": "Features" },
     { "type": "fix", "section": "Bug Fixes" },
@@ -17,22 +15,8 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "component": "srobroek-project-scaffold",
       "changelog-path": "CHANGELOG.md",
-      "exclude-paths": ["packages"],
-      "extra-files": [{ "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }]
-    },
-    "packages/project-scaffold": {
-      "release-type": "simple",
-      "component": "project-scaffold",
-      "changelog-path": "CHANGELOG.md",
-      "extra-files": [{ "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }]
-    },
-    "packages/project-scaffold-update": {
-      "release-type": "simple",
-      "component": "project-scaffold-update",
-      "changelog-path": "CHANGELOG.md",
-      "extra-files": [{ "type": "yaml", "path": "apm.yml", "jsonpath": "$.version" }]
+      "extra-files": [{ "type": "json", "path": ".claude-plugin/plugin.json", "jsonpath": "$.version" }]
     }
   }
 }

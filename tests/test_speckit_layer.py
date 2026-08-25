@@ -16,16 +16,14 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
-
-from conftest import mise_bin
 import yaml
+from conftest import mise_bin
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 SPECKIT = "speckit_integration: claude\nspeckit_script_flavor: sh\n"
 APM_WITH_PACKAGE = """\
@@ -54,15 +52,6 @@ needs_just = pytest.mark.skipif(
 
 def just_bin() -> str:
     return str(JUST) if JUST.is_file() else "just"
-
-
-def render(layer: str, dest: Path, answers: str = "") -> subprocess.CompletedProcess[str]:
-    argv = [sys.executable, str(RENDER), layer, str(dest)]
-    if answers:
-        answers_file = dest.parent / f"{dest.name}-{layer.replace('/', '-')}.yml"
-        answers_file.write_text(answers)
-        argv += ["--answers", str(answers_file)]
-    return subprocess.run(argv, capture_output=True, text=True, check=False)
 
 
 @pytest.fixture
@@ -165,7 +154,7 @@ def test_the_status_artefact_is_carried_as_a_fragment(speckit: Path) -> None:
 
 def test_the_entry_survives_a_gitignore_rebuild(speckit: Path) -> None:
     """The end-to-end case the fragment exists for."""
-    assert render("base/gitignore", speckit, 'gitnr_templates: ""\n').returncode == 0
+    assert render("base/gitignore", speckit, 'gitignore_templates: ""\n').returncode == 0
     assert "specs/**/spec-status.md" in (speckit / ".gitignore").read_text()
 
 
@@ -236,7 +225,7 @@ def test_the_bootstrap_is_not_a_copier_task(speckit: Path) -> None:
     and calls `bd init`, so a render that had otherwise succeeded would fail on it.
     """
     config = yaml.safe_load(
-        (REPO_ROOT / "templates" / "agentic" / "speckit" / "copier.yml").read_text()
+        (REPO_ROOT / "recipes" / "agentic" / "speckit" / "copier.yml").read_text()
     )
     tasks = " ".join(config["_tasks"])
     assert "add_locator.py" in tasks
@@ -249,7 +238,7 @@ def test_it_renders_after_beads(speckit: Path) -> None:
     workspace, so a repo with no `.beads/` gets a SpecKit that cannot provision the DAG.
     """
     config = yaml.safe_load(
-        (REPO_ROOT / "templates" / "agentic" / "speckit" / "copier.yml").read_text()
+        (REPO_ROOT / "recipes" / "agentic" / "speckit" / "copier.yml").read_text()
     )
     assert "agentic/beads" in config["_scaffold"]["after"]
     assert "agentic/apm" in config["_scaffold"]["after"]

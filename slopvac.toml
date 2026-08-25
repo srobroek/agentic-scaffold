@@ -2,7 +2,7 @@
 # `just lint` runs that.
 #
 # `normal` rather than `relaxed`, with the Simplified Technical English categories demoted to
-# advisory. Measured on docs/layers.md: `normal` reports 355 findings and scores 43.3, and 241 of
+# advisory. Measured on docs/recipes.md: `normal` reports 355 findings and scores 43.3, and 241 of
 # those warnings come from the eight ste-* categories alone. `relaxed` scores 99.2 but lets
 # obvious slop through -- appending "This is currently a WIP feature that will leverage a robust
 # solution" to a document still PASSED, which is a weaker gate than the one this replaced.
@@ -19,7 +19,7 @@ exclude = [
   "**/.venv/**",
   "**/dist/**",
   "**/build/**",
-  # Generated from templates/ by `just index`. Findings against it are not actionable: the fix
+  # Generated from recipes/ by `just index`. Findings against it are not actionable: the fix
   # would have to be made in a generator that has no prose to fix.
   "docs/INDEX.md",
 ]
@@ -68,6 +68,24 @@ files = ["docs/agents/**/*.md"]
 
 # Nested, because `min_score` belongs to the thresholds table rather than the block: setting it
 # at the block's top level is rejected as an extra input.
+[overrides.thresholds]
+max_errors = 0
+min_score = 0
+
+# --- Generated agent index ----------------------------------------------------
+# AGENTS.md carries bd-generated blocks (`bd setup`) that a hand-fix cannot hold:
+# the next `bd init` or `bd setup` rewrites them. The two rules below fire only
+# inside those blocks, and the score floor is lifted for the same reason as the
+# steering indexes above. The hand-written head stays gated by everything else.
+[[overrides]]
+files = ["AGENTS.md"]
+
+[overrides.rules."prose-format.no-unicode-dash"]
+severity = "off"
+
+[overrides.rules."ai-tells-content-shape.fake-specificity"]
+severity = "off"
+
 [overrides.thresholds]
 max_errors = 0
 min_score = 0

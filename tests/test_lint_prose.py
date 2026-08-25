@@ -94,7 +94,7 @@ def test_the_profile_is_normal_with_ste_demoted() -> None:
     feature that will leverage a robust solution" to a document still PASSED.
 
     `normal` catches that. What made `normal` unreachable was Simplified Technical English --
-    measured on docs/layers.md, 241 of its 355 findings came from the eight ste-* categories --
+    measured on docs/recipes.md, 241 of its 355 findings came from the eight ste-* categories --
     so those are advisory and the slop rules keep their severity. STE is written for aircraft
     maintenance procedures, and adopting it would be a decision about how this repository writes
     rather than a linter setting.
@@ -120,23 +120,34 @@ def test_the_profile_is_normal_with_ste_demoted() -> None:
     assert config["thresholds"]["max_errors"] == 0
 
 
-def test_the_score_floor_is_lifted_only_for_the_steering_indexes() -> None:
-    """A `docs/agents/**` file is short and mostly generated: a table of paths, a marked block,
-    and two sentences of rule. The score floor is a density measure, so eight suggestions in a
-    57-word file reads as 14 findings per 100 words and fails on arithmetic.
+def test_the_score_floor_is_lifted_only_for_generated_prose() -> None:
+    """Two exemptions, each for text a person did not write. A third needs its own reason.
 
-    Scoped, because lifting the floor everywhere would drop it for docs/layers.md too, where it
-    is doing real work.
+    `docs/agents/**` is short and mostly generated: a table of paths, a marked block, and two
+    sentences of rule. The score floor is a density measure, so eight suggestions in a 57-word
+    file reads as 14 findings per 100 words and fails on arithmetic. Scoped, because lifting
+    the floor everywhere would drop it for docs/recipes.md too, where it is doing real work.
+
+    `AGENTS.md` carries blocks `bd setup` writes. Its unicode dashes and its own phrasing are
+    not this repository's to fix, and rewriting them is reverted by the next `bd setup`.
     """
     config = tomllib.loads(CONFIG.read_text())
-    overrides = config["overrides"]
-    assert len(overrides) == 1, "one override; a second needs its own reason"
+    overrides = {tuple(entry["files"]): entry for entry in config["overrides"]}
+    assert set(overrides) == {("docs/agents/**/*.md",), ("AGENTS.md",)}, (
+        f"an unexplained exemption: {sorted(overrides)}"
+    )
 
-    override = overrides[0]
-    assert override["files"] == ["docs/agents/**/*.md"]
-    assert override["thresholds"]["min_score"] == 0
-    # Errors still gate them.
-    assert override["thresholds"]["max_errors"] == 0
+    for entry in overrides.values():
+        assert entry["thresholds"]["min_score"] == 0
+        # Errors still gate them.
+        assert entry["thresholds"]["max_errors"] == 0
+
+    # Only the generated block's own two findings are silenced, not the category.
+    assert set(overrides[("AGENTS.md",)]["rules"]) == {
+        "prose-format.no-unicode-dash",
+        "ai-tells-content-shape.fake-specificity",
+    }
+    assert "rules" not in overrides[("docs/agents/**/*.md",)]
 
 
 # --- the contract ----------------------------------------------------------

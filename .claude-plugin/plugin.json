@@ -1,9 +1,10 @@
 {
   "name": "project-scaffold",
-  "version": "0.1.0",
-  "description": "Config-driven project scaffolding as composable copier layers. 34 layers covering git, CI, quality gates, release, docs, infrastructure, containers, and agentic tooling, with 13 profiles naming which layers a shape renders and in what order. The project-scaffold skill runs the interview, derives what rules/choices.md marks derived, and renders a profile end to end.",
+  "version": "0.2.2",
+  "description": "Config-driven project scaffolding as composable copier recipes. 36 recipes covering git, CI, quality gates, release, docs, infrastructure, containers, and agentic tooling, with 13 profiles naming which recipes a shape renders and in what order. The project-scaffold skill runs the interview and renders a profile end to end; project-scaffold-update adopts a recipe, merges recipe changes into a rendered repository, and retrofits one that predates the tool.",
   "author": {
     "name": "Sjors Robroek"
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "skills": "./skills"
 }

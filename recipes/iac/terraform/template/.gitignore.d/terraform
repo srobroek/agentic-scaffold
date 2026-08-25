@@ -1,0 +1,42 @@
+# OpenTofu / Terraform.
+#
+# github/gitignore's Terraform template predates .tofu files, so this
+# fragment carries the whole set rather than supplementing it.
+
+# Provider and module downloads. Per root module, so the glob is not anchored.
+.terraform/
+
+# State. Only bootstrap keeps state locally; everything else is in S3. Committed
+# state is both a merge conflict waiting to happen and a leak: it holds every
+# attribute of every resource, including values a provider marked sensitive.
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Saved plans, written by `just tf-plan`. A plan file holds the variable values it
+# was built with in cleartext.
+*.tfplan
+
+# Crash logs, which contain the full request and response bodies.
+crash.log
+crash.*.log
+
+# Variable files holding real values. envs/*.tfvars IS committed -- it carries
+# per-environment configuration, never a secret -- so it is excluded from this rule.
+*.auto.tfvars
+terraform.tfvars
+!infra/envs/*.tfvars
+
+# Override files: local-only customisation by design.
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration, which can hold credentials and mirror settings.
+.terraformrc
+terraform.rc
+
+# The lock file is COMMITTED and deliberately absent from this list. It is what
+# pins provider versions and hashes across the team and CI; `just tf-lock`
+# regenerates it for every platform.

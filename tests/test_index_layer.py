@@ -6,26 +6,14 @@ Every claim asserted here was measured on 2026-07-29 with repomix 1.17.0.
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 import tomllib
 from pathlib import Path
 
+from conftest import render_recipe as render
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 ANSWERS = 'index_languages:\n  - "**/*.py"\n  - "**/*.md"\nindex_extra_ignores: []\n'
-
-
-def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(answers)
-    return subprocess.run(
-        [sys.executable, str(RENDER), layer, str(dest), "--answers", str(answers_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
 
 def config_of(dest: Path) -> dict:

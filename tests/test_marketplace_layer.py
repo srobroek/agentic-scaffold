@@ -8,13 +8,12 @@ thing written is the answers file copier itself creates.
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 RUST = 'crate_kind: bin\nrust_edition: "2024"\nlicense: Apache-2.0\n'
 TERRAFORM = """\
@@ -45,15 +44,6 @@ FORBIDDEN = (
     "opencode.json",
     ".kiro",
 )
-
-
-def render(layer: str, dest: Path, answers: str = "") -> subprocess.CompletedProcess[str]:
-    argv = [sys.executable, str(RENDER), layer, str(dest)]
-    if answers:
-        answers_file = dest.parent / f"{dest.name}-{layer.replace('/', '-')}.yml"
-        answers_file.write_text(answers)
-        argv += ["--answers", str(answers_file)]
-    return subprocess.run(argv, capture_output=True, text=True, check=False)
 
 
 @pytest.fixture
@@ -106,6 +96,7 @@ def test_the_marketplaces_are_named_with_the_command(bare: Path) -> None:
     output = report(bare)
     assert "apm marketplace add srobroek/agentic-packages" in output
     assert "apm marketplace add srobroek/slopvac" in output
+    assert "omp plugin marketplace add srobroek/omp-plugins" in output
 
 
 def test_a_bare_tree_recommends_only_the_universal_packages(bare: Path) -> None:
@@ -185,7 +176,7 @@ def test_it_runs_after_the_aggregating_layers(bare: Path) -> None:
     import yaml
 
     config = yaml.safe_load(
-        (REPO_ROOT / "templates" / "agentic" / "marketplace" / "copier.yml").read_text()
+        (REPO_ROOT / "recipes" / "agentic" / "marketplace" / "copier.yml").read_text()
     )
     after = config["_scaffold"]["after"]
     assert "base/gitignore" in after

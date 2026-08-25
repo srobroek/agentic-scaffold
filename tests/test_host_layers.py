@@ -11,10 +11,10 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
-LANG_TEMPLATES = REPO_ROOT / "templates" / "lang"
+LANG_RECIPES = REPO_ROOT / "recipes" / "lang"
 
 ANSWERS = """\
 project_name: demo
@@ -28,17 +28,6 @@ coc_contact: ""
 # A language layer to render alongside a host layer, so the fragment-driven parts
 # have something real to fold in.
 ANSWERS_GO = 'go_module_path: github.com/srobroek/demo\ngo_version: "1.26"\ngo_vendor: false\n'
-
-
-def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(answers)
-    return subprocess.run(
-        [sys.executable, str(RENDER), layer, str(dest), "--answers", str(answers_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
 
 @pytest.fixture
@@ -111,7 +100,7 @@ def test_every_language_fragment_kind_is_consumed(rendered: Path) -> None:
     A lang/* layer dropping a fragment nothing folds in produces CI that silently
     omits that language's scans.
     """
-    languages = sorted(p.name for p in LANG_TEMPLATES.iterdir() if p.is_dir())
+    languages = sorted(p.name for p in LANG_RECIPES.iterdir() if p.is_dir())
     assert languages, "no lang/* layers found, so this test proves nothing"
 
     quality = yaml.dump(workflow(rendered, "wc-quality"))
@@ -124,7 +113,7 @@ def test_every_language_fragment_kind_is_consumed(rendered: Path) -> None:
     for language in languages:
         for kind, body in (("quality", quality), ("security", security)):
             fragment = (
-                LANG_TEMPLATES / language / "template" / ".github" / f"{kind}.d" / f"{language}.yml"
+                LANG_RECIPES / language / "template" / ".github" / f"{kind}.d" / f"{language}.yml"
             )
             if not fragment.is_file():
                 continue
@@ -224,13 +213,13 @@ def test_every_lizard_language_is_one_lizard_knows() -> None:
         "plsql",
         "pl/sql",
     }
-    for fragment in sorted(LANG_TEMPLATES.glob("*/template/.github/quality.d/*.yml")):
+    for fragment in sorted(LANG_RECIPES.glob("*/template/.github/quality.d/*.yml")):
         lizard = (yaml.safe_load(fragment.read_text()) or {}).get("lizard") or {}
         language = lizard.get("language")
         if language is None:
             continue
         assert language in known, (
-            f"{fragment.relative_to(LANG_TEMPLATES)} names {language!r}, "
+            f"{fragment.relative_to(LANG_RECIPES)} names {language!r}, "
             "which lizard would silently ignore"
         )
 
@@ -430,7 +419,7 @@ def test_the_gitlab_layer_runs_no_language_tooling(gitlab: Path) -> None:
     ]
     offenders = []
     for path in sorted(gitlab.rglob("*")):
-        if not path.is_file():
+        if not path.is_file() or ".git" in path.parts:
             continue
         for lineno, line in enumerate(path.read_text().splitlines(), 1):
             if line.lstrip().startswith("#"):
@@ -589,7 +578,6 @@ def test_the_gitlab_governance_surface_renders(gitlab: Path) -> None:
         ".gitlab/merge_request_templates/default.md",
         "SECURITY.md",
         "CONTRIBUTING.md",
-        "CODE_OF_CONDUCT.md",
     ):
         assert (gitlab / expected).is_file(), f"missing {expected}"
 
@@ -632,7 +620,6 @@ def test_the_governance_surface_renders(rendered: Path) -> None:
     for expected in (
         "SECURITY.md",
         "CONTRIBUTING.md",
-        "CODE_OF_CONDUCT.md",
         ".github/CODEOWNERS",
         ".github/PULL_REQUEST_TEMPLATE.md",
         ".github/ISSUE_TEMPLATE/bug_report.md",
@@ -644,20 +631,19 @@ def test_the_governance_surface_renders(rendered: Path) -> None:
 def test_an_empty_contact_names_the_fallback_that_exists(rendered: Path) -> None:
     """An unset contact must not leave prose pointing at nothing.
 
-    GitHub's private reporting form needs enabling once, so SECURITY.md says so
-    rather than assuming it is there.
+    GitHub's private reporting form needs enabling once, so SECURITY.md points at
+    `just repo-govern`, which turns it on, rather than assuming it is there.
     """
     security = (rendered / "SECURITY.md").read_text()
     assert "private vulnerability reporting" in security
-    assert "Settings, Code security" in security
+    assert "repo-govern" in security
 
     # A code of conduct with no reporting channel asks people to trust a process
-    # that does not exist, so the placeholder has to be loud.
-    coc = (rendered / "CODE_OF_CONDUCT.md").read_text()
-    assert "Fill in a contact address" in coc
+    # that does not exist, so an empty contact renders no code of conduct at all.
+    assert not (rendered / "CODE_OF_CONDUCT.md").exists()
 
 
-def test_a_contact_replaces_the_fallback(tmp_path: Path) -> None:
+def test_a_contact_makes_the_conduct_file_and_fills_both(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
     render(
@@ -669,7 +655,6 @@ def test_a_contact_replaces_the_fallback(tmp_path: Path) -> None:
     )
     assert "s@example.com" in (dest / "SECURITY.md").read_text()
     assert "c@example.com" in (dest / "CODE_OF_CONDUCT.md").read_text()
-    assert "Fill in a contact address" not in (dest / "CODE_OF_CONDUCT.md").read_text()
 
 
 def test_a_pull_request_template_sits_where_github_reads_one(rendered: Path) -> None:
@@ -921,11 +906,11 @@ def test_gitlab_ships_no_governance_script(gitlab: Path) -> None:
     rules, push rules, and merge trains, several of which GitLab gates by instance version and
     tier. A script written against one instance would silently do less on another.
 
-    If a GitLab governance script is ever added, this test fails and docs/layers.md has to change
+    If a GitLab governance script is ever added, this test fails and docs/recipes.md has to change
     with it -- which is the point.
     """
     scripts = sorted(p.name for p in (gitlab / "scripts").glob("*.py"))
     assert scripts == ["gen_gitlab_stages.py"], f"unexpected scripts: {scripts}"
 
-    layers_doc = (REPO_ROOT / "docs" / "layers.md").read_text()
+    layers_doc = (REPO_ROOT / "docs" / "recipes.md").read_text()
     assert "it does not ship a governance script" in layers_doc

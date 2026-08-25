@@ -8,7 +8,7 @@ summary: A repository whose product is agentic packages rather than code.
 
 generator: none
 
-# Order matters and is the order in docs/layers.md states. `just check` renders in this
+# Order matters and is the order in docs/recipes.md states. `just check` renders in this
 # sequence, so a layer that reads what an earlier one wrote has to appear after it.
 layers:
   - base/license
@@ -37,10 +37,10 @@ answers:
 
 # How `just check` proves the rendered tree is a working project rather than only a tree
 # that rendered. Each command runs in the destination and must exit 0.
-# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# Only what the RECIPES produce. `scaffold render` does not run the generator, so a
 # command needing generator output (cargo build, go build, a projen synth) would fail
-# for the absence of a manifest rather than for anything a layer got wrong. The agent
-# runs the generator, and `just check` proves the layer set.
+# for the absence of a manifest rather than for anything a recipe got wrong. The agent
+# runs the generator, and `just check` proves the recipe set.
 build:
   # Built before it is checked. `apm pack` cannot be a copier task, since it needs uvx and
   # may reach the network, so a freshly rendered repository has no catalog at all and

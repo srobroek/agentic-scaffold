@@ -1,8 +1,0 @@
-# go
-{% if go_vendor -%}
-# vendor/ is committed here, so nothing conditional is ignored.
-{%- else -%}
-# gitnr's gh:Go covers the binaries and test output. Vendor mode is the choice it
-# cannot express.
-vendor/
-{%- endif %}

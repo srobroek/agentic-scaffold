@@ -12,6 +12,9 @@ dist/
 *.log
 /tmp/
 
+# orchestrate/beads per-run audit state, not source
+.orchestration/
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db

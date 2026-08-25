@@ -16,18 +16,15 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
-
-from conftest import mise_bin
 import yaml
+from conftest import mise_bin, render_recipe
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
-ANSWERS = 'project_name: demoapp\ngoreleaser_main: "."\ngo_version: "1.26"\n'
+ANSWERS = 'project_name: demoapp\norg: acme\ngoreleaser_main: "."\n'
 
 GORELEASER = Path.home() / ".local/share/mise/installs/goreleaser/2.17.1/goreleaser"
 # Resolved through mise. See conftest.mise_bin for why not an installs/<tool>/latest path.
@@ -67,22 +64,8 @@ def go_env() -> dict[str, str]:
     return env
 
 
-def render(dest: Path) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(ANSWERS)
-    return subprocess.run(
-        [
-            sys.executable,
-            str(RENDER),
-            "release/goreleaser",
-            str(dest),
-            "--answers",
-            str(answers_file),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+def render(dest: Path, answers: str = ANSWERS) -> subprocess.CompletedProcess[str]:
+    return render_recipe("release/goreleaser", dest, answers)
 
 
 @pytest.fixture
@@ -367,21 +350,7 @@ def test_the_sbom_can_be_turned_off(tmp_path: Path) -> None:
     dest = tmp_path / "off"
     dest.mkdir()
     subprocess.run(["git", "init", "-q", str(dest)], check=True)
-    answers_file = dest.parent / "off-answers.yml"
-    answers_file.write_text(ANSWERS + "goreleaser_sbom: false\n")
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(RENDER),
-            "release/goreleaser",
-            str(dest),
-            "--answers",
-            str(answers_file),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = render(dest, ANSWERS + "goreleaser_sbom: false\n")
     assert result.returncode == 0, result.stderr
 
     config = yaml.safe_load((dest / ".goreleaser.yaml").read_text())
@@ -427,21 +396,7 @@ def test_mise_omits_syft_when_sboms_are_off(tmp_path: Path) -> None:
     dest = tmp_path / "nosbom"
     dest.mkdir()
     subprocess.run(["git", "init", "-q", str(dest)], check=True)
-    answers_file = dest.parent / "nosbom-answers.yml"
-    answers_file.write_text(ANSWERS + "goreleaser_sbom: false\n")
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(RENDER),
-            "release/goreleaser",
-            str(dest),
-            "--answers",
-            str(answers_file),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = render(dest, ANSWERS + "goreleaser_sbom: false\n")
     assert result.returncode == 0, result.stderr
 
     tools = tomllib.loads((dest / ".mise" / "conf.d" / "goreleaser.toml").read_text())["tools"]

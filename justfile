@@ -27,15 +27,27 @@ hooks-path:
       "$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
     @echo "core.hooksPath -> $(git config --local core.hooksPath)"
 
-# Render one layer into a destination
-render layer dest *answers:
-    {{ py }} scripts/render.py {{ layer }} {{ dest }} {{ answers }}
+# Render one recipe into a destination
+render recipe dest *args:
+    {{ py }} scripts/scaffold.py render {{ recipe }} --dest {{ dest }} {{ args }}
 
-# List what a layer would write, writing nothing
-preview layer dest *answers:
-    {{ py }} scripts/render.py {{ layer }} {{ dest }} --pretend {{ answers }}
+# List what a recipe would write, writing nothing
+preview recipe dest *args:
+    {{ py }} scripts/scaffold.py render {{ recipe }} --dest {{ dest }} --pretend {{ args }}
 
-# Regenerate docs/INDEX.md from templates/
+# The full file map for a recipe set or profile: owners, merges, conflicts
+plan *args:
+    {{ py }} scripts/scaffold.py plan {{ args }}
+
+# Re-render recipes at HEAD and 3-way merge local drift
+update *args:
+    {{ py }} scripts/scaffold.py update {{ args }}
+
+# Report every missing required answer at once
+check-answers *args:
+    {{ py }} scripts/scaffold.py check-answers {{ args }}
+
+# Regenerate docs/INDEX.md from recipes/
 index:
     {{ py }} scripts/index.py
 
@@ -43,18 +55,18 @@ index:
 index-check:
     {{ py }} scripts/index.py --check
 
-# templates/ carries python too: copier tasks and the scripts a layer ships into
+# recipes/ carries python too: copier tasks and the scripts a recipe ships into
 # the generated project. Linting scripts/ alone let an unformatted one through.
 
 # A .jinja file is deliberately not valid YAML, TOML, or JSON: it holds `{% raw %}{{ }}{% endraw %}` and
 # `{% raw %}{% if %}{% endraw %}`, and a conditional filename is not a path a parser accepts. So the
-# structural linters run over the repository's OWN configuration and skip templates/,
-# which the layer tests cover instead by rendering and parsing the result.
+# structural linters run over the repository's OWN configuration and skip recipes/,
+# which the recipe tests cover instead by rendering and parsing the result.
 
 # Lint the scripts and the prose
 lint:
-    {{ py }} ruff check scripts templates
-    {{ py }} ruff format --check scripts templates
+    {{ py }} ruff check scripts recipes
+    {{ py }} ruff format --check scripts recipes
     {{ py }} scripts/lint_prose.py
 
 # Lint this repository's own YAML, TOML, JSON, and workflows
@@ -64,25 +76,25 @@ lint-config:
 
     # Without a project .yamllint the defaults flag 80-column lines and a missing document
     # start, neither of which is a rule here.
-    files=$(git ls-files '*.yml' '*.yaml' | grep -v '^templates/' || true)
+    files=$(git ls-files '*.yml' '*.yaml' | grep -v '^recipes/' || true)
     if [ -n "$files" ]; then
       echo "$files" | xargs yamllint -f parsable         -d "{extends: relaxed, rules: {line-length: disable, document-start: disable}}"
     fi
 
-    toml=$(git ls-files '*.toml' | grep -v '^templates/' || true)
+    toml=$(git ls-files '*.toml' | grep -v '^recipes/' || true)
     if [ -n "$toml" ]; then
       echo "$toml" | xargs taplo lint
     fi
 
     # Parsed rather than linted: a JSON syntax error is the only failure mode, and every
     # committed .json here is either generated or a tool's own schema-checked config.
-    json=$(git ls-files '*.json' | grep -v '^templates/' || true)
+    json=$(git ls-files '*.json' | grep -v '^recipes/' || true)
     if [ -n "$json" ]; then
       echo "$json" | xargs -n1 python3 -c 'import json,sys; json.load(open(sys.argv[1]))'
     fi
 
-    # This repository ships one workflow, and the layers ship many. actionlint reads only
-    # what is rendered here; a template's workflow is checked by its layer's tests, which
+    # This repository ships one workflow, and the recipes ship many. actionlint reads only
+    # what is rendered here; a recipe's workflow is checked by its tests, which
     # render it and run actionlint against the result.
     if [ -d .github/workflows ]; then
       actionlint
@@ -103,8 +115,8 @@ lint-config:
 
 # Fix what lint can fix
 fix:
-    {{ py }} ruff check --fix scripts templates
-    {{ py }} ruff format scripts templates
+    {{ py }} ruff check --fix scripts recipes
+    {{ py }} ruff format scripts recipes
 
 # Most of the wall clock is waiting on a real toolchain rather than on CPU, and every test
 # renders into its own tmp_path sharing no state, so the suite parallelises cleanly.
@@ -114,11 +126,11 @@ fix:
 test:
     {{ py }} pytest -q -n auto
 
-# Run the integration cases: layer combinations rendered, built, asserted
+# Run the integration cases: recipe combinations rendered, built, asserted
 integration *names:
     # Deliberately NOT in `check`. A case renders a whole tree and runs its build, which takes
     # minutes where the unit suite takes seconds, and `check` has to stay fast enough to run on
-    # every edit. Run this when layer composition changes.
+    # every edit. Run this when recipe composition changes.
     #
     # `just integration --list` names the cases; `--keep` leaves a failing tree on disk.
     {{ py }} tests-integration/run.py {{ names }}
@@ -139,19 +151,19 @@ test-serial:
 test-fast:
     SCAFFOLD_SKIP_SLOW=1 {{ py }} pytest -q -n auto
 
-# Validate every profile against templates/
+# Validate every profile against recipes/
 profiles:
-    {{ py }} scripts/profiles.py
+    {{ py }} scripts/scaffold.py check
 
 # Render one profile into a destination and run its build
 render-profile profile dest:
-    {{ py }} scripts/render_profile.py {{ profile }} {{ dest }} --build
+    {{ py }} scripts/scaffold.py render --profile {{ profile }} --dest {{ dest }} --demo --build
 
 # A tree that renders is not a project that builds, which is the failure class every
 # porting defect fell into: each rendered cleanly and failed only when the real tool read
 # the result. This renders every profile and runs each one's own build.
 #
-# The generator is not run, so a build here asserts only what the layers produce.
+# The generator is not run, so a build here asserts only what the recipes produce.
 
 # Render and build every profile
 profiles-build:
@@ -162,7 +174,7 @@ profiles-build:
     failed=0
     for path in profiles/*.yml; do
       name=$(basename "$path" .yml)
-      if ! {{ py }} scripts/render_profile.py "$name" "$scratch/$name" --build; then
+      if ! {{ py }} scripts/scaffold.py render --profile "$name" --dest "$scratch/$name" --demo --build; then
         failed=$((failed + 1))
       fi
     done
@@ -173,32 +185,5 @@ profiles-build:
     echo "every profile rendered and built"
 
 # Everything CI runs
-# Put back what release-please's YAML writer strips from apm.yml
-release-restore:
-    # Called by the release workflow's sync step, after the version bump and before the amend.
-    # release-please rewrites apm.yml to set `version` and drops every comment doing it, which
-    # silently removed the kiro rationale at 0.2.0 -- the one thing about this manifest a reader
-    # cannot infer from the keys. Idempotent: it does nothing when the note is already present.
-    {{ py }} scripts/restore_apm_comments.py
-
-# Regenerate the marketplace catalogs from apm.yml
-package-build:
-    # Named to match the recipe the agentic/package layer ships, since the release workflow
-    # calls it by that name. This repository publishes its own packages, so it needs both the
-    # build and the check that `packages` runs.
-    apm pack --offline
-
-# Fail when the committed marketplace catalogs no longer match apm.yml
-packages:
-    # The catalogs are committed generated artefacts, so a package added to apm.yml without a
-    # repack leaves them behind and a consumer resolving from a clone never sees it. This
-    # repository shipped exactly that gap: two packages in apm.yml, nothing checking the
-    # catalogs, and no release workflow to regenerate them.
-    #
-    # `--dry-run` is load-bearing on `--check-clean`. Without it the run regenerates the
-    # catalogs first, so the check passes against what it just wrote.
-    apm pack --offline --check-clean --dry-run
-    apm pack --offline --check-versions --dry-run
-
-check: lint lint-config index-check profiles packages test
+check: lint lint-config index-check profiles test
     @echo "ok"

@@ -6,8 +6,8 @@
 A case is a combination of layers that no single profile and no unit test covers. See
 README.md for the format and for what a case deliberately cannot do.
 
-Reuses scripts/render.py per layer rather than reimplementing the render, so a case exercises
-the same path a person or the agent takes.
+Reuses scripts/scaffold.py per layer rather than reimplementing the render, so a case
+exercises the same path a person or the agent takes.
 
 Exit codes:
     0  every selected case rendered, set up, built, and met its expectations
@@ -29,7 +29,7 @@ import yaml
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent
 CASES = HERE / "cases"
-RENDER = REPO_ROOT / "scripts" / "render.py"
+SCAFFOLD = REPO_ROOT / "scripts" / "scaffold.py"
 
 REQUIRED_KEYS = ("name", "summary", "gap", "layers", "build")
 
@@ -71,10 +71,11 @@ def commit(dest: Path, message: str) -> None:
 
 
 def render(case: dict, dest: Path) -> list[str]:
-    """Each layer in the order the case gives, committing between them.
+    """Each layer in the order the case gives.
 
-    Committing matters: base/repo's precheck refuses a destination with uncommitted changes,
-    so a second layer would fail on the first one's output.
+    `scaffold render` commits per recipe itself, which is what lets a second layer render
+    at all: base/repo's precheck refuses a destination with uncommitted changes, so it
+    would otherwise fail on the first layer's output.
     """
     problems = []
     answers_path = dest.parent / f"{dest.name}-answers.yml"
@@ -84,10 +85,12 @@ def render(case: dict, dest: Path) -> list[str]:
         result = subprocess.run(
             [
                 sys.executable,
-                str(RENDER),
+                str(SCAFFOLD),
+                "render",
                 layer,
+                "--dest",
                 str(dest),
-                "--answers",
+                "--data-file",
                 str(answers_path),
             ],
             capture_output=True,
@@ -99,7 +102,6 @@ def render(case: dict, dest: Path) -> list[str]:
             # A later layer expects the earlier one's files, so stop rather than cascade.
             break
         print(f"  ok    render {layer}")
-        commit(dest, f"render {layer}")
     return problems
 
 

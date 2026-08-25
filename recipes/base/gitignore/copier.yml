@@ -1,0 +1,27 @@
+_subdirectory: template
+_answers_file: .copier-answers.gitignore.yml
+
+_scaffold:
+  summary: >-
+    Concatenates upstream github/gitignore templates and every .gitignore.d
+    fragment into .gitignore. Renders after every layer that contributes one.
+  requires_bin: [gh]
+  after:
+    - base/repo
+    - agentic/apm
+    - agentic/beads
+
+gitignore_templates:
+  type: str
+  help: >-
+    Space-separated github/gitignore additions beyond what the tree implies.
+    The fold detects rendered languages from their marker files (root and
+    member directories), so language templates need no answer; this is for
+    extras like "gh:Global/JetBrains".
+  default: ""
+
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/fold_gitignore.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ gitignore_templates }}"

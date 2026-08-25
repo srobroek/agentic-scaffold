@@ -1,0 +1,40 @@
+_subdirectory: template
+_answers_file: .copier-answers.go.yml
+
+_scaffold:
+  summary: >-
+    Go tooling: golangci-lint on the v2 schema with gosec and revive, govulncheck,
+    and a tidy check, plus the CI jobs and the fragments every aggregating layer
+    folds in.
+  requires_bin: [go]
+  after: [base/license, workspace/monorepo]
+
+_skip_if_exists:
+  - .golangci.yml
+
+go_module_path:
+  type: str
+  help: >-
+    Module path, as `go mod init` takes it. Example: github.com/srobroek/thing.
+
+go_version:
+  type: str
+  help: >-
+    Minimum supported version. Empty reads the `go` directive from go.mod --
+    `go mod init` wrote the installed toolchain's own version there, so the
+    generator is the detection. CI already reads go.mod natively through
+    `go-version-file`.
+  default: ""
+
+go_vendor:
+  type: bool
+  help: >-
+    Whether to commit vendor/. The upstream Go template cannot express this, so the
+    gitignore fragment carries it.
+  default: false
+
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/sync_go_pin.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ go_version }}"

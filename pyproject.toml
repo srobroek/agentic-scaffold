@@ -26,13 +26,13 @@ line-length = 100
 # edit it. Excluded rather than annotated, because the `noqa` codes the source needs are
 # themselves unused-noqa findings here.
 extend-exclude = [
-    "templates/agentic/beads/template/scripts/render_adrs.py",
+    "recipes/agentic/beads/template/scripts/render_adrs.py",
     # Same contract: vendored verbatim from agentic-packages, which lints it under its own
     # rule set. Reformatting a copy breaks byte-fidelity with the source, so the next
     # re-sync would silently revert the change.
-    "templates/quality/hooks/template/scripts/attribution_patterns.py",
-    "templates/quality/hooks/template/scripts/commit-msg-rewrite.py",
-    "templates/quality/hooks/template/scripts/close_keywords.py",
+    "recipes/quality/hooks/template/scripts/attribution_patterns.py",
+    "recipes/quality/hooks/template/scripts/commit-msg-rewrite.py",
+    "recipes/quality/hooks/template/scripts/close_keywords.py",
 ]
 
 [tool.ruff.lint]

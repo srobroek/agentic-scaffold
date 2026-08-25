@@ -23,14 +23,13 @@ layers:
 
 answers:
   license: mpl-2.0
-  go_version: "1.26"
   # A library commits no vendor tree: a consumer resolves its own module graph.
   go_vendor: false
   release_type: go
 
-# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# Only what the RECIPES produce. `scaffold render` does not run the generator, so a
 # command needing generator output (cargo build, go build, a projen synth) would fail
-# for the absence of a manifest rather than for anything a layer got wrong. The agent
-# runs the generator, and `just check` proves the layer set.
+# for the absence of a manifest rather than for anything a recipe got wrong. The agent
+# runs the generator, and `just check` proves the recipe set.
 build:
   - just just-check

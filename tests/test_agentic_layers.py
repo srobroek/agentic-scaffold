@@ -11,10 +11,10 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
-TEMPLATES = REPO_ROOT / "templates"
+RECIPES = REPO_ROOT / "recipes"
 
 APM_ANSWERS = """\
 project_name: demo
@@ -26,6 +26,8 @@ apm_cli_version: "0.25.0"
 
 BEADS_ANSWERS = """\
 bd_prefix: demo
+# embedded, so a test render leaves no dolt server process behind.
+bd_storage_mode: embedded
 bd_dolt_sync: local-only
 bd_sync_remote: ""
 bd_auto_export: false
@@ -33,15 +35,6 @@ bd_dolt_auto_commit: "on"
 bd_push_command: ""
 bd_sync_hook: pre-push
 """
-
-
-def render(layer: str, dest: Path, answers: str = "") -> subprocess.CompletedProcess[str]:
-    argv = [sys.executable, str(RENDER), layer, str(dest)]
-    if answers:
-        answers_file = dest.parent / f"{dest.name}-{layer.replace('/', '-')}.yml"
-        answers_file.write_text(answers)
-        argv += ["--answers", str(answers_file)]
-    return subprocess.run(argv, capture_output=True, text=True, check=False)
 
 
 def git_repo(path: Path) -> Path:
@@ -192,7 +185,7 @@ def test_bds_ignore_lines_move_into_a_fragment(beads: Path) -> None:
 @needs_bd
 def test_the_ignore_lines_survive_a_gitignore_rebuild(beads: Path) -> None:
     """The end-to-end case the render order exists for."""
-    result = render("base/gitignore", beads, 'gitnr_templates: ""\n')
+    result = render("base/gitignore", beads, 'gitignore_templates: ""\n')
     assert result.returncode == 0, result.stderr
 
     body = (beads / ".gitignore").read_text()
@@ -211,7 +204,7 @@ def bd_command() -> list[str]:
     """The exact argv bd_init.py builds, read from the module rather than guessed."""
     import importlib.util
 
-    path = TEMPLATES / "agentic" / "beads" / "tasks" / "bd_init.py"
+    path = RECIPES / "agentic" / "beads" / "tasks" / "bd_init.py"
     spec = importlib.util.spec_from_file_location("bd_init_under_test", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -232,8 +225,19 @@ def test_the_layer_never_skips_the_agent_hooks() -> None:
     assert "--skip-agents" not in bd_command()
 
     # And no answer can introduce it, since the flag is not a variable.
-    body = yaml.safe_load((TEMPLATES / "agentic" / "beads" / "copier.yml").read_text())
+    body = yaml.safe_load((RECIPES / "agentic" / "beads" / "copier.yml").read_text())
     assert "--skip-agents" not in " ".join(body["_tasks"])
+
+
+def test_server_mode_is_the_default_and_reaches_bd() -> None:
+    """rule://beads-setup makes server mode the init default: an embedded database
+    resolves by walking up from the working directory, so a copied checkout gets a
+    second writable database whose claims never reach the run."""
+    assert "--server" in bd_command()
+
+    config = yaml.safe_load((RECIPES / "agentic" / "beads" / "copier.yml").read_text())
+    assert config["bd_storage_mode"]["default"] == "server"
+    assert "--storage-mode" in " ".join(config["_tasks"])
 
 
 @needs_bd
@@ -261,7 +265,7 @@ def test_the_layer_never_passes_stealth() -> None:
     """Checked against the argv the task builds, not a comment naming the flag."""
     assert "--stealth" not in bd_command()
 
-    body = yaml.safe_load((TEMPLATES / "agentic" / "beads" / "copier.yml").read_text())
+    body = yaml.safe_load((RECIPES / "agentic" / "beads" / "copier.yml").read_text())
     assert "--stealth" not in " ".join(body["_tasks"])
 
 
@@ -270,15 +274,20 @@ def test_the_layer_always_skips_the_git_hooks() -> None:
     assert "--skip-hooks" in bd_command()
 
 
-def test_a_non_git_destination_is_refused(tmp_path: Path) -> None:
-    """`bd init` reads the repo's git config, so it aborts outside a work tree."""
+def test_a_non_git_destination_is_initialised(tmp_path: Path) -> None:
+    """`scaffold render` git-inits a bare destination before the recipe runs.
+
+    `bd init` reads the repo's git config and aborts outside a work tree, which
+    is why the old wrapper refused a non-git destination. The CLI owns the
+    destination now, so the render succeeds and the tree is a repository.
+    """
     dest = tmp_path / "notgit"
     dest.mkdir()
 
     result = render("agentic/beads", dest, BEADS_ANSWERS)
 
-    assert result.returncode == 3
-    assert "not a git repository" in result.stderr
+    assert result.returncode == 0, result.stderr
+    assert (dest / ".git").is_dir()
 
 
 # --- beads configuration ---------------------------------------------------
@@ -372,7 +381,7 @@ def test_the_database_push_hook_never_blocks_a_git_push() -> None:
     offline commit-and-push impossible.
     """
     script = (
-        TEMPLATES / "agentic" / "beads" / "template" / "scripts" / "bd-dolt-push.sh"
+        RECIPES / "agentic" / "beads" / "template" / "scripts" / "bd-dolt-push.sh"
     ).read_text()
 
     # Every exit is 0, and the failure branch reports rather than propagating.
@@ -388,7 +397,7 @@ def test_the_database_push_reads_the_configured_push_command() -> None:
     assuming `bd`.
     """
     script = (
-        TEMPLATES / "agentic" / "beads" / "template" / "scripts" / "bd-dolt-push.sh"
+        RECIPES / "agentic" / "beads" / "template" / "scripts" / "bd-dolt-push.sh"
     ).read_text()
 
     assert "custom.bd-push-command" in script
@@ -461,7 +470,7 @@ def test_beads_ships_the_adr_renderer(tmp_path: Path) -> None:
     the rendered project rather than referenced from an installed package.
     """
     dest = git_repo(tmp_path / "d")
-    render("agentic/beads", dest, "bd_prefix: xy\n")
+    render("agentic/beads", dest, "bd_prefix: xy\nbd_storage_mode: embedded\n")
 
     script = dest / "scripts" / "render_adrs.py"
     assert script.is_file()
@@ -489,7 +498,11 @@ Terraform: rejected, BUSL.
 def decisions_rendered(tmp_path: Path) -> Path:
     """A repo with agentic/beads and docs/adr, one closed decision, and ADRs rendered."""
     dest = git_repo(tmp_path / "adr")
-    render("agentic/beads", dest, "bd_prefix: adrt\nbd_dolt_sync: local-only\n")
+    render(
+        "agentic/beads",
+        dest,
+        "bd_prefix: adrt\nbd_storage_mode: embedded\nbd_dolt_sync: local-only\n",
+    )
     render("docs/adr", dest, "project_name: demo\n")
 
     subprocess.run(
@@ -686,7 +699,7 @@ def test_a_hand_edited_index_survives_a_second_render(tmp_path: Path) -> None:
 @pytest.mark.parametrize("layer", ["agentic/apm", "agentic/beads"])
 def test_each_layer_ships_a_just_fragment(layer: str) -> None:
     name = layer.split("/")[1]
-    matches = list((TEMPLATES / layer).glob(f"template/.just.d/{name}*.just*"))
+    matches = list((RECIPES / layer).glob(f"template/.just.d/{name}*.just*"))
     assert matches, f"{layer} ships no .just.d fragment"
 
 
@@ -697,7 +710,7 @@ def test_a_recipe_description_is_not_a_stray_rationale_line() -> None:
     which then reads as a sentence fragment in `just --list`.
     """
     offenders = []
-    for fragment in sorted(TEMPLATES.glob("*/*/template/.just.d/*.just*")):
+    for fragment in sorted(RECIPES.glob("*/*/template/.just.d/*.just*")):
         lines = fragment.read_text().splitlines()
         for index, line in enumerate(lines):
             if not re.match(r"^\[group\(", line):

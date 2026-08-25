@@ -1,4 +1,0 @@
-# python
-# gitnr's gh:Python covers __pycache__, build outputs, and the venv names. What it
-# does not carry is the type-checker cache this stack uses.
-.ty_cache/

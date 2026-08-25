@@ -83,26 +83,7 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
-      # The sync step below needs a working tree and the toolchain that regenerates the
-      # catalogs. Checked out with the App token persisted, so its push authors a commit that
-      # triggers the required checks; the default token's commits do not.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          # The release branch is fetched by name below, so the full history is needed.
-          fetch-depth: 0
-          # Not persisted. A token left in `.git/config` is what zizmor reports as
-          # `artipacked`, and it is avoidable here: the sync step passes the credential in the
-          # remote URL instead, so it never lands on disk.
-          persist-credentials: false
-
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
-        with:
-          # This job pushes a commit onto a branch that will be released, so a poisoned cache
-          # entry would reach a published artefact. Same reason release/goreleaser sets it.
-          cache: false
-
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        id: release
         with:
           # No `|| secrets.GITHUB_TOKEN` fallback. The step above already failed the run if the
           # credentials were missing, and a release pull request opened with GITHUB_TOKEN carries
@@ -110,54 +91,3 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-
-      # release-please writes the version into apm.yml and the manifest, and stops there. The
-      # marketplace catalogs carry that same version per package, so they go stale the moment
-      # the release pull request opens and `just packages` fails on the drift -- measured on this
-      # scaffold's own PR #2, two differences, one per package.
-      #
-      # Amending them onto the release branch is what clears it. The push uses the App token, so
-      # the resulting commit triggers the required checks; a GITHUB_TOKEN push would not, and the
-      # pull request would stay blocked on checks that never ran.
-      - name: Sync the generated catalogs onto the release branch
-        if: ${{ steps.release.outputs.pr }}
-        env:
-          # Step-level `env` is evaluated even when `if` is false, so the parse is guarded too:
-          # a bare `fromJSON('')` aborts the whole job with "Error reading JToken".
-          RELEASE_BRANCH: >-
-            ${{ steps.release.outputs.pr
-            && fromJSON(steps.release.outputs.pr).headBranchName || '' }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          set -euo pipefail
-          git fetch "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" "$RELEASE_BRANCH"
-          git checkout FETCH_HEAD
-
-          # `package-build` is the recipe agentic/package ships. Checked rather than assumed:
-          # just reports `justfile does not contain recipe` and exits 1, which reads as a broken
-          # workflow rather than a layer that never rendered. This repository hit exactly that.
-          if ! just --list 2>/dev/null | grep -q 'package-build'; then
-            echo "::error::no package-build recipe; sync_generated needs the agentic/package layer"
-            exit 1
-          fi
-          just package-build
-
-          # release-please rewrites apm.yml to bump `version`, and its YAML writer drops every
-          # comment in the file. A repository whose manifest carries a rationale nobody can infer
-          # from the keys defines `release-restore` to put it back; the recipe is optional, so a
-          # repository with no comments to restore needs nothing.
-          if just --list 2>/dev/null | grep -q 'release-restore'; then
-            just release-restore
-          fi
-
-          if git diff --quiet; then
-            echo "catalogs already in sync"
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore: sync the marketplace catalogs to the released versions"
-          # The credential in the URL rather than in `.git/config`, so nothing persists it.
-          git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" "HEAD:$RELEASE_BRANCH"

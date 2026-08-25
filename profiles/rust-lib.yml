@@ -25,12 +25,11 @@ answers:
   # A niche library has no substitute, so copyleft friction is zero.
   license: mpl-2.0
   crate_kind: lib
-  rust_edition: "2024"
   release_type: rust
 
-# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# Only what the RECIPES produce. `scaffold render` does not run the generator, so a
 # command needing generator output (cargo build, go build, a projen synth) would fail
-# for the absence of a manifest rather than for anything a layer got wrong. The agent
-# runs the generator, and `just check` proves the layer set.
+# for the absence of a manifest rather than for anything a recipe got wrong. The agent
+# runs the generator, and `just check` proves the recipe set.
 build:
   - just just-check

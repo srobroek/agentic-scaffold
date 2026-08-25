@@ -1,0 +1,130 @@
+_subdirectory: template
+_answers_file: .copier-answers.package.yml
+
+_scaffold:
+  summary: >-
+    A self-publishing agentic-package repo: the root apm.yml with a marketplace
+    block, one package under packages/<name> carrying a skill, the per-package
+    plugin manifests apm pack does not generate, and the release-please config
+    whose tag shape the marketplace resolves against.
+  requires_bin: [git]
+  # base/repo supplies project_name and the description. This layer owns apm.yml,
+  # so it cannot run alongside agentic/apm, which writes a consumer's apm.yml to
+  # the same path -- a repository is either a package publisher or a package
+  # consumer, and the profile picks one.
+  after: [base/repo]
+  exclusive_group: apm-manifest
+
+# apm.yml and the package's own files become the project's own once written. A
+# re-render must not overwrite a real skill body or a hand-tuned manifest.
+_skip_if_exists:
+  - apm.yml
+  - "packages/{{ package_name }}/apm.yml"
+  - "packages/{{ package_name }}/.apm/skills/{{ package_name }}/SKILL.md"
+  - release-please-config.json
+  - .release-please-manifest.json
+
+project_name:
+  type: str
+  help: The repository name, used as the root apm.yml name and the marketplace name.
+  default: ""
+
+package_name:
+  type: str
+  help: >-
+    The one package this repo publishes. Empty uses project_name. It names the
+    directory under packages/, the skill, and every plugin manifest.
+  default: ""
+
+description:
+  type: str
+  help: >-
+    One line describing the package, written into every manifest and the skill
+    frontmatter. Empty derives a placeholder that says to replace it.
+  default: ""
+
+author:
+  type: str
+  help: Author name, written into apm.yml and the plugin manifests.
+  default: ""
+
+owner:
+  type: str
+  help: >-
+    GitHub owner of the marketplace, shaped as a person or organisation login.
+    Empty derives it from author, lowercased.
+  default: ""
+
+category:
+  type: str
+  help: >-
+    Marketplace category. Mandatory, not cosmetic: apm refuses to build the codex
+    output unless every package declares one.
+  choices:
+    - productivity
+    - learning
+    - security
+    - documentation
+    - testing
+    - workflow
+    - language
+  default: productivity
+
+package_tags:
+  type: yaml
+  help: >-
+    What the package is, for marketplace search, such as skill or agent.
+  default: [skill]
+
+marketplace_outputs:
+  type: str
+  help: >-
+    Which marketplace catalogs to build. claude and codex are the only two apm can
+    generate; kiro is a deploy target but has no marketplace mapper, so it cannot be
+    one. `claude,codex` builds both.
+  choices:
+    - claude,codex
+    - claude
+  default: claude,codex
+
+deploy_kiro:
+  type: bool
+  help: >-
+    Also compile the skill into .kiro/ for Kiro. Independent of the marketplace:
+    Kiro consumes deployed skills, not a marketplace catalog.
+  default: true
+
+apm_cli_version:
+  type: str
+  help: >-
+    APM CLI version the build recipe pins in `uvx --from`. An unpinned CLI would
+    change what a re-render builds.
+  default: "0.26.0"
+
+# Derived. A conditional or interpolated filename holding a quote breaks jinja
+# compilation, so the resolved names live here as answers rather than in a path.
+resolved_package:
+  type: str
+  default: "{{ package_name or project_name }}"
+  when: false
+resolved_owner:
+  type: str
+  default: "{{ owner or (author | lower | replace(' ', '-')) }}"
+  when: false
+resolved_description:
+  type: str
+  default: "{{ description or ('The ' + (package_name or project_name) + ' package. Replace this description before publishing.') }}"
+  when: false
+output_list:
+  type: yaml
+  default: "{{ marketplace_outputs.split(',') }}"
+  when: false
+build_codex:
+  type: bool
+  default: "{{ 'codex' in marketplace_outputs.split(',') }}"
+  when: false
+
+# apm install and apm pack both reach the network or need uvx, so neither is a
+# copier task: a render that had otherwise succeeded would fail on them. The
+# `just` recipes run them instead. This mirrors agentic/apm, which for the same
+# reason writes apm.yml but never installs.

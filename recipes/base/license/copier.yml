@@ -1,0 +1,30 @@
+_subdirectory: template
+_answers_file: .copier-answers.license.yml
+
+_scaffold:
+  summary: LICENSE, and the SPDX identifier other layers read.
+  requires_bin: [git, gh]
+
+license:
+  type: str
+  help: >-
+    Licence identifier, fetched through `gh api /licenses`. Policy defaults: a
+    niche library is MPL-2.0, an application is AGPL-3.0-only, dev tooling or a
+    template is Apache-2.0. Anything GitHub does not carry falls back to the SPDX
+    licence list.
+  default: Apache-2.0
+
+copyright_name:
+  type: str
+  help: The copyright holder, as it should appear in LICENSE.
+  default: ""
+
+# No copyright_year question. The year is the render's own clock, derived in
+# write_license.py: a static default froze at the template's authoring year, and
+# a licence backdated on purpose is a hand edit to one line of LICENSE.
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/write_license.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ license }}"
+    "{{ copyright_name }}"

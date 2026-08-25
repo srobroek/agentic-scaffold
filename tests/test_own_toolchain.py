@@ -27,7 +27,7 @@ needs_mise = pytest.mark.skipif(shutil.which("mise") is None, reason="mise absen
 
 # Pins mise cannot enumerate, with why. `latest` is not a version to check, and a backend
 # whose registry has no ls-remote entry would report every pin as missing.
-UNCHECKABLE = {"python", "uv", "just", "prek", "cargo:gitnr"}
+UNCHECKABLE = {"python", "uv", "just", "prek"}
 
 # `latest` on purpose. Every other entry in mise.toml's pinned block is a version some test
 # asserts behaviour against; trivy's findings come from a vulnerability database rather than
@@ -114,7 +114,7 @@ def test_every_runtime_a_layer_requires_is_pinned() -> None:
     while passing locally, where both happened to be installed outside mise.
     """
     required = set()
-    for config in sorted(REPO_ROOT.glob("templates/*/*/copier.yml")):
+    for config in sorted(REPO_ROOT.glob("recipes/*/*/copier.yml")):
         config_data = yaml.safe_load(config.read_text()) or {}
         meta = config_data.get("_scaffold") or {}
         for binary in meta.get("requires_bin") or []:
@@ -215,7 +215,6 @@ def test_every_binary_a_recipe_invokes_is_pinned() -> None:
         "pipx:apm-cli": "apm",
         "npm:@moonrepo/cli": "moon",
         "ubi:oasdiff/oasdiff": "oasdiff",
-        "cargo:gitnr": "gitnr",
     }
     for spec, binary in BINARY_OF.items():
         if spec in pins():
@@ -253,7 +252,7 @@ def test_every_template_compiles_as_jinja() -> None:
     )
 
     broken = []
-    for path in sorted((REPO_ROOT / "templates").rglob("*.jinja")):
+    for path in sorted((REPO_ROOT / "recipes").rglob("*.jinja")):
         try:
             env.parse(path.read_text(encoding="utf-8"))
         except TemplateSyntaxError as error:

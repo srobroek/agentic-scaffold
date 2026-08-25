@@ -1,0 +1,26 @@
+_subdirectory: template
+_answers_file: .copier-answers.python.yml
+
+_scaffold:
+  summary: >-
+    Python tooling: uv, ruff, ty, pytest, deptry, nox, plus the CI jobs and the
+    fragments every aggregating layer folds in.
+  requires_bin: [uv]
+  after: [base/license, workspace/monorepo]
+
+python_version:
+  type: str
+  help: Minimum supported version, and the one CI runs.
+  default: "3.13"
+
+python_layout:
+  type: str
+  help: A src layout keeps the package off sys.path during a test run.
+  choices: [src, flat]
+  default: src
+
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/split_init.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ python_layout }}"

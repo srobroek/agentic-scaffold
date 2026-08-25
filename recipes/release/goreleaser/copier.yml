@@ -1,0 +1,67 @@
+_subdirectory: template
+_answers_file: .copier-answers.goreleaser.yml
+
+_scaffold:
+  summary: >-
+    goreleaser for the artefacts a tag should publish: cross-compiled binaries, checksums,
+    and archives. release-please keeps the version and the changelog.
+  requires_bin: [git]
+  # release-please owns the tag this reacts to, so it renders first.
+  after: [lang/go, release/release-please, host/github]
+
+# The config becomes the project's the moment a build target or an archive changes.
+_skip_if_exists:
+  - .goreleaser.yaml
+
+project_name:
+  type: str
+  help: Binary name, used for the archive name and the build id.
+  default: ""
+
+org:
+  type: str
+  help: >-
+    Owning person or organisation, used as the GitHub release owner. Without it
+    goreleaser resolves the release target from the git remote, and a freshly
+    scaffolded repository has none until the remote is created.
+  default: ""
+
+# The division of labour, and the reason this is a separate layer rather than a flag on
+# release/release-please: release-please computes the next version from the Conventional
+# Commit subjects and pushes the tag; goreleaser reacts to that tag and builds what it
+# publishes. Neither knows how to do the other's job.
+goreleaser_main:
+  type: str
+  help: >-
+    Path to the main package. `.` for a single-command repository, `./cmd/<name>` for one
+    command in a monorepo.
+  default: "."
+
+goreleaser_targets:
+  type: yaml
+  help: >-
+    GOOS/GOARCH pairs to build. Every one is cross-compiled from a single linux runner, so
+    an extra target costs seconds rather than a second job.
+  default:
+    - linux/amd64
+    - linux/arm64
+    - darwin/amd64
+    - darwin/arm64
+
+goreleaser_sbom:
+  type: bool
+  help: >-
+    Attach an SBOM per archive and a build provenance attestation to every published
+    artefact. Both live in this layer rather than one of their own, because an attestation
+    binds a digest that exists only inside the job that produced the artefact.
+  default: true
+
+goreleaser_version:
+  type: str
+  help: goreleaser version the mise fragment pins.
+  default: "2.17.1"
+
+syft_version:
+  type: str
+  help: syft version the release workflow installs. Unused when goreleaser_sbom is false.
+  default: "1.50.0"

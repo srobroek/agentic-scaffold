@@ -11,15 +11,14 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
+from conftest import render_recipe
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
-LAYER = REPO_ROOT / "templates" / "iac" / "terraform"
+LAYER = REPO_ROOT / "recipes" / "iac" / "terraform"
 
 ANSWERS = """\
 project_name: demo
@@ -41,14 +40,7 @@ needs_just = pytest.mark.skipif(shutil.which("just") is None, reason="just absen
 
 
 def render(layer: str, dest: Path, answers: str = ANSWERS) -> subprocess.CompletedProcess[str]:
-    argv = [sys.executable, str(RENDER), layer, str(dest)]
-    # An empty answers file parses as None, which copier rejects. A layer taking no
-    # variables is passed no file at all.
-    if answers:
-        answers_file = dest.parent / f"{dest.name}-{layer.replace('/', '-')}.yml"
-        answers_file.write_text(answers)
-        argv += ["--answers", str(answers_file)]
-    return subprocess.run(argv, capture_output=True, text=True, check=False)
+    return render_recipe(layer, dest, answers)
 
 
 def tofu(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:

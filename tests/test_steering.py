@@ -18,11 +18,10 @@ import sys
 from pathlib import Path
 
 import pytest
-
 from conftest import mise_bin
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 AGENTS = "project_name: demo\n"
 RUST = 'crate_kind: bin\nrust_edition: "2024"\nlicense: Apache-2.0\n'
@@ -34,15 +33,6 @@ JUST = (_JUST_BIN / "just") if _JUST_BIN else Path("just")
 needs_just = pytest.mark.skipif(
     not JUST.is_file() and shutil.which("just") is None, reason="just absent"
 )
-
-
-def render(layer: str, dest: Path, answers: str = "") -> subprocess.CompletedProcess[str]:
-    argv = [sys.executable, str(RENDER), layer, str(dest)]
-    if answers:
-        answers_file = dest.parent / f"{dest.name}-{layer.replace('/', '-')}.yml"
-        answers_file.write_text(answers)
-        argv += ["--answers", str(answers_file)]
-    return subprocess.run(argv, capture_output=True, text=True, check=False)
 
 
 def generate(dest: Path, *flags: str) -> subprocess.CompletedProcess[str]:
@@ -241,7 +231,7 @@ def test_a_tree_without_steering_is_left_alone(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q", str(dest)], check=True)
     (dest / "scripts").mkdir()
     shutil.copy(
-        REPO_ROOT / "templates" / "docs" / "agents" / "template" / "scripts" / "gen_steering.py",
+        REPO_ROOT / "recipes" / "docs" / "agents" / "template" / "scripts" / "gen_steering.py",
         dest / "scripts",
     )
     result = generate(dest)

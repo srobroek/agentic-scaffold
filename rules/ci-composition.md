@@ -1,12 +1,12 @@
 # CI composition
 
-Each layer contributes reusable workflows. The caller that wires them is written
-per repository, because it depends on which layers rendered.
+Each recipe contributes reusable workflows. The caller that wires them is written
+per repository, because it depends on which recipes rendered.
 
 ## GitHub
 
 Write `.github/workflows/ci.yml` calling the reusable workflows that the
-rendered layers provide.
+rendered recipes provide.
 
 Job graph:
 
@@ -24,7 +24,7 @@ Rules:
 - Lint, test, quality, and security run in parallel. None depends on another.
 - `gate` lists every other job in `needs:` and passes `toJSON(needs)` to
   `wc-gate.yml`. `gate` is the only required status check.
-- One `lint-<lang>` and one `test-<lang>` pair per rendered `lang/*` layer.
+- One `lint-<lang>` and one `test-<lang>` pair per rendered `lang/*` recipe.
 - `quality` and `security` always run, and take no language input. Each is one
   reusable workflow that reads `.github/quality.d/` or `.github/security.d/` and
   builds its own matrix, so the caller passes nothing about languages.
@@ -56,28 +56,28 @@ required check that never runs leaves the pull request unmergeable.
 
 ## GitLab
 
-Do not write a caller. `.gitlab-ci.yml` from the `host/gitlab` layer ends with:
+Do not write a caller. `.gitlab-ci.yml` from the `host/gitlab` recipe ends with:
 
 ```yaml
 include:
   - local: .gitlab/ci/*.yml
 ```
 
-Each `lang/*` layer drops `.gitlab/ci/<lang>.yml` and the glob resolves it.
+Each `lang/*` recipe drops `.gitlab/ci/<lang>.yml` and the glob resolves it.
 
 Constraints:
 
 - `*` matches one directory level. `**` recurses.
 - Merge order across a glob is not deterministic, so no key may be set by more
-  than one layer.
-- Layers declare their own `stage:`, and `host/gitlab` declares the `stages:`
-  list. A stage named by a layer but absent from that list fails the pipeline.
+  than one recipe.
+- Recipes declare their own `stage:`, and `host/gitlab` declares the `stages:`
+  list. A stage named by a recipe but absent from that list fails the pipeline.
 
 GitLab jobs install their toolchain through mise rather than setup actions.
 
 ## Terraform and OpenTofu
 
-The `iac/terraform` layer contributes `lint-tofu` and `plan-tofu`. `plan-tofu`
+The `iac/terraform` recipe contributes `lint-tofu` and `plan-tofu`. `plan-tofu`
 runs per environment through a matrix.
 
 Apply runs only on the default branch, as a manual job. Plan runs on every merge
@@ -86,7 +86,7 @@ wrapper cannot do.
 
 ## Docs
 
-The `docs/deploy` layer contributes its own workflow. GitHub Pages deployment
+The `docs/deploy-*` recipes contribute their own workflow. GitHub Pages deployment
 needs `pages: write` and `id-token: write`, which the gate workflow does not
 carry.
 
