@@ -593,7 +593,7 @@ def test_empty_versions_resolve_and_never_render_blank(tmp_path: Path) -> None:
 
     mise = (dest / ".mise" / "conf.d" / "terraform.toml").read_text()
     for tool in ("opentofu", "tflint"):
-        pin = [line for line in mise.splitlines() if line.startswith(f"{tool} = ")][0]
+        pin = next(line for line in mise.splitlines() if line.startswith(f"{tool} = "))
         assert pin.split('"')[1], f"{tool} pin rendered blank"
     versions_tf = (dest / "infra" / "versions.tf").read_text()
     assert 'required_version = ">= "' not in versions_tf
