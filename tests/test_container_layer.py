@@ -13,14 +13,13 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
+from conftest import render_recipe
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 GO = """\
 project_name: probeapp
@@ -61,14 +60,7 @@ slow = pytest.mark.skipif(
 
 
 def render(dest: Path, spec: str) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(spec)
-    return subprocess.run(
-        [sys.executable, str(RENDER), "container/image", str(dest), "--answers", str(answers_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    return render_recipe("container/image", dest, spec)
 
 
 @pytest.fixture

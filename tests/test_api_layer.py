@@ -12,16 +12,14 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
-
-from conftest import mise_bin
 import yaml
+from conftest import mise_bin
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 ANSWERS = """\
 api_title: Widget API
@@ -64,15 +62,6 @@ def tool_env() -> dict[str, str]:
     if extra:
         env["PATH"] = f"{extra}:{env['PATH']}"
     return env
-
-
-def render(layer: str, dest: Path, answers: str = "") -> subprocess.CompletedProcess[str]:
-    argv = [sys.executable, str(RENDER), layer, str(dest)]
-    if answers:
-        answers_file = dest.parent / f"{dest.name}-{layer.replace('/', '-')}.yml"
-        answers_file.write_text(answers)
-        argv += ["--answers", str(answers_file)]
-    return subprocess.run(argv, capture_output=True, text=True, check=False)
 
 
 def run(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:

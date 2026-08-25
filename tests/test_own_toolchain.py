@@ -114,7 +114,7 @@ def test_every_runtime_a_layer_requires_is_pinned() -> None:
     while passing locally, where both happened to be installed outside mise.
     """
     required = set()
-    for config in sorted(REPO_ROOT.glob("templates/*/*/copier.yml")):
+    for config in sorted(REPO_ROOT.glob("recipes/*/*/copier.yml")):
         config_data = yaml.safe_load(config.read_text()) or {}
         meta = config_data.get("_scaffold") or {}
         for binary in meta.get("requires_bin") or []:
@@ -253,7 +253,7 @@ def test_every_template_compiles_as_jinja() -> None:
     )
 
     broken = []
-    for path in sorted((REPO_ROOT / "templates").rglob("*.jinja")):
+    for path in sorted((REPO_ROOT / "recipes").rglob("*.jinja")):
         try:
             env.parse(path.read_text(encoding="utf-8"))
         except TemplateSyntaxError as error:

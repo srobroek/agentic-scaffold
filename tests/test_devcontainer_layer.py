@@ -10,13 +10,12 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
+from conftest import render_recipe
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 ANSWERS = "project_name: demo\ndocker_in_docker: false\nforward_ports: [3000, 8080]\n"
 DIND = "project_name: demo\ndocker_in_docker: true\nforward_ports: []\n"
@@ -25,21 +24,7 @@ needs_npx = pytest.mark.skipif(shutil.which("npx") is None, reason="npx absent")
 
 
 def render(dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(answers)
-    return subprocess.run(
-        [
-            sys.executable,
-            str(RENDER),
-            "workspace/devcontainer",
-            str(dest),
-            "--answers",
-            str(answers_file),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    return render_recipe("workspace/devcontainer", dest, answers)
 
 
 def configuration(dest: Path) -> dict:

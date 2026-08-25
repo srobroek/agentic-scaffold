@@ -20,11 +20,9 @@ import sys
 from pathlib import Path
 
 import pytest
-
-from conftest import mise_bin
+from conftest import mise_bin, render_recipe
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 ANSWERS = 'api_ref_languages: ["rust", "python", "ts"]\napi_ref_section: reference\n'
 # Resolved through mise rather than an installs/node/latest path. See conftest.mise_bin.
@@ -44,14 +42,7 @@ def node_env() -> dict[str, str]:
 
 
 def render(dest: Path, answers: str = ANSWERS) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(answers)
-    return subprocess.run(
-        [sys.executable, str(RENDER), "docs/api-refs", str(dest), "--answers", str(answers_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    return render_recipe("docs/api-refs", dest, answers)
 
 
 def run(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:

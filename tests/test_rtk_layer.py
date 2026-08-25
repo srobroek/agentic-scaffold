@@ -7,25 +7,19 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-import sys
 import tomllib
 from pathlib import Path
 
 import pytest
+from conftest import render_recipe
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 needs_rtk = pytest.mark.skipif(shutil.which("rtk") is None, reason="rtk absent from PATH")
 
 
 def render(dest: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, str(RENDER), "agentic/rtk", str(dest)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    return render_recipe("agentic/rtk", dest)
 
 
 @pytest.fixture

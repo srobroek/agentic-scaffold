@@ -19,7 +19,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CASES = REPO_ROOT / "tests-integration" / "cases"
 RUNNER = REPO_ROOT / "tests-integration" / "run.py"
-TEMPLATES = REPO_ROOT / "templates"
+RECIPES = REPO_ROOT / "recipes"
 PROFILES = REPO_ROOT / "profiles"
 
 REQUIRED = ("name", "summary", "gap", "layers", "build")
@@ -54,7 +54,7 @@ def test_a_case_carries_every_required_key(path: Path) -> None:
 def test_every_layer_a_case_names_exists(path: Path) -> None:
     """A typo here fails partway through a render that already took a minute."""
     for layer in load(path)["layers"]:
-        assert (TEMPLATES / layer / "copier.yml").is_file(), f"no such layer: {layer}"
+        assert (RECIPES / layer / "copier.yml").is_file(), f"no such layer: {layer}"
 
 
 @pytest.mark.parametrize("path", case_paths(), ids=ids(case_paths()))

@@ -10,10 +10,10 @@ import sys
 from pathlib import Path
 
 import pytest
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
-TEMPLATES = REPO_ROOT / "templates"
+RECIPES = REPO_ROOT / "recipes"
 
 LANG_ANSWERS = {
     "rust": 'crate_kind: lib\nrust_edition: "2024"\n',
@@ -21,15 +21,6 @@ LANG_ANSWERS = {
     "go": 'go_module_path: github.com/srobroek/demo\ngo_version: "1.26"\ngo_vendor: false\n',
     "ts": 'node_version: "24"\nts_typeaware: true\n',
 }
-
-
-def render(layer: str, dest: Path, answers: str = "") -> subprocess.CompletedProcess[str]:
-    argv = [sys.executable, str(RENDER), layer, str(dest)]
-    if answers:
-        answers_file = dest.parent / f"{dest.name}-{layer.replace('/', '-')}.yml"
-        answers_file.write_text(answers)
-        argv += ["--answers", str(answers_file)]
-    return subprocess.run(argv, capture_output=True, text=True, check=False)
 
 
 def just(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -64,9 +55,9 @@ def test_no_two_fragments_declare_the_same_recipe() -> None:
     """
     seen: dict[str, str] = {}
     collisions = []
-    for fragment in sorted(TEMPLATES.glob("*/*/template/.just.d/*.just*")):
+    for fragment in sorted(RECIPES.glob("*/*/template/.just.d/*.just*")):
         for name in re.findall(r"^([a-z][a-z0-9-]*)(?:\s+\w+)*:", fragment.read_text(), re.M):
-            owner = str(fragment.relative_to(TEMPLATES))
+            owner = str(fragment.relative_to(RECIPES))
             if name in seen:
                 collisions.append(f"{name!r} in both {seen[name]} and {owner}")
             seen[name] = owner
@@ -75,7 +66,7 @@ def test_no_two_fragments_declare_the_same_recipe() -> None:
 
 def test_every_fragment_recipe_carries_a_group() -> None:
     """`just --list` is the discovery surface, and an ungrouped recipe floats loose."""
-    for fragment in sorted(TEMPLATES.glob("*/*/template/.just.d/*.just*")):
+    for fragment in sorted(RECIPES.glob("*/*/template/.just.d/*.just*")):
         body = fragment.read_text()
         recipes = re.findall(r"^([a-z][a-z0-9-]*)(?:\s+\w+)*:", body, re.M)
         groups = body.count("[group(")

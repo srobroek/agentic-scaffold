@@ -11,10 +11,10 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
-LANG_TEMPLATES = REPO_ROOT / "templates" / "lang"
+LANG_RECIPES = REPO_ROOT / "recipes" / "lang"
 
 ANSWERS = """\
 project_name: demo
@@ -28,17 +28,6 @@ coc_contact: ""
 # A language layer to render alongside a host layer, so the fragment-driven parts
 # have something real to fold in.
 ANSWERS_GO = 'go_module_path: github.com/srobroek/demo\ngo_version: "1.26"\ngo_vendor: false\n'
-
-
-def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(answers)
-    return subprocess.run(
-        [sys.executable, str(RENDER), layer, str(dest), "--answers", str(answers_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
 
 @pytest.fixture
@@ -111,7 +100,7 @@ def test_every_language_fragment_kind_is_consumed(rendered: Path) -> None:
     A lang/* layer dropping a fragment nothing folds in produces CI that silently
     omits that language's scans.
     """
-    languages = sorted(p.name for p in LANG_TEMPLATES.iterdir() if p.is_dir())
+    languages = sorted(p.name for p in LANG_RECIPES.iterdir() if p.is_dir())
     assert languages, "no lang/* layers found, so this test proves nothing"
 
     quality = yaml.dump(workflow(rendered, "wc-quality"))
@@ -124,7 +113,7 @@ def test_every_language_fragment_kind_is_consumed(rendered: Path) -> None:
     for language in languages:
         for kind, body in (("quality", quality), ("security", security)):
             fragment = (
-                LANG_TEMPLATES / language / "template" / ".github" / f"{kind}.d" / f"{language}.yml"
+                LANG_RECIPES / language / "template" / ".github" / f"{kind}.d" / f"{language}.yml"
             )
             if not fragment.is_file():
                 continue
@@ -224,13 +213,13 @@ def test_every_lizard_language_is_one_lizard_knows() -> None:
         "plsql",
         "pl/sql",
     }
-    for fragment in sorted(LANG_TEMPLATES.glob("*/template/.github/quality.d/*.yml")):
+    for fragment in sorted(LANG_RECIPES.glob("*/template/.github/quality.d/*.yml")):
         lizard = (yaml.safe_load(fragment.read_text()) or {}).get("lizard") or {}
         language = lizard.get("language")
         if language is None:
             continue
         assert language in known, (
-            f"{fragment.relative_to(LANG_TEMPLATES)} names {language!r}, "
+            f"{fragment.relative_to(LANG_RECIPES)} names {language!r}, "
             "which lizard would silently ignore"
         )
 
@@ -921,11 +910,11 @@ def test_gitlab_ships_no_governance_script(gitlab: Path) -> None:
     rules, push rules, and merge trains, several of which GitLab gates by instance version and
     tier. A script written against one instance would silently do less on another.
 
-    If a GitLab governance script is ever added, this test fails and docs/layers.md has to change
+    If a GitLab governance script is ever added, this test fails and docs/recipes.md has to change
     with it -- which is the point.
     """
     scripts = sorted(p.name for p in (gitlab / "scripts").glob("*.py"))
     assert scripts == ["gen_gitlab_stages.py"], f"unexpected scripts: {scripts}"
 
-    layers_doc = (REPO_ROOT / "docs" / "layers.md").read_text()
+    layers_doc = (REPO_ROOT / "docs" / "recipes.md").read_text()
     assert "it does not ship a governance script" in layers_doc

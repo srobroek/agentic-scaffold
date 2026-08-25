@@ -11,10 +11,10 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
-TEMPLATES = REPO_ROOT / "templates"
+RECIPES = REPO_ROOT / "recipes"
 
 APM_ANSWERS = """\
 project_name: demo
@@ -33,15 +33,6 @@ bd_dolt_auto_commit: "on"
 bd_push_command: ""
 bd_sync_hook: pre-push
 """
-
-
-def render(layer: str, dest: Path, answers: str = "") -> subprocess.CompletedProcess[str]:
-    argv = [sys.executable, str(RENDER), layer, str(dest)]
-    if answers:
-        answers_file = dest.parent / f"{dest.name}-{layer.replace('/', '-')}.yml"
-        answers_file.write_text(answers)
-        argv += ["--answers", str(answers_file)]
-    return subprocess.run(argv, capture_output=True, text=True, check=False)
 
 
 def git_repo(path: Path) -> Path:
@@ -211,7 +202,7 @@ def bd_command() -> list[str]:
     """The exact argv bd_init.py builds, read from the module rather than guessed."""
     import importlib.util
 
-    path = TEMPLATES / "agentic" / "beads" / "tasks" / "bd_init.py"
+    path = RECIPES / "agentic" / "beads" / "tasks" / "bd_init.py"
     spec = importlib.util.spec_from_file_location("bd_init_under_test", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -232,7 +223,7 @@ def test_the_layer_never_skips_the_agent_hooks() -> None:
     assert "--skip-agents" not in bd_command()
 
     # And no answer can introduce it, since the flag is not a variable.
-    body = yaml.safe_load((TEMPLATES / "agentic" / "beads" / "copier.yml").read_text())
+    body = yaml.safe_load((RECIPES / "agentic" / "beads" / "copier.yml").read_text())
     assert "--skip-agents" not in " ".join(body["_tasks"])
 
 
@@ -261,7 +252,7 @@ def test_the_layer_never_passes_stealth() -> None:
     """Checked against the argv the task builds, not a comment naming the flag."""
     assert "--stealth" not in bd_command()
 
-    body = yaml.safe_load((TEMPLATES / "agentic" / "beads" / "copier.yml").read_text())
+    body = yaml.safe_load((RECIPES / "agentic" / "beads" / "copier.yml").read_text())
     assert "--stealth" not in " ".join(body["_tasks"])
 
 
@@ -372,7 +363,7 @@ def test_the_database_push_hook_never_blocks_a_git_push() -> None:
     offline commit-and-push impossible.
     """
     script = (
-        TEMPLATES / "agentic" / "beads" / "template" / "scripts" / "bd-dolt-push.sh"
+        RECIPES / "agentic" / "beads" / "template" / "scripts" / "bd-dolt-push.sh"
     ).read_text()
 
     # Every exit is 0, and the failure branch reports rather than propagating.
@@ -388,7 +379,7 @@ def test_the_database_push_reads_the_configured_push_command() -> None:
     assuming `bd`.
     """
     script = (
-        TEMPLATES / "agentic" / "beads" / "template" / "scripts" / "bd-dolt-push.sh"
+        RECIPES / "agentic" / "beads" / "template" / "scripts" / "bd-dolt-push.sh"
     ).read_text()
 
     assert "custom.bd-push-command" in script
@@ -686,7 +677,7 @@ def test_a_hand_edited_index_survives_a_second_render(tmp_path: Path) -> None:
 @pytest.mark.parametrize("layer", ["agentic/apm", "agentic/beads"])
 def test_each_layer_ships_a_just_fragment(layer: str) -> None:
     name = layer.split("/")[1]
-    matches = list((TEMPLATES / layer).glob(f"template/.just.d/{name}*.just*"))
+    matches = list((RECIPES / layer).glob(f"template/.just.d/{name}*.just*"))
     assert matches, f"{layer} ships no .just.d fragment"
 
 
@@ -697,7 +688,7 @@ def test_a_recipe_description_is_not_a_stray_rationale_line() -> None:
     which then reads as a sentence fragment in `just --list`.
     """
     offenders = []
-    for fragment in sorted(TEMPLATES.glob("*/*/template/.just.d/*.just*")):
+    for fragment in sorted(RECIPES.glob("*/*/template/.just.d/*.just*")):
         lines = fragment.read_text().splitlines()
         for index, line in enumerate(lines):
             if not re.match(r"^\[group\(", line):

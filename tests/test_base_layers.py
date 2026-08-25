@@ -8,20 +8,9 @@ import sys
 from pathlib import Path
 
 import pytest
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
-
-
-def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(answers)
-    return subprocess.run(
-        [sys.executable, str(RENDER), layer, str(dest), "--answers", str(answers_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
 
 def git_init(path: Path) -> None:
@@ -98,7 +87,7 @@ def test_licence_none_writes_nothing(tmp_path: Path) -> None:
 
 def test_no_licence_text_is_vendored() -> None:
     """gh api is the source; a copy in the repository would drift from it."""
-    layer = REPO_ROOT / "templates" / "base" / "license"
+    layer = REPO_ROOT / "recipes" / "base" / "license"
     assert not (layer / "licenses").exists()
 
 
@@ -249,7 +238,7 @@ def test_gitignore_is_rebuilt_identically(tmp_path: Path) -> None:
 
 # --- the gitnr fetch -------------------------------------------------------
 
-FOLD = REPO_ROOT / "templates" / "base" / "gitignore" / "tasks" / "fold_gitignore.py"
+FOLD = REPO_ROOT / "recipes" / "base" / "gitignore" / "tasks" / "fold_gitignore.py"
 
 
 def gitnr_shim(directory: Path, body: str) -> dict[str, str]:

@@ -16,12 +16,11 @@ import sys
 from pathlib import Path
 
 import pytest
-
-from conftest import mise_bin
 import yaml
+from conftest import mise_bin
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
 
 RUST = 'layout: rust\nproject_name: demo\nmembers: "crates/*"\nrust_edition: "2024"\n'
 TS = 'layout: ts\nproject_name: demo\nmembers: "packages/*"\n'
@@ -37,17 +36,6 @@ _MOON_BIN = mise_bin("moon")
 MOON_BIN = (_MOON_BIN / "moon") if _MOON_BIN else Path("moon")
 MOON = str(MOON_BIN) if MOON_BIN.is_file() else shutil.which("moon")
 needs_moon = pytest.mark.skipif(MOON is None, reason="moon absent")
-
-
-def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-{layer.replace('/', '-')}.yml"
-    answers_file.write_text(answers)
-    return subprocess.run(
-        [sys.executable, str(RENDER), layer, str(dest), "--answers", str(answers_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
 
 def git_repo(path: Path) -> None:

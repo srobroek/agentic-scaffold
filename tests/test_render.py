@@ -1,66 +1,88 @@
-"""render.py resolves layers, honours prechecks, and refuses cleanly."""
+"""`scaffold render` resolves recipes, honours prechecks, and refuses cleanly.
+
+Exit codes the CLI promises, and the ones asserted here: 2 usage, 3 a missing binary or
+a refused precheck, 4 copier raised, 5 the plan found a conflict.
+"""
 
 from __future__ import annotations
 
+import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
+from conftest import render_recipe, scaffold
 
 
-def run(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [sys.executable, str(RENDER), *args],
-        capture_output=True,
-        text=True,
-        check=False,
+def test_a_bare_name_is_a_usage_error(tmp_path: Path) -> None:
+    """`agents` is neither an in-repo id, a local directory, nor a URL."""
+    result = scaffold("render", "agents", "--dest", str(tmp_path))
+    assert result.returncode == 2
+    assert "no such recipe: agents" in result.stderr
+
+
+def test_unknown_recipe_exits_2(tmp_path: Path) -> None:
+    result = scaffold("render", "docs/nonexistent", "--dest", str(tmp_path))
+    assert result.returncode == 2
+    assert "no such recipe" in result.stderr
+
+
+def test_naming_no_recipe_and_no_profile_exits_2(tmp_path: Path) -> None:
+    result = scaffold("render", "--dest", str(tmp_path))
+    assert result.returncode == 2
+    assert "name recipes or pass --profile" in result.stderr
+
+
+def test_missing_data_file_exits_2(tmp_path: Path) -> None:
+    result = scaffold(
+        "render",
+        "docs/agents",
+        "--dest",
+        str(tmp_path),
+        "--data-file",
+        str(tmp_path / "absent.yml"),
     )
-
-
-def test_layer_without_a_group_is_a_usage_error(tmp_path: Path) -> None:
-    result = run("agents", str(tmp_path))
     assert result.returncode == 2
-    assert "<group>/<name>" in result.stderr
-
-
-def test_unknown_layer_exits_2(tmp_path: Path) -> None:
-    result = run("docs/nonexistent", str(tmp_path))
-    assert result.returncode == 2
-    assert "no such layer" in result.stderr
-
-
-def test_missing_answers_file_exits_2(tmp_path: Path) -> None:
-    result = run("docs/agents", str(tmp_path), "--answers", str(tmp_path / "absent.yml"))
-    assert result.returncode == 2
-    assert "no such answers file" in result.stderr
+    assert "no such data file" in result.stderr
 
 
 def test_pretend_writes_nothing(tmp_path: Path) -> None:
     dest = tmp_path / "dest"
     dest.mkdir()
-    answers = tmp_path / "a.yml"
-    answers.write_text("project_name: probe\n")
 
-    result = run("docs/agents", str(dest), "--answers", str(answers), "--pretend")
+    result = render_recipe("docs/agents", dest, "project_name: probe\n", "--pretend")
 
     assert result.returncode == 0
     assert list(dest.rglob("*")) == []
 
 
-def test_render_writes_the_layer(tmp_path: Path) -> None:
+def test_render_writes_the_recipe(tmp_path: Path) -> None:
     dest = tmp_path / "dest"
     dest.mkdir()
-    answers = tmp_path / "a.yml"
-    answers.write_text("project_name: probe\n")
 
-    result = run("docs/agents", str(dest), "--answers", str(answers))
+    result = render_recipe("docs/agents", dest, "project_name: probe\n")
 
-    assert result.returncode == 0
+    assert result.returncode == 0, result.stderr
     assert (dest / "docs" / "agents" / "index.md").is_file()
+
+
+def test_the_destination_becomes_a_committed_git_repository(tmp_path: Path) -> None:
+    """base/repo's precheck refuses a destination with uncommitted changes, so a second
+    recipe into the same tree only works when the first one was committed. The CLI commits
+    per recipe, which is also what makes `scaffold update`'s 3-way merge reviewable."""
+    dest = tmp_path / "dest"
+
+    result = render_recipe("docs/agents", dest, "project_name: probe\n")
+
+    assert result.returncode == 0, result.stderr
+    assert (dest / ".git").is_dir()
+    log = subprocess.run(
+        ["git", "-C", str(dest), "log", "--format=%s"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert log.stdout.splitlines() == ["chore: render docs/agents"]
 
 
 def test_hand_written_files_survive_a_second_render(tmp_path: Path) -> None:
@@ -71,23 +93,20 @@ def test_hand_written_files_survive_a_second_render(tmp_path: Path) -> None:
     """
     dest = tmp_path / "dest"
     dest.mkdir()
-    answers = tmp_path / "a.yml"
-    answers.write_text("project_name: probe\n")
+    answers = "project_name: probe\n"
 
-    run("docs/agents", str(dest), "--answers", str(answers))
+    render_recipe("docs/agents", dest, answers)
 
     conventions = dest / "docs" / "agents" / "conventions.md"
     conventions.write_text("# Mine\n\nDo not lose this.\n")
 
-    result = run("docs/agents", str(dest), "--answers", str(answers))
+    result = render_recipe("docs/agents", dest, answers)
 
-    assert result.returncode == 0
+    assert result.returncode == 0, result.stderr
     assert "Do not lose this." in conventions.read_text()
 
 
 @pytest.mark.parametrize("binary", ["copier", "git"])
-def test_layer_metadata_names_real_binaries(binary: str) -> None:
-    """A layer's requires_bin must name something a check_binaries call can find."""
-    import shutil
-
+def test_recipe_metadata_names_real_binaries(binary: str) -> None:
+    """A recipe's requires_bin must name something a check_binaries call can find."""
     assert shutil.which(binary) is not None, f"{binary} absent from PATH"

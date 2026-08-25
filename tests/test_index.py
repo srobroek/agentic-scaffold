@@ -47,7 +47,7 @@ def test_check_fails_on_drift_and_names_the_fix() -> None:
 def test_every_layer_appears() -> None:
     run()
     content = INDEX.read_text()
-    templates = REPO_ROOT / "templates"
+    templates = REPO_ROOT / "recipes"
     for config in templates.rglob("copier.yml"):
         name = config.parent.relative_to(templates)
         assert f"`{name}`" in content, f"{name} absent from the index"
@@ -69,7 +69,7 @@ def test_the_index_lists_only_files_git_tracks() -> None:
     }
     ignored = subprocess.run(
         ["git", "-C", str(REPO_ROOT), "ls-files", "--others", "--ignored", "--exclude-standard",
-         "--", "templates"],
+         "--", "recipes"],
         capture_output=True,
         text=True,
         check=True,
@@ -95,7 +95,7 @@ def test_an_untracked_file_under_a_template_is_not_indexed(tmp_path: Path) -> No
     )
     assert before.returncode == 0, "the committed index is already stale; run `just index`"
 
-    intruder = REPO_ROOT / "templates" / "base" / "repo" / "template" / "zz-untracked-probe.txt"
+    intruder = REPO_ROOT / "recipes" / "base" / "repo" / "template" / "zz-untracked-probe.txt"
     assert not intruder.exists()
     intruder.write_text("not tracked\n")
     try:

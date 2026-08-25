@@ -56,7 +56,7 @@ quietly passing because the aggregator happened to run twice.
 
 ## What a case cannot do
 
-The generator does not run, for the same reason `render_profile.py` skips it: `cargo new`,
+The generator does not run, for the same reason `scaffold render --profile` skips it: `cargo new`,
 `uv init`, and `create-better-t-stack` reach the network or need a toolchain the machine may
 not carry. A `build` command needing generator output fails for a missing manifest rather than
 for anything a layer got wrong. Use `setup` to write the minimum by hand when a build needs it.

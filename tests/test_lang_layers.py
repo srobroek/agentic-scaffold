@@ -4,15 +4,14 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 import yaml
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
-TEMPLATES = REPO_ROOT / "templates" / "lang"
+RECIPES = REPO_ROOT / "recipes" / "lang"
 
 ANSWERS = {
     "rust": 'crate_kind: lib\nrust_edition: "2024"\n',
@@ -20,17 +19,6 @@ ANSWERS = {
     "go": 'go_module_path: github.com/srobroek/demo\ngo_version: "1.26"\ngo_vendor: false\n',
     "ts": 'node_version: "24"\nts_typeaware: true\n',
 }
-
-
-def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(answers)
-    return subprocess.run(
-        [sys.executable, str(RENDER), layer, str(dest), "--answers", str(answers_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
 
 LANGUAGES = sorted(ANSWERS)
@@ -160,7 +148,7 @@ GENERATOR_NORMALISATION = {
 
 def test_every_language_layer_is_covered_somewhere() -> None:
     """A new lang/* layer is either in ANSWERS or has its own file, or it ships untested."""
-    on_disk = {p.parent.name for p in TEMPLATES.rglob("copier.yml")}
+    on_disk = {p.parent.name for p in RECIPES.rglob("copier.yml")}
     untested = on_disk - set(ANSWERS) - set(COVERED_ELSEWHERE)
     assert not untested, f"untested language layers: {untested}"
 
@@ -305,7 +293,7 @@ def test_type_aware_linting_declares_its_package(tmp_path: Path) -> None:
     render("lang/ts", dest, ANSWERS["ts"])
     assert json.loads((dest / ".oxlintrc.json").read_text())["options"]["typeAware"] is True
 
-    task = (REPO_ROOT / "templates" / "lang" / "ts" / "tasks" / "add_dev_deps.py").read_text()
+    task = (REPO_ROOT / "recipes" / "lang" / "ts" / "tasks" / "add_dev_deps.py").read_text()
     assert "oxlint-tsgolint" in task
 
 
@@ -335,7 +323,7 @@ def test_a_language_layer_declares_how_its_generator_output_is_normalised() -> N
     was found by running each generator, not by reading its output, and a fifth language
     will have its own version of it. This is the checklist the bead asks for, enforced.
     """
-    on_disk = {p.parent.name for p in TEMPLATES.rglob("copier.yml")}
+    on_disk = {p.parent.name for p in RECIPES.rglob("copier.yml")}
     # lang/api has no generator: a contract is authored rather than scaffolded.
     languages = on_disk - set(COVERED_ELSEWHERE)
 
@@ -348,7 +336,7 @@ def test_a_language_layer_declares_how_its_generator_output_is_normalised() -> N
     for language, task in GENERATOR_NORMALISATION.items():
         if language not in languages:
             continue
-        config = yaml.safe_load((TEMPLATES / language / "copier.yml").read_text())
+        config = yaml.safe_load((RECIPES / language / "copier.yml").read_text())
         tasks = " ".join(config.get("_tasks") or [])
         if task is None:
             # A claim that the generator needs nothing, which only holds while it stays true.
@@ -367,7 +355,7 @@ def test_a_language_layer_contributes_both_shared_job_fragments() -> None:
     about a language CodeQL cannot extract; a missing file is indistinguishable from a layer
     nobody finished. lang/api shipped without a security fragment until this test existed.
     """
-    for layer in sorted(TEMPLATES.iterdir()):
+    for layer in sorted(RECIPES.iterdir()):
         if not (layer / "copier.yml").is_file():
             continue
         template = layer / "template" / ".github"

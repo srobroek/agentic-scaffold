@@ -9,27 +9,16 @@ from pathlib import Path
 
 import pytest
 import yaml
+from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RENDER = REPO_ROOT / "scripts" / "render.py"
-MERGE = REPO_ROOT / "templates" / "quality" / "hooks" / "template" / "scripts" / "merge_hooks.py"
+MERGE = REPO_ROOT / "recipes" / "quality" / "hooks" / "template" / "scripts" / "merge_hooks.py"
 
 ANSWERS = """\
 hook_exclude_patterns: []
 max_file_kb: 500
 commit_scopes: []
 """
-
-
-def render(layer: str, dest: Path, answers: str) -> subprocess.CompletedProcess[str]:
-    answers_file = dest.parent / f"{dest.name}-answers.yml"
-    answers_file.write_text(answers)
-    return subprocess.run(
-        [sys.executable, str(RENDER), layer, str(dest), "--answers", str(answers_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
 
 
 def merge(dest: Path) -> subprocess.CompletedProcess[str]:
