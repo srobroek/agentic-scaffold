@@ -10,12 +10,9 @@ Design lives in `recipes.md`; this file is the inventory.
 
 | Recipe | Questions | Files |
 |---|---|---|
-| `agentic/apm` | 5 | 3 |
 | `agentic/beads` | 8 | 3 |
 | `agentic/index` | 2 | 3 |
-| `agentic/marketplace` | 0 | 0 |
-| `agentic/package` | 15 | 9 |
-| `agentic/speckit` | 4 | 2 |
+| `agentic/package` | 5 | 6 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 2 | 0 |
 | `base/repo` | 3 | 5 |
@@ -44,28 +41,6 @@ Design lives in `recipes.md`; this file is the inventory.
 | `workspace/monorepo` | 12 | 6 |
 | `workspace/moon` | 3 | 6 |
 | `workspace/worktrunk` | 6 | 2 |
-
-## `agentic/apm`
-
-apm.yml naming the marketplaces and the package set, plus the .just.d and .gitignore.d fragments the aggregating layers fold in.
-
-Requires `git` on `PATH`.
-
-| Question | Type | Default |
-|---|---|---|
-| `project_name` | str |  |
-| `description` | str |  |
-| `apm_packages` | yaml | `[]` |
-| `apm_target` | str | `claude,codex` |
-| `apm_cli_version` | str | `0.25.0` |
-
-Writes:
-
-```
-.gitignore.d/apm
-.just.d/apm.just
-apm.yml
-```
 
 ## `agentic/beads`
 
@@ -111,16 +86,9 @@ Writes:
 repomix.config.json
 ```
 
-## `agentic/marketplace`
-
-Reads the finished tree and reports which marketplaces to register and which packages suit the layers that rendered. Writes no per-harness configuration file.
-
-Requires `git` on `PATH`.
-
-
 ## `agentic/package`
 
-A self-publishing agentic-package repo: the root apm.yml with a marketplace block, one package under packages/<name> carrying a skill, the per-package plugin manifests apm pack does not generate, and the release-please config whose tag shape the marketplace resolves against.
+A native marketplace repo: one starter plugin under <name>/ carrying a skill and the package.json `omp` marker, plus the root .omp-plugin/ and .claude-plugin/ catalogs that scripts/build_catalog.py assembles from the plugin manifests. OMP reads the first and falls back to the second, so one repository serves OMP and Claude Code from one source.
 
 Requires `git` on `PATH`.
 
@@ -131,49 +99,16 @@ Requires `git` on `PATH`.
 | `description` | str |  |
 | `author` | str |  |
 | `owner` | str |  |
-| `category` | `productivity` | `learning` | `security` | `documentation` | `testing` | `workflow` | `language` | `productivity` |
-| `package_tags` | yaml | `['skill']` |
-| `marketplace_outputs` | `claude,codex` | `claude` | `claude,codex` |
-| `deploy_kiro` | bool | `True` |
-| `apm_cli_version` | str | `0.26.0` |
-| `resolved_package` | str | `{{ package_name or project_name }}` |
-| `resolved_owner` | str | `{{ owner or (author | lower | replace(' ', '-')) }}` |
-| `resolved_description` | str | `{{ description or ('The ' + (package_name or project_name) + ' package. Replace this description before publishing.') }}` |
-| `output_list` | yaml | `{{ marketplace_outputs.split(',') }}` |
-| `build_codex` | bool | `{{ 'codex' in marketplace_outputs.split(',') }}` |
 
 Writes:
 
 ```
 .gitignore.d/package
 .just.d/package.just
-.release-please-manifest.json
-apm.yml
-packages/{{ package_name }}/.apm/skills/{{ package_name }}/SKILL.md
-packages/{{ package_name }}/.claude-plugin/plugin.json
-packages/{{ package_name }}/apm.yml
-packages/{{ package_name }}/{% if build_codex %}.codex-plugin{% endif %}/plugin.json
-release-please-config.json
-```
-
-## `agentic/speckit`
-
-Declares the speckit-conductor package, contributes the gitignore fragment its setup script would otherwise append to a generated file, and adds the recipes that run the bootstrap. The scaffolding itself belongs to the package's own setup skill.
-
-Requires `git` on `PATH`.
-
-| Question | Type | Default |
-|---|---|---|
-| `speckit_locator` | str | `srobroek/speckit-conductor#>=4.0.0 <5.0.0` |
-| `speckit_integration` | `claude` | `codex` | `claude` |
-| `speckit_script_flavor` | `sh` | `ps` | `sh` |
-| `specify_cli_version` | str | `0.12.0` |
-
-Writes:
-
-```
-.gitignore.d/speckit
-.just.d/speckit.just
+scripts/build_catalog.py
+{{ package_name or project_name }}/.omp-plugin/plugin.json
+{{ package_name or project_name }}/package.json
+{{ package_name or project_name }}/skills/{{ package_name or project_name }}/SKILL.md
 ```
 
 ## `base/gitignore`

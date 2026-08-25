@@ -370,13 +370,11 @@ error, which is why `check` probes `hooks-all` rather than depending on it.
 A fresh clone and a linked worktree need different work, so there are two recipes.
 
 `setup` is for a clone: `mise trust` then `mise install`, each rendered language's
-`<lang>-install`, then `hooks-install` and `apm-install`. Trust comes first
-because an untrusted config is skipped, after which `mise install` reads nothing and
-reports success.
+`<lang>-install`, then `hooks-install`. Trust comes first because an untrusted config
+is skipped, after which `mise install` reads nothing and reports success.
 
 `setup-worktree` is what `wt`'s blocking pre-start runs, and `setup_command` defaults to
-it. It never runs `apm-install`: `.worktreeinclude` copies `apm_modules/` and
-`node_modules/` from the primary, and a fresh `apm install` is slow. What it does run is
+it. `.worktreeinclude` copies `node_modules/` from the primary, so what it runs is
 what a copy cannot provide, plus the language installs.
 
 | Step | Why a worktree needs it |
@@ -655,94 +653,66 @@ workflow to report a status.
 
 | Recipe | Writes | Variables |
 |---|---|---|
-| `agentic/apm` | `apm.yml`, `.just.d/apm.just`, `.gitignore.d/apm` | `apm_packages`, `apm_target`, `apm_cli_version` |
-| `agentic/package` | `apm.yml` with a marketplace block, `packages/<name>/{apm.yml, .apm/skills, plugin manifests}`, `release-please-config.json` + manifest, `.just.d/package.just`, `.gitignore.d/package` | `project_name`, `package_name`, `category`, `marketplace_outputs`, `deploy_kiro`, `apm_cli_version` |
+| `agentic/package` | `<name>/{package.json, .omp-plugin/plugin.json, skills/<name>/SKILL.md}`, the `.omp-plugin/` and `.claude-plugin/` marketplace catalogs, `scripts/build_catalog.py`, `.just.d/package.just`, `.gitignore.d/package` | `project_name`, `package_name`, `description`, `author`, `owner` |
 | `agentic/beads` | `.beads/` through `bd init --init-if-missing --skip-hooks --server`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_storage_mode`, `bd_dolt_sync`, `bd_sync_remote`, `bd_auto_export`, `bd_dolt_auto_commit`, `bd_push_command` |
 | `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_extra_ignores` |
-| `agentic/speckit` | `.gitignore.d/speckit`, `.just.d/speckit.just`, and the locator added to `apm.yml` | `speckit_locator`, `speckit_integration`, `speckit_script_flavor`, `specify_cli_version` |
-| `agentic/marketplace` | nothing; `tasks/recommend.py` reports what to register and install | none |
 
-No per-harness configuration file. `agentic/marketplace` runs last.
+No per-harness configuration file is rendered. Which marketplaces a machine trusts is
+the user's to state, so nothing here seeds one.
 
-### `agentic/apm` versus `agentic/package`
+### `agentic/package`: a repository that is its own marketplace
 
-Both own `apm.yml`, so a repository takes one, never both. `agentic/apm` writes a
-consumer's manifest, a `dependencies` block naming packages to install.
-`agentic/package` writes a publisher's manifest, a `marketplace` block, and the
-repository becomes its own marketplace. The `agentic-repo` profile, the 17-repo shape with no language recipe,
-is where `agentic/package` belongs.
+The layer renders one starter plugin and the two catalogs that publish it, holding the same
+bytes: OMP reads `.omp-plugin/marketplace.json` and falls back to
+`.claude-plugin/marketplace.json`, so one repository serves OMP and Claude Code from one
+source. The `agentic-repo` profile, the 17-repo shape with no language recipe, is where it
+belongs. It grows to many plugins by adding directories, each with a manifest.
 
-The recipe scaffolds the single-package shape shared by break-stuff and clerk: one
-package under `packages/<name>`, published from the repository root. It grows to many
-packages by hand.
+What the runtimes require, measured on a 31-plugin estate:
 
-### What apm requires, measured against 0.26.0
+- A capability is located by path, and no catalog entry redirects the lookup:
+  `skills/<name>/SKILL.md` without recursion, `agents/<name>.md`, `commands/<name>.md`,
+  `rules/<name>.md`.
+- Rules and agents load only for a plugin OMP recognises, and recognition is a
+  `package.json` carrying an `omp` key. Without one, `omp plugin doctor` reports "not an omp
+  plugin" and both are silently absent while the plugin's skills still load. The key may be
+  empty: it is a marker, not a payload.
+- OMP identifies a capability by its bare `name`, deduplicates across every configured
+  source, and keeps the first match, so a name two plugins share resolves to one and hides
+  the other. Every name carries its plugin as a prefix, and `scripts/build_catalog.py`
+  refuses a capability that does not.
+- OMP compares `plugins[].version` in the top-level catalog, so an entry with no version is
+  invisible to its upgrade check. Each plugin owns its version in
+  `<plugin>/.omp-plugin/plugin.json`, and the catalog aggregates them.
 
-- Marketplace outputs are **claude and codex only**. `apm targets` also lists kiro, and
-  the recipe deploys the skill there, but `marketplace.outputs` has no kiro mapper and
-  rejects the key. Deploy target and marketplace output are different axes: `targets:`
-  names where a compiled skill is installed, `outputs:` names which discovery catalog is built.
-- The codex output requires `category` on every package, so it is a mandatory question
-  rather than a free-text one.
-- `apm pack` writes the repository-root catalogs, and none of the per-package
-  `.claude-plugin/plugin.json` or `.codex-plugin/plugin.json`. Claude's `/plugin install`
-  reads the per-package manifest at the catalog's `source:` path, so the recipe renders
-  those statically; without them a package lists but does not install.
-- Each package needs its own `apm.yml`, or `apm pack --check-versions` reports it as
-  `no_apm_yml`.
-- `tagPattern` must match what release-please tags. The shipped
-  `release-please-config.json` sets `include-component-in-tag: true` and
-  `tag-separator: "--"`, which tags `<component>--v<version>`, so the marketplace's
-  `tagPattern` is `'{name}--v{version}'`. Change one config and the other has to
-  change with it.
+The catalogs are committed generated artefacts, which is what lets an install resolve the
+marketplace from a clone with no build step. `scripts/build_catalog.py` is their only
+writer: a copier task runs it at render time, `just marketplace-build` reruns it, and `just
+marketplace-check` compares the committed bytes and writes nothing, so the gate cannot
+repair the drift it reports. That check runs from the host layer's `Generated files current`
+step, beside `just-check`: same class of failure, a generated file a change made stale.
 
-The catalogs are committed generated artefacts, which is what `srobroek/agentic-packages`
-and `srobroek/break-stuff` both do: both track `.claude-plugin/marketplace.json` and
-`.agents/plugins/marketplace.json`, regenerate them on a pull request and fail on drift
-without committing, and regenerate and commit at release. Committing them is what lets a
-consumer resolve the marketplace from a clone with no build step.
+Registering a marketplace is machine-global rather than per project. `omp plugin marketplace
+add <owner>/<repo>` writes under `~/.omp/`, so no template can seed it and none tries;
+which marketplaces a machine trusts is the user's to state, and a rendered repository
+asserts nothing about it.
 
-The drift check runs from the host recipe's `Generated files current` step, beside
-`just-check` and `gitlab-check`. Same class of failure: a generated file that a fragment
-change made stale. Without it `just package-check` exists and never fires, so a
-package added to `apm.yml` without a repack leaves the catalogs behind and a consumer never
-sees it. Measured against apm: dropping one plugin from a catalog exits 4, and restoring it
-exits 0.
+release-please keeps its single-component shape here, and this layer writes none of its
+files. It bumps only what its config names, and the plugin manifests are not among them, so
+a version bump reaches the catalogs through `just marketplace-build`. A marketplace past its
+first plugin points the config at each manifest and turns on `sync_generated`, which amends
+the regenerated catalogs onto the release branch.
 
-`srobroek/speckit-conductor` commits neither, because the repository is the package rather
-than a marketplace over several. A single-package bundle drops the fragment.
+Which marketplaces a machine registers is the user's decision, collected in the
+interview and never defaulted: a scaffold suggesting its author's own catalogs is a
+recommendation nobody asked for. Registration is machine-global -- `omp plugin
+marketplace add` writes under `~/.omp/`, Claude Code's `/plugin marketplace add`
+under `~/.claude/plugins/`, and Codex reads `.agents/plugins/marketplace.json` --
+so the skill reports each command behind the run's install gate rather than any
+recipe running one.
 
-`apm pack` cannot be a copier task, since it needs uvx and may reach the network, so
-`just package-build` performs it against a pinned CLI. `just package-check` is the
-pull-request gate and passes `--check-clean --dry-run`, not `--check-clean` alone: without
-`--dry-run` the run regenerates before diffing and so can never report drift.
-`--check-versions` confirms only that a version renders under the pattern; it does not
-verify the tag exists.
-
-Registering a marketplace with a runtime is a separate matter. `apm marketplace add` writes
-to `~/.claude/plugins/`, which is machine-global, so `agentic/marketplace` reports the
-command rather than any recipe running it.
-
-`agentic/apm` writes the manifest but does not run an install. `apm install` reaches the
-network and needs uvx, so it would fail a render that had otherwise succeeded;
-`just apm-install` performs it instead, against a pinned `apm_cli_version`.
-
-Marketplace registration is machine-global, not per-project: `apm marketplace add`
-writes to `~/.claude/plugins/`, so no template can seed it. `just apm-marketplaces`
-is a one-time step per machine. A dependency locator names its own source inline,
-so a package resolves whether or not its marketplace was registered.
-
-An empty `apm_packages` is valid. bailiff refused it with a validator, which made the
-recipe unusable until someone had chosen packages.
-
-The agent then reads the rendered recipe set and recommends packages against it:
-`language-rust` and `rust-quality` for a rust recipe, `mcp-tauri` for a Tauri
-shell, `steering-infrastructure` for terraform, `speckit` when SpecKit is in use.
-That match is judgement, so it belongs to the agent rather than a template.
-
-`agentic/index` requires the `token-savings` package, which guards reading the
-pack. It commits the patterns to `repomix.config.json`, which repomix reads
-natively. They are then visible to anyone reading the repository.
+`agentic/index` commits its include and ignore patterns to `repomix.config.json`,
+which repomix reads natively. They are then visible to anyone reading the repository.
 
 Path filtering is the only lever that works. Measured against a 1,269-file
 repository, the include and ignore pair cut a pack by 30.7 percent. The content
@@ -767,10 +737,9 @@ so a config setting `files: false` cannot be overridden from the command line, a
 recipe pointing at such a config produces a metadata-only pack while calling itself
 full.
 
-Guarding the read belongs to the `token-savings` package, which already denies a
-whole-file read of `repomix-full.xml` on both `Read` and `Bash`, so `cat pack` is
-caught too. It carries a `TOKEN_SAVINGS_ALLOW_PACK_READ=1` escape hatch. This
-recipe does not ship a hook; `agentic/apm` names the package instead.
+Guarding the pack read is a plugin concern, not a render concern: a hook that denies a
+whole-file read of `repomix-full.xml` ships in marketplace plugins, and which
+marketplace supplies it is the user's choice. This recipe ships no hook.
 
 The pack needs its own config file. repomix has `--no-files` but no `--files`, so
 the map's `files: false` cannot be overridden from the command line, and one
@@ -781,55 +750,6 @@ The index artefacts are ignored, repomix's own default output names among them.
 An unignored artefact is packed into the next one, which measured 38 percent of one
 repository's whole pack, and `graphify update` has no output flag so it writes into
 the tree regardless.
-
-`agentic/apm` seeds two marketplaces: `srobroek/agentic-packages` and
-`srobroek/slopvac`.
-
-The worktrunk marketplace is not seeded, because `worktrunk-writer` and
-`hooks-worktrunk` already wrap it with writer lifecycle, branch leases, and
-cross-runtime enforcement that the single-plugin marketplace does not carry.
-
-The repomix marketplace is not seeded either, because its MCP server earns
-nothing over the CLI. `mcp-repomix`'s own refresh hook shells out to
-`repomix --style xml --output <path> <root>`, and a pack costs 1.4s for 1,269
-files or 3.6s for 4,107. repomix does not cache a pack: `docs/agents/index.md` names the
-tool and the invocation, scoped with `--include`.
-
-### `agentic/speckit`
-
-That merge happened: `speckit`, `speckit-beads`, and `steering-speckit` are now one
-package at `srobroek/speckit-conductor`, so the recipe names one pinned locator.
-
-The recipe is thin, because the package's own `speckit-setup` skill does the scaffolding.
-Rendering a `.specify/` tree here would fork what `specify init` produces. It exists for
-three things a skill installed under `apm_modules/` cannot do:
-
-- The setup script appends `specs/**/spec-status.md` to the root `.gitignore`, and
-  `base/gitignore` rebuilds that file from `.gitignore.d/`, so the entry is dropped on the
-  next render. The recipe ships it as a fragment instead, the same fix `agentic/beads`
-  applies to bd's own appended block.
-- `apm.yml` belongs to `agentic/apm` and is skip-guarded, so the locator is added by an
-  idempotent edit. The `[]` placeholder that recipe writes for an empty list is replaced
-  rather than appended to, since a list cannot hold both.
-- The script hardcodes twelve extensions and exits 0 when one could not be installed: a
-  custom-source failure warns on stderr and continues. `agent-assign` is the one that
-  matters, because the DAG hard-blocks `/speckit.implement` without it, so
-  `just speckit-verify-extensions` checks the installed set rather than the exit code.
-
-Renders after `agentic/beads`. The formula installs into `.beads/formulas/` and the guard
-is inert without a workspace, so a repository with no `.beads/` gets a SpecKit that cannot
-provision its phase DAG.
-
-Pinned to `>=4.0.0 <5.0.0`. v4 is two breaking changes worth having: it dropped
-`speckit-implement-task` and `speckit-research`, which the formula referenced zero times,
-and it fixed a DAG that stalled permanently at step 3 because `bd gate check` does not see a
-human gate. Each gate step now carries a condition and the formula takes an `autonomous`
-variable, so an unattended pour filters the gates out and runs to completion. Verified that v4
-installs and deploys exactly the two surviving agents.
-
-The bootstrap is not a copier task. It runs `specify init`, reaches a catalog over the
-network for the extensions, and calls `bd init`, so a render that had otherwise succeeded
-would fail on it.
 
 Holding architecture decisions as beads is a separate package, `adr-as-beads`: a
 `decision` bead is the record and `.pre-commit.d/adr.yaml` renders it to
@@ -1023,14 +943,11 @@ workspace/monorepo     monorepo: the root manifest, then the generator per membe
 lang/*
 host/{github,gitlab}
 release/*  iac/*  docs/*
-agentic/{apm|package,beads}
-agentic/speckit        when SpecKit is in use: needs the beads workspace
+agentic/{package,beads}
 quality/hooks
 workspace/just
 workspace/moon         monorepo only: the member graph, after every member exists
-workspace/devcontainer container only: postCreateCommand calls `just setup`
 base/gitignore
-agentic/marketplace
 ```
 
 The generator runs before every recipe. `cargo init` writes no `license` key and

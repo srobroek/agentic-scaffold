@@ -377,10 +377,11 @@ def test_the_app_token_makes_the_release_pr_trigger_ci(tmp_path: Path) -> None:
 
 
 def test_the_sync_step_amends_the_catalogs_onto_the_release_branch(tmp_path: Path) -> None:
-    """release-please bumps the version in apm.yml and stops. The marketplace catalogs carry
-    that version per package, so they go stale the moment the release pull request opens and
-    `just packages` fails on the drift -- measured on this scaffold's own PR #2, two differences,
-    one per package.
+    """The catalogs carry a version per plugin, read from each `<plugin>/.omp-plugin/plugin.json`,
+    so a release that bumps one leaves them stale the moment the pull request opens -- measured on
+    this scaffold's own PR #2, two differences, one per package. Under the shape the profile
+    renders, nothing bumps those manifests, so the step reports "already in sync" and earns its
+    keep once release-please's own config names them.
     """
     dest = tmp_path / "sync"
     dest.mkdir()
@@ -399,11 +400,11 @@ def test_the_sync_step_amends_the_catalogs_onto_the_release_branch(tmp_path: Pat
     assert branch.startswith("${{ steps.release.outputs.pr &&")
     assert branch.rstrip().endswith("|| '' }}")
 
-    assert "just package-build" in sync["run"]
+    assert "just marketplace-build" in sync["run"]
     # Checked rather than assumed. just reports `justfile does not contain recipe` and exits 1,
     # which reads as a broken workflow rather than a layer that never rendered -- this repository
     # hit exactly that, because its own justfile named the check `packages` and shipped no build.
-    assert "does not contain recipe" in sync["run"] or "no package-build recipe" in sync["run"]
+    assert "does not contain recipe" in sync["run"] or "no marketplace-build recipe" in sync["run"]
     # Nothing to amend is a normal outcome, not a failure.
     assert "git diff --quiet" in sync["run"]
 

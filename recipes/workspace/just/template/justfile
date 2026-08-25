@@ -34,8 +34,8 @@ default:
 # it is first; hooks need the toolchain the shims call.
 #
 # `setup` is for a fresh clone. `setup-worktree` is what `wt`'s blocking pre-start runs,
-# and it is deliberately the shorter list: `.worktreeinclude` copies `apm_modules/`,
-# `.venv`, and `node_modules` from the primary, so a worktree does not reinstall them.
+# and it is deliberately the shorter list: `.worktreeinclude` copies `.venv` and
+# `node_modules` from the primary, so a worktree refreshes them rather than installing cold.
 
 # Install the toolchain, the dependencies, and the hook shims
 [group('all')]
@@ -57,7 +57,7 @@ setup:
       just "$recipe"
     done
 
-    for recipe in hooks-install apm-install; do
+    for recipe in hooks-install; do
       if just --show "$recipe" >/dev/null 2>&1; then
         echo "==> $recipe"
         just "$recipe"
@@ -71,8 +71,6 @@ setup:
 #   mise trust      a new directory is untrusted, and an untrusted config is skipped
 #   hooks-install   a worktree's $GIT_DIR is `.git/worktrees/<name>/`, which is where git
 #                   looks for its hooks, so shims in the primary never fire here
-#
-# `apm-install` is never run here. `apm_modules/` is copied, and a fresh install is slow.
 
 # Prepare a linked worktree, after copy-ignored has warmed the caches
 [group('all')]

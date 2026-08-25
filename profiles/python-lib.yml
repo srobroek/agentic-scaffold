@@ -12,13 +12,11 @@ layers:
   - release/release-please
   - docs/agents
   - docs/adr
-  - agentic/apm
   - agentic/beads
   - agentic/index
   - quality/hooks
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
 
 answers:
   license: mpl-2.0

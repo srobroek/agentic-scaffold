@@ -446,10 +446,9 @@ whatever enforces it, and nothing fails when it does.
 
 `AGENTS.md` is an index. The detail sits in `docs/agents`, and `docs/agents`
 writes `AGENTS.md` from its own `AGENTS.body.md`, with `CLAUDE.md` a relative
-symlink to it so one file serves both harnesses. Where `agentic/apm` also
-renders, `just apm-compile` weaves the installed packages' context into that same
-file. Directory structure is not documented here: gitnexus and repomix answer
-structural questions, and `index.md` names which of them this repository has.
+symlink to it so one file serves both harnesses. Directory structure is not
+documented here: gitnexus and repomix answer structural questions, and `index.md`
+names which of them this repository has.
 
 `env/index.md` records variable names and what fails without each. Never
 values.

@@ -171,9 +171,9 @@ def test_no_test_hardcodes_a_mise_latest_path() -> None:
 def test_every_binary_a_recipe_invokes_is_pinned() -> None:
     """A recipe shelling out to an unpinned tool exits 127 in CI while passing locally.
 
-    `just packages` did exactly that: apm came from pipx outside any pin, so the recipe worked
-    here and failed on the runner. The requires_bin check above did not catch it, because no
-    layer declares apm -- the scaffold's own justfile invokes it.
+    The `requires_bin` check above covers what a recipe declares. This covers what this
+    repository's own justfile invokes, which no layer declares: a pipx-installed tool
+    outside any pin passed here and exited 127 on the runner.
     """
     justfile = (REPO_ROOT / "justfile").read_text()
 

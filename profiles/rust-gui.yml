@@ -22,14 +22,12 @@ layers:
   - release/release-please
   - docs/agents
   - docs/adr
-  - agentic/apm
   - agentic/beads
   - agentic/index
   - quality/hooks
   - workspace/moon
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
 
 answers:
   license: agpl-3.0-only

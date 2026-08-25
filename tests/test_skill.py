@@ -178,13 +178,25 @@ def test_it_carries_the_two_ordering_traps() -> None:
     assert "aggregator" in body.lower()
 
 
-def test_it_says_a_repository_takes_one_apm_yml() -> None:
-    """agentic/apm and agentic/package own the same path, so naming both leaves whichever
-    rendered first owning the manifest."""
+def test_it_makes_the_marketplaces_the_users_to_name() -> None:
+    """Registering a source reaches every project on the machine, so a suggested default is
+    a supply-chain decision taken for the user. The native commands are named because the
+    scaffold registers nothing itself."""
     body = skill_body()
-    assert "agentic/apm" in body
-    assert "agentic/package" in body
-    assert "never both" in body
+    assert "Marketplaces are the user's to name" in body
+    assert "machine-global" in body
+    assert "omp plugin marketplace add" in body
+    assert "/plugin marketplace add" in body
+    assert ".agents/plugins/marketplace.json" in body
+
+
+def test_the_skill_suggests_no_marketplace_of_its_own() -> None:
+    """The rule is worth nothing if the prose next to it names a source: a reader copies the
+    example. Every `<owner/repo>` here stays a placeholder."""
+    body = skill_body()
+    named = re.findall(r"marketplace add ([^\s`]+)", body)
+    assert named, "the skill names no registration command at all"
+    assert set(named) == {"<owner/repo>"}, f"the skill suggests a marketplace: {named}"
 
 
 def test_it_points_at_the_documents_rather_than_restating_them() -> None:

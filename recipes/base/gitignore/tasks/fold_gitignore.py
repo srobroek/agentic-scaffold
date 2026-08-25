@@ -64,8 +64,7 @@ OS_TEMPLATES = ("gh:Global/macOS", "gh:Global/Windows", "gh:Global/Linux")
 
 # Which languages rendered, read from the tree rather than from an answer the
 # agent had to assemble: each language recipe writes its marker unconditionally,
-# and a recipe whose files were removed by hand stops contributing. Same
-# detection stance as agentic/marketplace's recommend.py.
+# and a recipe whose files were removed by hand stops contributing.
 #
 # iac/terraform is deliberately absent: its fragment carries the whole set,
 # because the upstream Terraform template predates .tofu files.

@@ -14,13 +14,11 @@ layers:
   - release/release-please
   - docs/agents
   - docs/adr
-  - agentic/apm
   - agentic/beads
   - agentic/index
   - quality/hooks
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
 
 answers:
   # An application, so fork-plus-SaaS protection at no adoption cost.

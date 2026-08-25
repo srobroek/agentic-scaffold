@@ -13,13 +13,11 @@ layers:
   - release/release-please
   - docs/agents
   - docs/adr
-  - agentic/apm
   - agentic/beads
   - agentic/index
   - quality/hooks
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
 
 answers:
   # A niche library has no substitute, so copyleft friction is zero.

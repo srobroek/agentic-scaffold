@@ -40,10 +40,11 @@ from typing import NoReturn
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RECIPES = REPO_ROOT / "recipes"
-# Overridable so a test can validate a copied directory. Writing a fixture into the
+# Both overridable so a test can validate a copied directory. Writing a fixture into the
 # real profiles/ made the suite fail under `-n auto`: one worker saw another worker's
-# file, and the test reading every profile counted it as real.
+# file, and the test reading every profile counted it as real. A fixture recipe has the
+# same problem, plus `docs/INDEX.md` and the render-every-profile check read recipes/.
+RECIPES = Path(os.environ.get("SCAFFOLD_RECIPES") or REPO_ROOT / "recipes")
 PROFILES = Path(os.environ.get("SCAFFOLD_PROFILES") or REPO_ROOT / "profiles")
 
 # copier 9.17.0 stops applying its own DEFAULT_EXCLUDE once `_subdirectory` is
