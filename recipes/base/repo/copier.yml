@@ -23,5 +23,7 @@ description:
 
 org:
   type: str
-  help: Owning person or organisation.
-  default: ""
+  help: >-
+    Owning person or organisation -- the GitHub owner either way. Required:
+    CODEOWNERS, crate metadata, and the goreleaser release target all read it,
+    and an empty value renders clean but fails later and further away.

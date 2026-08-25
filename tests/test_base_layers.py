@@ -108,7 +108,7 @@ def test_repo_layer_leaves_docs_contents_alone(tmp_path: Path) -> None:
     """docs/agents and docs/adr own their subtrees; base/repo only makes docs/."""
     dest = tmp_path / "d"
     dest.mkdir()
-    render("base/repo", dest, "project_name: demo\n")
+    render("base/repo", dest, "project_name: demo\norg: acme\n")
     assert (dest / "docs").is_dir()
     assert not (dest / "docs" / "agents").exists()
 
@@ -119,7 +119,7 @@ def test_precheck_refuses_a_dirty_destination(tmp_path: Path) -> None:
     git_init(dest)
     (dest / "dirty.txt").write_text("uncommitted\n")
 
-    result = render("base/repo", dest, "project_name: demo\n")
+    result = render("base/repo", dest, "project_name: demo\norg: acme\n")
 
     assert result.returncode == 3
     assert "uncommitted changes" in result.stderr
