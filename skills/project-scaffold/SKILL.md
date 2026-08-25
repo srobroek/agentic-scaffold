@@ -23,6 +23,10 @@ question it already answers invites a reply that contradicts the tree.
 5. **Create the remote now?**
 6. **Private or public**, if yes.
 
+Two more where the answers demand them, both in `rules/choices.md`. Ask `api` and `database`
+for a `ts-app`: a CLI or a static site needs neither, and no project name says which. Ask
+about infrastructure where the first answer implies it.
+
 Classify before asking. An answer is **strong** when the user stated it or
 `rules/choices.md` derives it, and a **gap** otherwise. Grill the gaps, one question per
 turn, because each answer narrows the next. Read a choice question's options verbatim from
