@@ -488,8 +488,8 @@ Requires `git` on `PATH`.
 | `environments` | yaml | `['dev', 'prod']` |
 | `aws_region` | str | `eu-west-1` |
 | `state_bucket` | str |  |
-| `opentofu_version` | str | `1.12.5` |
-| `tflint_version` | str | `0.64.0` |
+| `opentofu_version` | str |  |
+| `tflint_version` | str |  |
 | `aws_provider_version` | str | `~> 6.0` |
 | `pre_commit_terraform_rev` | str | `v1.108.1` |
 | `default_branch` | str | `main` |
