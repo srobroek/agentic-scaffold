@@ -1,5 +1,3 @@
 {
-  ".": "0.2.2",
-  "packages/project-scaffold": "0.2.0",
-  "packages/project-scaffold-update": "0.2.0"
+  ".": "0.2.2"
 }
