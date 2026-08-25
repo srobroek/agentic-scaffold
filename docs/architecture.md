@@ -94,7 +94,7 @@ them or its review says why not.
 |---|---|
 | A question may not ask what the tree already says | `release_type` reads rust-toolchain.toml, pyproject.toml, package.json, go.mod; `simple` is the no-marker fallback |
 | A question may not ask what the toolchain or generator already decided | an empty `rust_edition` keeps what `cargo init` wrote; `go_version` reads go.mod's directive back |
-| A version pin resolves latest at render, with a verified floor as the offline fallback | `resolve_versions.py` asks `mise latest` for opentofu and tflint |
+| A version pin resolves latest at render where the backend lists fast, with a verified floor as the offline fallback; a backend that resolves by listing module versions, or a pin renovate owns in the rendered repo, stays concrete | `resolve_versions.py` asks `mise latest` for opentofu and tflint; govulncheck is pinned concrete because mise's go backend timed out on every measured resolve |
 | A blank a user must fill stays blank, never guessed | `aws_region` and `state_bucket` render empty and fail at `tofu init` with their own message |
 | A question consumed by nothing is deleted, not defaulted | `python_framework` was asked, recorded, and read by nothing |
 
