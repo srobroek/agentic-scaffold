@@ -24,9 +24,7 @@ def git_init(path: Path) -> None:
 def test_the_policy_licences_resolve(spdx: str, tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
-    result = render(
-        "base/license", dest, f'license: {spdx}\ncopyright_name: X\n'
-    )
+    result = render("base/license", dest, f"license: {spdx}\ncopyright_name: X\n")
     assert result.returncode == 0, result.stderr
     assert (dest / "LICENSE").is_file()
 
@@ -35,9 +33,7 @@ def test_agpl_only_maps_to_the_github_key(tmp_path: Path) -> None:
     """SPDX separates -only from -or-later; GitHub carries one key for both."""
     dest = tmp_path / "d"
     dest.mkdir()
-    result = render(
-        "base/license", dest, 'license: AGPL-3.0-only\ncopyright_name: X\n'
-    )
+    result = render("base/license", dest, "license: AGPL-3.0-only\ncopyright_name: X\n")
     assert result.returncode == 0, result.stderr
     assert "AFFERO" in (dest / "LICENSE").read_text().upper()
 
@@ -46,9 +42,7 @@ def test_licence_id_matching_is_case_insensitive(tmp_path: Path) -> None:
     """GitHub keys are lowercase; an answer typed by hand may not be."""
     dest = tmp_path / "d"
     dest.mkdir()
-    result = render(
-        "base/license", dest, 'license: mpl-2.0\ncopyright_name: X\n'
-    )
+    result = render("base/license", dest, "license: mpl-2.0\ncopyright_name: X\n")
     assert result.returncode == 0, result.stderr
     assert "Mozilla Public License" in (dest / "LICENSE").read_text()
 
@@ -69,9 +63,7 @@ def test_the_holder_and_year_are_substituted(tmp_path: Path) -> None:
 def test_an_unknown_identifier_fails_without_writing(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
-    result = render(
-        "base/license", dest, 'license: NotReal\ncopyright_name: X\n'
-    )
+    result = render("base/license", dest, "license: NotReal\ncopyright_name: X\n")
     assert result.returncode == 4
     assert not (dest / "LICENSE").exists()
     # The message must list what GitHub carries.
@@ -81,9 +73,7 @@ def test_an_unknown_identifier_fails_without_writing(tmp_path: Path) -> None:
 def test_licence_none_writes_nothing(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
-    result = render(
-        "base/license", dest, 'license: none\ncopyright_name: X\n'
-    )
+    result = render("base/license", dest, "license: none\ncopyright_name: X\n")
     assert result.returncode == 0
     assert not (dest / "LICENSE").exists()
 
@@ -237,6 +227,46 @@ def test_gitignore_is_rebuilt_identically(tmp_path: Path) -> None:
     render("base/gitignore", dest, 'gitignore_templates: ""\n')
 
     assert (dest / ".gitignore").read_text() == first
+
+
+def test_language_templates_are_detected_from_the_tree(tmp_path: Path) -> None:
+    """A rust marker at the root pulls gh:Rust in without any answer.
+
+    The agent used to assemble the template list by hand, and forgetting one
+    left a language without its upstream ignores.
+    """
+    dest = tmp_path / "d"
+    dest.mkdir()
+    (dest / "rust-toolchain.toml").write_text('[toolchain]\nchannel = "stable"\n')
+
+    render("base/gitignore", dest, 'gitignore_templates: ""\n')
+
+    body = (dest / ".gitignore").read_text()
+    assert "# gh:Rust" in body
+    assert "debug/" in body or "target" in body
+
+
+def test_member_directory_markers_are_detected(tmp_path: Path) -> None:
+    """`just add` renders a language recipe at the member path, where the tool
+    configs deliberately stay. rust-gui's shell is exactly this shape: biome.json
+    lives under apps/<name>, never at the root."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    (dest / "apps" / "shell").mkdir(parents=True)
+    (dest / "apps" / "shell" / "biome.json").write_text("{}\n")
+
+    render("base/gitignore", dest, 'gitignore_templates: ""\n')
+
+    assert "# gh:Node" in (dest / ".gitignore").read_text()
+
+
+def test_the_answer_carries_additions_beyond_detection(tmp_path: Path) -> None:
+    dest = tmp_path / "d"
+    dest.mkdir()
+
+    render("base/gitignore", dest, 'gitignore_templates: "gh:Global/JetBrains"\n')
+
+    assert "# gh:Global/JetBrains" in (dest / ".gitignore").read_text()
 
 
 # --- the template fetch ------------------------------------------------------

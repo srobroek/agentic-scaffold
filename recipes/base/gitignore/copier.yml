@@ -14,8 +14,10 @@ _scaffold:
 gitignore_templates:
   type: str
   help: >-
-    Space-separated github/gitignore sources, derived from the language layers
-    that rendered. Example: "gh:Rust gh:Node".
+    Space-separated github/gitignore additions beyond what the tree implies.
+    The fold detects rendered languages from their marker files (root and
+    member directories), so language templates need no answer; this is for
+    extras like "gh:Global/JetBrains".
   default: ""
 
 _tasks:
