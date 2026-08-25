@@ -17,7 +17,7 @@ Design lives in `recipes.md`; this file is the inventory.
 | `agentic/package` | 15 | 9 |
 | `agentic/speckit` | 4 | 2 |
 | `base/gitignore` | 1 | 0 |
-| `base/license` | 3 | 0 |
+| `base/license` | 2 | 0 |
 | `base/repo` | 3 | 5 |
 | `container/image` | 9 | 8 |
 | `docs/adr` | 1 | 2 |
@@ -198,7 +198,6 @@ Requires `git`, `gh` on `PATH`.
 |---|---|---|
 | `license` | str | `Apache-2.0` |
 | `copyright_name` | str |  |
-| `copyright_year` | str | `2026` |
 
 
 ## `base/repo`

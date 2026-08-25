@@ -25,7 +25,7 @@ def test_the_policy_licences_resolve(spdx: str, tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
     result = render(
-        "base/license", dest, f'license: {spdx}\ncopyright_name: X\ncopyright_year: "2026"\n'
+        "base/license", dest, f'license: {spdx}\ncopyright_name: X\n'
     )
     assert result.returncode == 0, result.stderr
     assert (dest / "LICENSE").is_file()
@@ -36,7 +36,7 @@ def test_agpl_only_maps_to_the_github_key(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
     result = render(
-        "base/license", dest, 'license: AGPL-3.0-only\ncopyright_name: X\ncopyright_year: "2026"\n'
+        "base/license", dest, 'license: AGPL-3.0-only\ncopyright_name: X\n'
     )
     assert result.returncode == 0, result.stderr
     assert "AFFERO" in (dest / "LICENSE").read_text().upper()
@@ -47,19 +47,22 @@ def test_licence_id_matching_is_case_insensitive(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
     result = render(
-        "base/license", dest, 'license: mpl-2.0\ncopyright_name: X\ncopyright_year: "2026"\n'
+        "base/license", dest, 'license: mpl-2.0\ncopyright_name: X\n'
     )
     assert result.returncode == 0, result.stderr
     assert "Mozilla Public License" in (dest / "LICENSE").read_text()
 
 
 def test_the_holder_and_year_are_substituted(tmp_path: Path) -> None:
+    """The year is the render's own clock; a static template default froze at 2026."""
+    from datetime import datetime
+
     dest = tmp_path / "d"
     dest.mkdir()
-    render("base/license", dest, 'license: MIT\ncopyright_name: Acme Ltd\ncopyright_year: "2031"\n')
+    render("base/license", dest, "license: MIT\ncopyright_name: Acme Ltd\n")
     body = (dest / "LICENSE").read_text()
     assert "Acme Ltd" in body
-    assert "2031" in body
+    assert str(datetime.now().year) in body
     assert "[fullname]" not in body
 
 
@@ -67,7 +70,7 @@ def test_an_unknown_identifier_fails_without_writing(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
     result = render(
-        "base/license", dest, 'license: NotReal\ncopyright_name: X\ncopyright_year: "2026"\n'
+        "base/license", dest, 'license: NotReal\ncopyright_name: X\n'
     )
     assert result.returncode == 4
     assert not (dest / "LICENSE").exists()
@@ -79,7 +82,7 @@ def test_licence_none_writes_nothing(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
     result = render(
-        "base/license", dest, 'license: none\ncopyright_name: X\ncopyright_year: "2026"\n'
+        "base/license", dest, 'license: none\ncopyright_name: X\n'
     )
     assert result.returncode == 0
     assert not (dest / "LICENSE").exists()

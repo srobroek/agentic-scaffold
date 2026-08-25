@@ -30,8 +30,13 @@ about infrastructure where the first answer implies it.
 Classify before asking. An answer is **strong** when the user stated it or
 `rules/choices.md` derives it, and a **gap** otherwise. Grill the gaps, one question per
 turn, because each answer narrows the next. Read a choice question's options verbatim from
-that recipe's `copier.yml`. `base/license` carries thirteen, and copier rejects a value
-recalled from anywhere else.
+that recipe's `copier.yml`.
+
+Licence answers are open strings, so normalise the obvious before persisting: `apache2`
+is `Apache-2.0`, `gpl3` is `GPL-3.0-only`, `mit` is `MIT`. Say the correction; do not
+ask. The render validates the identifier against GitHub and then the SPDX list, and a
+miss names every key GitHub carries -- correct from that message and re-render rather
+than asking the user to debug an SPDX id.
 
 ## Propose the recipe set
 

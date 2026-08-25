@@ -17,7 +17,7 @@ sibling recipe.
 
 | Recipe | Writes | Variables |
 |---|---|---|
-| `base/license` | `LICENSE` | `license`, `copyright_name`, `copyright_year` |
+| `base/license` | `LICENSE` | `license`, `copyright_name` |
 | `base/repo` | `README.md`, `.editorconfig`, `.gitattributes`, `docs/{adr,architecture}/`, `scripts/`, `tests/` | `project_name`, `description`, `org` |
 | `base/gitignore` | `.gitignore`, from github/gitignore templates through `gh api` plus every `.gitignore.d/*` fragment | none |
 

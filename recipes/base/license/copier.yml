@@ -19,15 +19,12 @@ copyright_name:
   help: The copyright holder, as it should appear in LICENSE.
   default: ""
 
-copyright_year:
-  type: str
-  help: First year of copyright.
-  default: "2026"
-
+# No copyright_year question. The year is the render's own clock, derived in
+# write_license.py: a static default froze at the template's authoring year, and
+# a licence backdated on purpose is a hand edit to one line of LICENSE.
 _tasks:
   - >-
     python3 "{{ _copier_conf.src_path }}/tasks/write_license.py"
     "{{ _copier_conf.dst_path }}"
     "{{ license }}"
     "{{ copyright_name }}"
-    "{{ copyright_year }}"

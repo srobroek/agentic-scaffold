@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Write LICENSE for the answered identifier.
 
-    write_license.py <dest> <licence-id> <holder> <year>
+    write_license.py <dest> <licence-id> <holder>
 
 `gh api /licenses/<key>` is the source. It carries 13 licences, including all
 three the policy uses, and needs no vendored copy in this repository.
@@ -18,6 +18,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 
 TIMEOUT_SECONDS = 20
@@ -106,11 +107,14 @@ def substitute(text: str, holder: str, year: str) -> str:
 
 
 def main() -> int:
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 4:
         print(__doc__, file=sys.stderr)
         return 2
 
-    dest, licence_id, holder, year = sys.argv[1:5]
+    dest, licence_id, holder = sys.argv[1:4]
+    # The render's own clock. A static template default froze at 2026; a licence
+    # backdated on purpose is a hand edit to one line of LICENSE.
+    year = str(datetime.now().year)
     if licence_id.lower() in {"", "none"}:
         return 0
 
