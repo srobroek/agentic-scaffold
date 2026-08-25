@@ -630,7 +630,11 @@ def render_at_ref(source: Source, ref: str, data_file: Path, out: Path) -> None:
             rel = Path(source.template).resolve().relative_to(source.repo.resolve())
             old_source = Source(source.id, str(old / rel), None, in_repo=False)
             subprocess.run(["git", "init", "-q", str(out)], check=True)
-            result = copier_copy(old_source, out, {}, data_file)
+            # Tasks stay off in a scratch render: they reach the network and
+            # mutate state (bd init, gh fetches, bun installs), and the 3-way
+            # merge compares template output only -- task-written files are the
+            # destination's own and are refolded there after the update.
+            result = copier_copy(old_source, out, {}, data_file, skip_tasks=True)
             if result.returncode != 0:
                 die(4, f"copier failed rendering {source.id} at {ref[:12]}")
         finally:
@@ -707,7 +711,7 @@ def update_recipe(source: Source, dest: Path, data: dict) -> int:
         new.mkdir()
         render_at_ref(source, ref, base_answers, base)
         subprocess.run(["git", "init", "-q", str(new)], check=True)
-        result = copier_copy(source, new, {}, new_answers)
+        result = copier_copy(source, new, {}, new_answers, skip_tasks=True)
         if result.returncode != 0:
             die(4, f"copier failed rendering {source.id} at HEAD")
 
