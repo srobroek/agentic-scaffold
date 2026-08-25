@@ -140,9 +140,13 @@ supply-chain decision, suggesting one makes it for the user, and "none" is a com
 
 Registration is machine-global, so each source goes behind the run's marketplace gate:
 `omp plugin marketplace add <owner/repo>`, Claude Code's `/plugin marketplace add <owner/repo>`,
-and for Codex the plugin source it resolves from `.agents/plugins/marketplace.json`. omp reads
-`.omp-plugin/marketplace.json` and falls back to `.claude-plugin/marketplace.json`, so one
-catalog repository serves both.
+and for Codex the plugin source it resolves from `.agents/plugins/marketplace.json`. OMP
+installs from Claude-native marketplaces directly -- it reads `.omp-plugin/marketplace.json`
+and falls back to `.claude-plugin/marketplace.json` -- so one catalog serves both, verified
+live: a pure Claude-format skills plugin installs and its skills load. Two caveats carry the
+whole compatibility story: rules and agents load in OMP only for a plugin whose package.json
+carries the `omp` marker, and Claude hooks are inert there (OMP has no hooks.json runner), so
+a plugin leaning on either serves one runtime and silently under-delivers in the other.
 
 ## Rules
 
