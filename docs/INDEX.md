@@ -413,10 +413,10 @@ Writes:
 .github/workflows/wc-quality.yml
 .github/workflows/wc-security.yml
 .just.d/github.just
-CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 SECURITY.md
 scripts/repo_govern.py
+{% if coc_contact %}CODE_OF_CONDUCT.md{% endif %}
 ```
 
 ## `host/gitlab`
@@ -444,10 +444,10 @@ Writes:
 .gitlab/merge_request_templates/default.md
 .gitlab-ci.yml
 .just.d/gitlab.just
-CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 SECURITY.md
 scripts/gen_gitlab_stages.py
+{% if coc_contact %}CODE_OF_CONDUCT.md{% endif %}
 ```
 
 ## `iac/cdk`

@@ -578,7 +578,6 @@ def test_the_gitlab_governance_surface_renders(gitlab: Path) -> None:
         ".gitlab/merge_request_templates/default.md",
         "SECURITY.md",
         "CONTRIBUTING.md",
-        "CODE_OF_CONDUCT.md",
     ):
         assert (gitlab / expected).is_file(), f"missing {expected}"
 
@@ -621,7 +620,6 @@ def test_the_governance_surface_renders(rendered: Path) -> None:
     for expected in (
         "SECURITY.md",
         "CONTRIBUTING.md",
-        "CODE_OF_CONDUCT.md",
         ".github/CODEOWNERS",
         ".github/PULL_REQUEST_TEMPLATE.md",
         ".github/ISSUE_TEMPLATE/bug_report.md",
@@ -633,20 +631,19 @@ def test_the_governance_surface_renders(rendered: Path) -> None:
 def test_an_empty_contact_names_the_fallback_that_exists(rendered: Path) -> None:
     """An unset contact must not leave prose pointing at nothing.
 
-    GitHub's private reporting form needs enabling once, so SECURITY.md says so
-    rather than assuming it is there.
+    GitHub's private reporting form needs enabling once, so SECURITY.md points at
+    `just repo-govern`, which turns it on, rather than assuming it is there.
     """
     security = (rendered / "SECURITY.md").read_text()
     assert "private vulnerability reporting" in security
-    assert "Settings, Code security" in security
+    assert "repo-govern" in security
 
     # A code of conduct with no reporting channel asks people to trust a process
-    # that does not exist, so the placeholder has to be loud.
-    coc = (rendered / "CODE_OF_CONDUCT.md").read_text()
-    assert "Fill in a contact address" in coc
+    # that does not exist, so an empty contact renders no code of conduct at all.
+    assert not (rendered / "CODE_OF_CONDUCT.md").exists()
 
 
-def test_a_contact_replaces_the_fallback(tmp_path: Path) -> None:
+def test_a_contact_makes_the_conduct_file_and_fills_both(tmp_path: Path) -> None:
     dest = tmp_path / "d"
     dest.mkdir()
     render(
@@ -658,7 +655,6 @@ def test_a_contact_replaces_the_fallback(tmp_path: Path) -> None:
     )
     assert "s@example.com" in (dest / "SECURITY.md").read_text()
     assert "c@example.com" in (dest / "CODE_OF_CONDUCT.md").read_text()
-    assert "Fill in a contact address" not in (dest / "CODE_OF_CONDUCT.md").read_text()
 
 
 def test_a_pull_request_template_sits_where_github_reads_one(rendered: Path) -> None:

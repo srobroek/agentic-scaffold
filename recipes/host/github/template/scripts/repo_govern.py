@@ -140,6 +140,31 @@ def apply_workflow_permissions(repo: str, *, check: bool) -> list[str]:
     return differences
 
 
+def apply_private_reporting(repo: str, *, check: bool) -> list[str]:
+    """Enable private vulnerability reporting, which SECURITY.md's default text
+    points reporters at. GitHub ships it off, so a repo that skips this step
+    documents a channel that does not exist."""
+    result = gh("api", f"repos/{repo}/private-vulnerability-reporting")
+    if result.returncode != 0:
+        # Organisations can force it on org-wide, and the endpoint 404s on some
+        # plans; a read failure is a report, not a crash.
+        return [f"private vulnerability reporting: unreadable ({result.stderr.strip()})"]
+    if json.loads(result.stdout).get("enabled") is True:
+        return []
+
+    difference = "private vulnerability reporting: disabled, should be enabled"
+    if check:
+        return [difference]
+    written = gh("api", "--method", "PUT", f"repos/{repo}/private-vulnerability-reporting")
+    if written.returncode != 0:
+        print(
+            f"failed to enable private vulnerability reporting: {written.stderr.strip()}",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    return [difference]
+
+
 def protection_differences(repo: str, branch: str) -> list[str]:
     result = gh("api", f"repos/{repo}/branches/{branch}/protection")
     if result.returncode != 0:
@@ -214,6 +239,7 @@ def main() -> int:
     repo = slug(args.repo)
     problems = apply_settings(repo, check=args.check)
     problems += apply_workflow_permissions(repo, check=args.check)
+    problems += apply_private_reporting(repo, check=args.check)
     problems += protection_differences(repo, args.branch)
 
     if args.check:
