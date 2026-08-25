@@ -428,16 +428,12 @@ def build_plan(
 
     for source in sources:
         config = recipe_config(source)
-        meta = scaffold_meta(config)
-        merge_globs = [g for g in meta.get("merge", []) if isinstance(g, str)]
         skips = {s for s in config.get("_skip_if_exists", []) if isinstance(s, str)}
         answer_files.add(answers_file_name(source, config))
         for path in rendered_paths(source, data, data_file):
             writers.setdefault(path, []).append(source.id)
             if any(fnmatch.fnmatch(path, pattern) for pattern in skips):
                 skip_declared.setdefault(path, set()).add(source.id)
-            if is_fragment(path, merge_globs):
-                skip_declared.setdefault(path, set())  # noop marker; kept simple
 
     entries = []
     conflicts = []
@@ -719,12 +715,12 @@ def update_recipe(source: Source, dest: Path, data: dict) -> int:
             for p in root.rglob("*")
             if p.is_file() and ".git" not in p.relative_to(root).parts
         }
+        answer_rels: list[str] = []
         for rel in sorted(paths):
             if Path(rel).name.startswith(".copier-answers."):
-                # The CLI owns the answers file: take HEAD's verbatim, then
-                # record_ref rewrites the ref. A 3-way merge of YAML mangles it.
-                shutil.copyfile(new / rel, dest / rel)
-                print(f"  answers   {rel}")
+                # The CLI owns the answers file; a 3-way merge of YAML mangles
+                # it. Applied after the loop, and only when the update landed.
+                answer_rels.append(rel)
                 continue
             outcome = merge_file(dest / rel, base / rel, new / rel)
             if outcome == "conflict":
@@ -735,7 +731,19 @@ def update_recipe(source: Source, dest: Path, data: dict) -> int:
             if any(rel.startswith(prefix) for prefix in FRAGMENT_DIRS):
                 touched_fragments.add(rel.split("/", 1)[0])
 
-    record_ref(source, dest, config)
+        if conflicts == 0:
+            for rel in answer_rels:
+                shutil.copyfile(new / rel, dest / rel)
+                print(f"  answers   {rel}")
+
+    if conflicts == 0:
+        record_ref(source, dest, config)
+    else:
+        # The answers file and _ref stay where they were: a conflicted update
+        # is not applied. Resolve the markers, commit, and re-run -- the
+        # resolved side matches the new render, so the replay merges clean and
+        # only then advances the ref.
+        print(f"note: {source.id} keeps its recorded _ref until the conflicts resolve")
     for aggregator, directory in AGGREGATORS:
         if directory in touched_fragments:
             print(f"note: {directory} changed; re-run the {aggregator} fold")
