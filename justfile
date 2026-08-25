@@ -43,6 +43,10 @@ plan *args:
 update *args:
     {{ py }} scripts/scaffold.py update {{ args }}
 
+# Report every missing required answer at once
+check-answers *args:
+    {{ py }} scripts/scaffold.py check-answers {{ args }}
+
 # Regenerate docs/INDEX.md from recipes/
 index:
     {{ py }} scripts/index.py
