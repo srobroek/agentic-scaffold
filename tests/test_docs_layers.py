@@ -302,3 +302,27 @@ def test_the_deploy_workflows_pass_their_own_linters(layer: str, tool: str, tmp_
 
     result = subprocess.run(argv, capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_the_site_urls_derive_from_the_owner(tmp_path: Path) -> None:
+    """The default Pages topology's own naming rule, so nobody fills in what the
+    answers already imply. A custom domain overrides one obvious answer."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render(
+        "docs/site",
+        dest,
+        "project_name: demo\norg: acme\ndocs_engine: starlight\n",
+    )
+    config = (dest / "docs" / "site" / "astro.config.mjs").read_text()
+    assert "https://acme.github.io" in config
+    assert "https://github.com/acme/demo" in config
+
+
+def test_the_pages_repo_derives_from_the_owner(tmp_path: Path) -> None:
+    """deploy-split pushes ACROSS to the sibling, so it is the one that names it."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    render("docs/deploy-split", dest, "org: acme\n")
+    body = (dest / ".github" / "workflows" / "docs-publish.yml").read_text()
+    assert "external_repository: acme/acme.github.io" in body

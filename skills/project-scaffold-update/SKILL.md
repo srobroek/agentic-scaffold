@@ -34,6 +34,10 @@ What decides whether one render is enough:
   renders after the language recipes. Early, it reads a directory that was empty at the time.
 - **The `REQUIRES` map in `scripts/scaffold.py`.** `docs/api-refs` without
   `docs/deploy-split` writes a generator whose output nothing ever publishes.
+- **List answers derive from the tree.** `docs/api-refs` takes `api_ref_languages`:
+  read the same markers the gitignore fold reads -- rust-toolchain.toml,
+  pyproject.toml, biome.json -- and pass the list with `--data`. Narrow it only
+  when the repository documents fewer languages than it carries.
 
 ### Then re-fold the aggregators
 

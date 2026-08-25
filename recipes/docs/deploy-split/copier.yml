@@ -13,10 +13,17 @@ _scaffold:
 _skip_if_exists:
   - .github/workflows/docs-publish.yml
 
+org:
+  type: str
+  help: Owning person or organisation, read only to derive pages_repo.
+  default: ""
+
 pages_repo:
   type: str
   help: >-
-    The sibling repository the built output is pushed to, such as owner/owner.github.io.
+    The sibling repository the built output is pushed to. Empty derives
+    <org>/<org>.github.io, the default topology's own naming rule.
+  default: "{% if org %}{{ org }}/{{ org }}.github.io{% endif %}"
 
 deploy_key_secret:
   type: str

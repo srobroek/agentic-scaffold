@@ -23,9 +23,9 @@ Design lives in `recipes.md`; this file is the inventory.
 | `docs/adr` | 1 | 2 |
 | `docs/agents` | 1 | 11 |
 | `docs/api-refs` | 2 | 6 |
-| `docs/deploy-sibling` | 3 | 1 |
-| `docs/deploy-split` | 4 | 1 |
-| `docs/site` | 9 | 9 |
+| `docs/deploy-sibling` | 2 | 1 |
+| `docs/deploy-split` | 5 | 1 |
+| `docs/site` | 10 | 9 |
 | `host/github` | 6 | 15 |
 | `host/gitlab` | 7 | 10 |
 | `iac/cdk` | 6 | 5 |
@@ -323,7 +323,6 @@ Requires `git` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
-| `pages_repo` | str |  |
 | `default_branch` | str | `main` |
 | `job_timeout_minutes` | int | `15` |
 
@@ -341,7 +340,8 @@ Requires `git` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
-| `pages_repo` | str |  |
+| `org` | str |  |
+| `pages_repo` | str | `{% if org %}{{ org }}/{{ org }}.github.io{% endif %}` |
 | `deploy_key_secret` | str | `DOCS_DEPLOY_KEY` |
 | `default_branch` | str | `main` |
 | `job_timeout_minutes` | int | `15` |
@@ -362,10 +362,11 @@ Requires `git` on `PATH`.
 |---|---|---|
 | `project_name` | str |  |
 | `description` | str |  |
-| `site_url` | str |  |
+| `org` | str |  |
+| `site_url` | str | `{% if org %}https://{{ org }}.github.io{% endif %}` |
 | `docs_engine` | `starlight` | `fumadocs` | `starlight` |
 | `node_version` | str | `24` |
-| `repo_url` | str |  |
+| `repo_url` | str | `{% if org and project_name %}https://github.com/{{ org }}/{{ project_name }}{% endif %}` |
 | `sidebar_autogenerate` | bool | `True` |
 | `is_starlight` | bool | `{{ docs_engine == 'starlight' }}` |
 | `is_fumadocs` | bool | `{{ docs_engine == 'fumadocs' }}` |
@@ -724,7 +725,7 @@ Requires `git` on `PATH`.
 | Question | Type | Default |
 |---|---|---|
 | `default_branch` | str | `main` |
-| `auto_merge` | bool | `True` |
+| `auto_merge` | bool | `False` |
 | `renovate_timezone` | str | `Europe/Amsterdam` |
 
 Writes:
@@ -770,7 +771,7 @@ Requires `git` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
-| `release_type` | `node` | `python` | `rust` | `go` | `simple` | `simple` |
+| `release_type` | `` | `node` | `python` | `rust` | `go` | `simple` |  |
 | `initial_version` | str | `0.1.0` |
 | `default_branch` | str | `main` |
 | `release_app` | bool | `False` |

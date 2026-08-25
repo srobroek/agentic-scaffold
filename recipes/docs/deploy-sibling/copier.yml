@@ -11,14 +11,10 @@ _scaffold:
 _skip_if_exists:
   - .github/workflows/pages.yml
 
-# Where the site is served from. The sibling repository holds the source and publishes it,
-# so this layer renders INTO that repository rather than into the code repository.
-pages_repo:
-  type: str
-  help: >-
-    The sibling repository serving the site, such as owner/owner.github.io. Recorded so a
-    reader knows which repository this workflow belongs to.
-  default: ""
+# No pages_repo question. This workflow renders INTO the sibling repository that
+# serves the site, so the value it once recorded is the repository the reader is
+# already standing in. docs/deploy-split, which pushes ACROSS to the sibling, is
+# the recipe that consumes one.
 
 default_branch:
   type: str
