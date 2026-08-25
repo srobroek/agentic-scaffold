@@ -32,7 +32,6 @@ layers:
 answers:
   license: agpl-3.0-only
   node_version: "24"
-  release_type: node
   container_language: ts
   container_runtime_base: distroless
   docs_engine: starlight

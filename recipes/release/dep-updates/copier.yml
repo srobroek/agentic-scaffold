@@ -26,8 +26,10 @@ auto_merge:
   type: bool
   help: >-
     Add the workflow that approves and merges dependabot's patch and minor action
-    updates. A major update always waits for a person.
-  default: true
+    updates once the gate passes. A major update always waits for a person. Off by
+    default: a green-but-malicious bump landing with zero human eyes is the risk,
+    so merging without review is a choice a team makes, not one a scaffold makes.
+  default: false
 
 renovate_timezone:
   type: str

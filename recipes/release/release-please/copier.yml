@@ -16,12 +16,13 @@ _skip_if_exists:
 
 release_type:
   type: str
-  choices: [node, python, rust, go, simple]
+  choices: ["", node, python, rust, go, simple]
   help: >-
-    Strategy release-please applies. It decides which file the version is written into,
-    so it has to match the language: node edits package.json, python pyproject.toml,
-    rust Cargo.toml, go a version file. `simple` maintains version.txt alone.
-  default: simple
+    What release-please parses for the version. Empty reads the tree after
+    render -- rust-toolchain.toml, pyproject.toml, package.json, go.mod, and
+    `simple` where no marker matches. Answer it only for a monorepo publishing
+    per-member components, where the root shape lies.
+  default: ""
 
 initial_version:
   type: str
@@ -59,3 +60,9 @@ release_packages:
     Package directories relative to the repository root, as a YAML list. Empty releases
     the repository as one package.
   default: []
+
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/detect_release_type.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ release_type }}"

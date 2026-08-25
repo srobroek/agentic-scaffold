@@ -25,7 +25,6 @@ answers:
   license: mpl-2.0
   # A library commits no vendor tree: a consumer resolves its own module graph.
   go_vendor: false
-  release_type: go
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a
 # command needing generator output (cargo build, go build, a projen synth) would fail

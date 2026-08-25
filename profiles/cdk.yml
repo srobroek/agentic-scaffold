@@ -28,6 +28,10 @@ layers:
 answers:
   license: agpl-3.0-only
   node_version: "24"
+  # The root shape lies here: projen owns package.json and regenerates it, so a
+  # node release-type editing its version would fight the generator. simple keeps
+  # the version in version.txt, which nothing else owns.
+  release_type: simple
   # github: false in .projenrc.ts, so the host layer's reusable workflows are the only CI.
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a

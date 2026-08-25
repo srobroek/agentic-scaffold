@@ -26,7 +26,6 @@ answers:
   # An application, so fork-plus-SaaS protection at no adoption cost.
   license: agpl-3.0-only
   crate_kind: bin
-  release_type: rust
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a
 # command needing generator output (cargo build, go build, a projen synth) would fail

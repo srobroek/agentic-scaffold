@@ -25,7 +25,6 @@ answers:
   license: mpl-2.0
   node_version: "24"
   ts_framework: none
-  release_type: node
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a
 # command needing generator output (cargo build, go build, a projen synth) would fail

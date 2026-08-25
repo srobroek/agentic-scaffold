@@ -14,7 +14,7 @@ from conftest import render_recipe as render
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 RP_ANSWERS = """\
-release_type: rust
+release_type: ""
 initial_version: 0.1.0
 default_branch: main
 release_packages: []
@@ -67,8 +67,41 @@ def manifest(dest: Path) -> dict:
 
 
 def test_both_release_please_files_are_valid_json(release_please: Path) -> None:
-    assert config(release_please)["release-type"] == "rust"
+    # An empty answer detects from the tree, and a bare dest carries no marker.
+    assert config(release_please)["release-type"] == "simple"
     assert manifest(release_please) == {".": "0.1.0"}
+
+
+@pytest.mark.parametrize(
+    ("marker", "content", "expected"),
+    [
+        ("rust-toolchain.toml", '[toolchain]\nchannel = "stable"\n', "rust"),
+        ("pyproject.toml", '[project]\nname = "d"\nversion = "0"\n', "python"),
+        ("package.json", '{"name": "d"}', "node"),
+        ("go.mod", "module d\n\ngo 1.26\n", "go"),
+    ],
+)
+def test_the_release_type_is_read_from_the_tree(
+    marker: str, content: str, expected: str, tmp_path: Path
+) -> None:
+    """The tree already says which file carries the version, so nothing asks."""
+    dest = git_repo(tmp_path / "rp")
+    (dest / marker).write_text(content)
+
+    assert render("release/release-please", dest, RP_ANSWERS).returncode == 0
+
+    assert config(dest)["release-type"] == expected
+
+
+def test_an_answered_release_type_is_never_rewritten(tmp_path: Path) -> None:
+    """A monorepo publishing per-member components answers where the root shape lies."""
+    dest = git_repo(tmp_path / "rp")
+    (dest / "package.json").write_text('{"name": "d"}')
+
+    answers = RP_ANSWERS.replace('release_type: ""', "release_type: simple")
+    assert render("release/release-please", dest, answers).returncode == 0
+
+    assert config(dest)["release-type"] == "simple"
 
 
 def test_a_single_package_repo_releases_the_root(release_please: Path) -> None:

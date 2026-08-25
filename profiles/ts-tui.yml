@@ -24,7 +24,6 @@ layers:
 answers:
   license: agpl-3.0-only
   node_version: "24"
-  release_type: node
   # A terminal application publishes no site, so docs/site is absent rather than off.
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a

@@ -37,7 +37,6 @@ answers:
   members: "crates/*"
   crate_kind: bin
   rust_edition: "2024"
-  release_type: rust
   # The shell needs no starlight: docs/site supersedes it, and the addon is off by default.
   ts_framework: none
 
