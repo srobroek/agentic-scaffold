@@ -88,10 +88,12 @@ def api(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def committed(api: Path) -> Path:
-    """The contract committed and a baseline ref pointing at it."""
+    """The contract committed and a baseline ref pointing at it.
+
+    `scaffold render` commits per recipe, so both renders are already in
+    history and HEAD holds the contract; only the baseline ref is ours.
+    """
     render("workspace/just", api)
-    git(api, "add", "-A")
-    git(api, "commit", "-q", "-m", "feat: initial contract")
     # A real origin/main without a remote, which is what the recipe reads.
     git(api, "update-ref", "refs/remotes/origin/main", "HEAD")
     return api

@@ -419,7 +419,7 @@ def test_the_gitlab_layer_runs_no_language_tooling(gitlab: Path) -> None:
     ]
     offenders = []
     for path in sorted(gitlab.rglob("*")):
-        if not path.is_file():
+        if not path.is_file() or ".git" in path.parts:
             continue
         for lineno, line in enumerate(path.read_text().splitlines(), 1):
             if line.lstrip().startswith("#"):

@@ -261,15 +261,20 @@ def test_the_layer_always_skips_the_git_hooks() -> None:
     assert "--skip-hooks" in bd_command()
 
 
-def test_a_non_git_destination_is_refused(tmp_path: Path) -> None:
-    """`bd init` reads the repo's git config, so it aborts outside a work tree."""
+def test_a_non_git_destination_is_initialised(tmp_path: Path) -> None:
+    """`scaffold render` git-inits a bare destination before the recipe runs.
+
+    `bd init` reads the repo's git config and aborts outside a work tree, which
+    is why the old wrapper refused a non-git destination. The CLI owns the
+    destination now, so the render succeeds and the tree is a repository.
+    """
     dest = tmp_path / "notgit"
     dest.mkdir()
 
     result = render("agentic/beads", dest, BEADS_ANSWERS)
 
-    assert result.returncode == 3
-    assert "not a git repository" in result.stderr
+    assert result.returncode == 0, result.stderr
+    assert (dest / ".git").is_dir()
 
 
 # --- beads configuration ---------------------------------------------------
