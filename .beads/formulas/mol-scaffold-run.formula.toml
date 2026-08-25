@@ -1,0 +1,170 @@
+# mol-scaffold-run -- scaffolding one repository from a profile, end to end:
+# interview, plan approval, render, generator setup, secrets, build, handoff.
+#
+# Install: copy this file into <repo>/.beads/formulas/ (or ~/.beads/formulas/).
+# Pour one molecule per project:
+#   bd mol pour mol-scaffold-run --var feature=<slug> --var profile=<profile>
+#   bd update <root-id> --metadata '{"dest":"<path to the new repo>"}'
+#
+# The `mol-` prefix in the filename is load-bearing: `bd mol bond` resolves a
+# formula name only when it is prefixed, and formulas resolve by filename stem,
+# never by the `formula` key below.
+#
+# The `project-scaffold` skill drives it. `render` is a PARENT step only: the
+# skill creates one task bead per selected recipe under it, in profile order,
+# with a `blocks` edge between consecutive recipes, because the recipe set is
+# read from the profile at run time and a formula's step count is fixed at cook.
+#
+# Every join names at least one unconditional step. A step whose whole `needs`
+# list is filtered keeps only its parent edge and becomes immediately ready,
+# with no error at pour -- which here would run `render` before its approval.
+formula = "mol-scaffold-run"
+description = "Scaffold {{feature}} from the {{profile}} profile: interview, approve the plan, render each recipe, run the generator, load secrets, prove the build, hand off"
+type = "workflow"
+
+# The new project's directory name and slug. `pattern` is parsed and never
+# enforced, so the skill validates the slug; this documents the shape.
+[vars.feature]
+required = true
+pattern = "^[a-z0-9][a-z0-9-]*$"
+
+# A profile stem under profiles/, without the .yml. Validate it against
+# `scripts/scaffold.py list` before pouring: an unknown profile is not caught
+# until the first command runs.
+[vars.profile]
+required = true
+
+# Human approval, or explicit permission to proceed without one. Default "no"
+# keeps plan-gate in the DAG; "yes" filters it out for an unattended run,
+# because `bd gate check` never sees a human gate and the molecule would stall
+# with `bd ready` empty.
+#
+# Skipping the gate does not skip its judgement: record on `interview` what a
+# reviewer would have been asked -- which paths the plan classed `overwrite`,
+# and which recipe owns each -- before closing it.
+#
+# `autonomous` reaches plan-gate ONLY. remote-gate, secrets-gate and
+# install-gate each commit something an agent must not decide alone -- a
+# published repository, a credential, a machine-global registration -- so they
+# are unconditional and an unattended run stalls there by design. With nothing
+# to do, resolve one with that reason recorded rather than removing it.
+[vars.autonomous]
+required = false
+default = "no"
+
+[[steps]]
+id = "interview"
+title = "interview {{feature}}"
+type = "task"
+priority = 2
+labels = ["scaffold:run", "phase:interview"]
+description = "Collect every answer the {{profile}} profile's recipes need and write them to one YAML answers file outside the destination. Derive what rules/choices.md marks derived instead of asking. Preflight until it is silent: `scripts/scaffold.py check-answers --profile {{profile}} --data-file <answers>` prints every gap at once and exits 1 while any remain. Acceptance: exit 0, and the answers file committed nowhere near the destination tree."
+notes = "Answers file convention: <answers>.yml held beside the checkout, passed as --data-file to every later scaffold command. Profile answers in profiles/{{profile}}.yml are already applied and must not be repeated here; --data wins over both."
+
+[steps.metadata]
+skill_hints = "project-scaffold"
+execution_agent_type = "worker"
+execution_mode = "interactive"
+
+[[steps]]
+id = "plan-gate"
+title = "plan approval {{feature}}"
+type = "task"
+priority = 1
+needs = ["interview"]
+labels = ["scaffold:run", "phase:plan"]
+condition = "{{autonomous}} == no"
+description = "Print the file map and get it approved before anything is written: `scripts/scaffold.py plan --profile {{profile}} --dest <dest> --data-file <answers>`. Exit 5 means two recipes own one path -- that is a profile or recipe defect, not a thing to force past; fix it and re-plan. Show the user every `overwrite` row with its owning recipe. Only `bd gate resolve` closes the gate; a comment approving it does not."
+notes = "Classes: create, overwrite, skip (a later writer declared the path under _skip_if_exists, first writer wins), answers, conflict. Fragment paths under .gitignore.d/ .just.d/ .mise/conf.d/ .pre-commit.d/ .github/quality.d/ .github/security.d/ .gitlab/ci/ merge by aggregator; the same fragment path from two recipes is still a conflict."
+
+[steps.gate]
+type = "human"
+
+[[steps]]
+id = "render"
+title = "render {{profile}} into {{feature}}"
+type = "task"
+priority = 1
+needs = ["interview", "plan-gate"]
+labels = ["scaffold:run", "phase:render"]
+description = "Parent step. Create one child task bead per recipe in the {{profile}} profile's layer order, each blocking the next, then work them in that order. Render is plan-gated and commits per recipe: `scripts/scaffold.py render --profile {{profile}} --dest <dest> --data-file <answers>`. Never hand-edit rendered output to fix a template -- fix the answer and re-render, or change the recipe. Acceptance: the destination is a git repo whose history has one commit per recipe, and each recipe's .copier-answers.<name>.yml records _ref and _source."
+
+[steps.metadata]
+skill_hints = "project-scaffold"
+execution_agent_type = "worker"
+
+[[steps]]
+id = "setup"
+title = "setup {{feature}}"
+type = "task"
+priority = 2
+needs = ["render"]
+labels = ["scaffold:run", "phase:setup"]
+description = "Run the profile's generator in the destination -- render does not run it, so no manifest exists yet -- then the rendered repo's own bootstrap: `just setup`, and the aggregator folds the render step reported. Acceptance: the generator's manifest is present and committed, and every generated file is in sync with its fragment directory."
+notes = "Aggregators and the directories they fold: workspace/just folds .just.d, base/gitignore folds .gitignore.d, quality/hooks folds .pre-commit.d. The generator for this run is the `generator` key in profiles/{{profile}}.yml."
+
+[steps.metadata]
+skill_hints = "project-scaffold"
+execution_agent_type = "worker"
+
+[[steps]]
+id = "remote-gate"
+title = "remote creation for {{feature}}"
+type = "task"
+priority = 1
+needs = ["setup"]
+labels = ["scaffold:run", "phase:remote"]
+description = "Human-only, and unconditional. `gh repo create --public` publishes the moment it runs and there is no undo, so read the name, the owner and the visibility back to the user and get each confirmed before creating anything. Staying local, or private: resolve the gate with that recorded instead. Acceptance: `bd gate resolve` run by a human, naming the repo created and its visibility -- or `no remote`."
+
+[steps.gate]
+type = "human"
+
+[[steps]]
+id = "secrets-gate"
+title = "secrets and env for {{feature}}"
+type = "task"
+priority = 1
+needs = ["setup", "remote-gate"]
+labels = ["scaffold:run", "phase:secrets"]
+description = "Human-only. Fill the rendered .env template and set the repository and CI secrets the profile's workflows read. An agent must not mint, paste, or invent a credential, so this gate is never automated and never conditional. Nothing to load: resolve the gate with that reason recorded. Acceptance: `bd gate resolve` run by a human, with the list of names set -- names only, never values."
+
+[steps.gate]
+type = "human"
+
+[[steps]]
+id = "install-gate"
+title = "marketplace installs for {{feature}}"
+type = "task"
+priority = 1
+needs = ["setup"]
+labels = ["scaffold:run", "phase:install"]
+description = "Human-only, and unconditional. Registering a marketplace or plugin source is machine-global: it reaches every project on the machine, not just {{feature}}, so no agent decides it. Nothing to install: resolve the gate with `none`. Acceptance: `bd gate resolve` run by a human, naming each source registered."
+
+[steps.gate]
+type = "human"
+
+[[steps]]
+id = "verify"
+title = "verify {{feature}} builds"
+type = "task"
+priority = 2
+needs = ["setup", "remote-gate", "secrets-gate", "install-gate"]
+labels = ["scaffold:run", "phase:verify"]
+description = "Run every command in the {{profile}} profile's `build` list in the destination, in order. A tree that renders is not a project that builds: this is the step that catches a recipe defect the file map cannot see. Green is the acceptance; a failure belongs on this bead with the failing command and its first error line, and is fixed in the recipe rather than in the rendered tree."
+
+[steps.metadata]
+skill_hints = "project-scaffold"
+execution_agent_type = "worker"
+
+[[steps]]
+id = "handoff"
+title = "hand off {{feature}}"
+type = "task"
+priority = 2
+needs = ["verify"]
+labels = ["scaffold:run", "phase:handoff"]
+description = "Report the destination path, the recipe set rendered, the recorded _ref per recipe, the build result, the remote created and its visibility, and what each human gate was resolved with -- including anything still owed. Register any hard-to-reverse choice made during the interview as a decision bead. Then close this molecule. Later drift is not this molecule's work: the `project-scaffold-update` skill and `scripts/scaffold.py update` re-render at the recorded _ref and merge."
+
+[steps.metadata]
+skill_hints = "project-scaffold"
+execution_agent_type = "worker"
