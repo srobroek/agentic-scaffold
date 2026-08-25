@@ -27,8 +27,8 @@ second.
 
 ## Scripts
 
-`scripts/` holds two files. `render.py` wraps copier and `index.py` walks
-`templates/`. A third script is a sign that something belongs in a layer, a
+`scripts/` holds two files. `scaffold.py` wraps copier and `index.py` walks
+`recipes/`. A third script is a sign that something belongs in a recipe, a
 `just` recipe, or the skill.
 
 Report what happened, not what should have. Name every file written, every task

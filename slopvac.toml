@@ -19,7 +19,7 @@ exclude = [
   "**/.venv/**",
   "**/dist/**",
   "**/build/**",
-  # Generated from templates/ by `just index`. Findings against it are not actionable: the fix
+  # Generated from recipes/ by `just index`. Findings against it are not actionable: the fix
   # would have to be made in a generator that has no prose to fix.
   "docs/INDEX.md",
 ]

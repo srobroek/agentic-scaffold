@@ -27,9 +27,9 @@ answers:
   python_framework: none
   release_type: python
 
-# Only what the LAYERS produce. render_profile.py does not run the generator, so a
+# Only what the RECIPES produce. `scaffold render` does not run the generator, so a
 # command needing generator output (cargo build, go build, a projen synth) would fail
-# for the absence of a manifest rather than for anything a layer got wrong. The agent
-# runs the generator, and `just check` proves the layer set.
+# for the absence of a manifest rather than for anything a recipe got wrong. The agent
+# runs the generator, and `just check` proves the recipe set.
 build:
   - just just-check

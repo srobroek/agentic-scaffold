@@ -201,7 +201,7 @@ def main() -> int:
     parser.add_argument(
         "--scaffold",
         type=Path,
-        help="project-scaffold checkout holding scripts/render.py. Skipped when absent.",
+        help="project-scaffold checkout holding scripts/scaffold.py. Skipped when absent.",
     )
     args = parser.parse_args()
 
@@ -231,13 +231,14 @@ def main() -> int:
             die(f"the {args.lang} generator failed in {member.relative_to(repo)}")
 
     if args.scaffold:
-        render = args.scaffold / "scripts" / "render.py"
+        render = args.scaffold / "scripts" / "scaffold.py"
         if not render.is_file():
-            die(f"no render.py under {args.scaffold}")
+            die(f"no scaffold.py under {args.scaffold}")
         print(f"add-member: rendering lang/{args.lang} at {member.relative_to(repo)}")
         if (
             subprocess.run(
-                [sys.executable, str(render), f"lang/{args.lang}", str(member)], check=False
+                [sys.executable, str(render), "render", f"lang/{args.lang}", "--dest", str(member)],
+                check=False,
             ).returncode
             != 0
         ):
