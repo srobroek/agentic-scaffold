@@ -26,7 +26,7 @@ Design lives in `recipes.md`; this file is the inventory.
 | `docs/deploy-sibling` | 3 | 1 |
 | `docs/deploy-split` | 4 | 1 |
 | `docs/site` | 9 | 9 |
-| `host/github` | 6 | 14 |
+| `host/github` | 6 | 15 |
 | `host/gitlab` | 7 | 10 |
 | `iac/cdk` | 6 | 5 |
 | `iac/terraform` | 11 | 23 |
@@ -414,6 +414,7 @@ Writes:
 .just.d/github.just
 CONTRIBUTING.md
 SECURITY.md
+scripts/gen_caller.py
 scripts/repo_govern.py
 {% if coc_contact %}CODE_OF_CONDUCT.md{% endif %}
 ```
