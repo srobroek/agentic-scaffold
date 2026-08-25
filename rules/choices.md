@@ -27,8 +27,8 @@ neither, and the choice is not inferable from the project name.
 | Sub-runner | all-TypeScript monorepo uses turbo, which better-t-stack generates; mixed-language monorepo uses moon; single package uses `just` alone |
 | Layout | one language and one deployable is `single`; two deployables or two languages is `monorepo` |
 | License | niche library is `mpl-2.0`; application is `agpl-3.0-only`; template or dev tooling is `apache-2.0` |
-| CI languages | the set of `lang/*` layers that rendered |
-| CI jobs | the union of jobs those layers contribute, plus quality and security |
+| CI languages | the set of `lang/*` recipes that rendered |
+| CI jobs | the union of jobs those recipes contribute, plus quality and security |
 | CI host | `github` unless the remote is GitLab |
 | Default branch | `main` |
 | Project layout | `src/` versus flat, binary versus library, from what the project does |
@@ -39,12 +39,12 @@ neither, and the choice is not inferable from the project name.
 | Coverage floor | 80 percent |
 | Version matrix | current stable only |
 | Docs engine | `starlight` |
-| Docs topology | sibling repo builds itself, unless the `docs/api-refs` layer renders |
+| Docs topology | sibling repo builds itself, unless the `docs/api-refs` recipe renders |
 | Structural tool | `gitnexus` when the repo has more than 50 source files, otherwise `repomix` |
 
 ## Fixed
 
-Hard-coded in the layers, outside the interview and the derivation table.
+Hard-coded in the recipes, outside the interview and the derivation table.
 
 | Domain | Choice |
 |---|---|
@@ -73,7 +73,7 @@ severity, so warn-level and block-level rules run as separate invocations.
 ## Rust license metadata
 
 `cargo init` writes no `license` key, and `cargo-deny` then fails its licence
-check against the crate itself. The rust layer writes the SPDX identifier that
+check against the crate itself. The rust recipe writes the SPDX identifier that
 matches the chosen `LICENSE`.
 
 ## Go lint configuration
@@ -107,7 +107,7 @@ So the split is not a judgement call:
 | organisation versus personal owner, and visibility | asked, questions 5 and 6 |
 | environment secrets | never automated: a secret in a script is a secret in a shell history |
 
-`host/github` renders the files and ships the script. A layer renders a file, and GitHub reads
+`host/github` renders the files and ships the script. A recipe renders a file, and GitHub reads
 no file for any of these settings, so the API surface is a script.
 
 Fixed settings, applied by the script:

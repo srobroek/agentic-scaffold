@@ -1,6 +1,6 @@
 # project-scaffold
 
-Layered copier templates plus an agent skill that scaffolds a repository.
+Composable copier recipes plus an agent skill that scaffolds a repository.
 
 ## Read for
 
@@ -11,20 +11,21 @@ Layered copier templates plus an agent skill that scaffolds a repository.
 | Writing the CI caller | `rules/ci-composition.md` |
 | What `docs/agents/` holds in a rendered repo | `docs/steering.md` |
 | Working context for this repo | `docs/agents/index.md` |
-| Which layers exist, and their variables | `docs/INDEX.md` |
-| Layer set per profile | `profiles/*.md` |
+| Which recipes exist, and their variables | `docs/INDEX.md` |
+| What each recipe writes, and why | `docs/recipes.md` |
+| Recipe set per profile | `profiles/*.yml` |
 
 ## Rules
 
-Never name a layer from memory. `docs/INDEX.md` is the list.
+Never name a recipe from memory. `docs/INDEX.md` is the list.
 
 Never add a question for something `rules/choices.md` marks fixed or derived.
 
-Never hand-edit rendered output to fix a template. Fix the answer and re-render,
-or change the template.
+Never hand-edit rendered output to fix a recipe. Fix the answer and re-render, or
+change the recipe.
 
-A tree that renders is not a project that builds. `just check` renders every
-profile and runs its own build.
+A tree that renders is not a project that builds. `just profiles-build` renders
+every profile and runs its own build.
 
 
 ## Work
