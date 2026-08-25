@@ -57,7 +57,7 @@ setup:
       just "$recipe"
     done
 
-    for recipe in hooks-install rtk-setup apm-install; do
+    for recipe in hooks-install apm-install; do
       if just --show "$recipe" >/dev/null 2>&1; then
         echo "==> $recipe"
         just "$recipe"
@@ -71,8 +71,6 @@ setup:
 #   mise trust      a new directory is untrusted, and an untrusted config is skipped
 #   hooks-install   a worktree's $GIT_DIR is `.git/worktrees/<name>/`, which is where git
 #                   looks for its hooks, so shims in the primary never fire here
-#   rtk-setup       rtk records an absolute path per filter file, so this copy is a
-#                   different path and needs its own trust
 #
 # `apm-install` is never run here. `apm_modules/` is copied, and a fresh install is slow.
 
@@ -90,7 +88,7 @@ setup-worktree:
       just "$recipe"
     done
 
-    for recipe in hooks-install rtk-setup; do
+    for recipe in hooks-install; do
       if just --show "$recipe" >/dev/null 2>&1; then
         echo "==> $recipe"
         just "$recipe"

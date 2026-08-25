@@ -15,7 +15,6 @@ Design lives in `recipes.md`; this file is the inventory.
 | `agentic/index` | 2 | 3 |
 | `agentic/marketplace` | 0 | 0 |
 | `agentic/package` | 15 | 9 |
-| `agentic/rtk` | 0 | 2 |
 | `agentic/speckit` | 4 | 2 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 3 | 0 |
@@ -155,19 +154,6 @@ packages/{{ package_name }}/.claude-plugin/plugin.json
 packages/{{ package_name }}/apm.yml
 packages/{{ package_name }}/{% if build_codex %}.codex-plugin{% endif %}/plugin.json
 release-please-config.json
-```
-
-## `agentic/rtk`
-
-`.rtk/filters.toml`, which compacts the output of tools rtk has no filter for, plus the recipes that trust it and turn telemetry off.
-
-Requires `git` on `PATH`.
-
-Writes:
-
-```
-.just.d/rtk.just
-.rtk/filters.toml
 ```
 
 ## `agentic/speckit`

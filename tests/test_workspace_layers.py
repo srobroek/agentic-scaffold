@@ -631,7 +631,7 @@ def test_setup_covers_a_fresh_clone(rendered: Path) -> None:
     commands = [line.strip() for line in body.splitlines() if line.strip().startswith("mise ")]
     assert commands, "setup runs no mise command"
     assert commands[0].startswith("mise trust"), f"trust is not first: {commands}"
-    for recipe in ("hooks-install", "rtk-setup", "apm-install"):
+    for recipe in ("hooks-install", "apm-install"):
         assert recipe in body, f"setup never reaches {recipe}"
 
 
@@ -641,10 +641,10 @@ def test_setup_worktree_never_reinstalls_what_a_copy_provides(rendered: Path) ->
     body = just(rendered, "--show", "setup-worktree").stdout
 
     assert "apm-install" not in body, "a worktree reinstalls the copied apm tree"
-    # What a copy cannot provide: a new directory is untrusted, a worktree's $GIT_DIR
-    # differs, and rtk trusts an absolute path per file.
+    # What a copy cannot provide: a new directory is untrusted, and a worktree's
+    # $GIT_DIR differs.
     assert "mise trust" in body
-    for recipe in ("hooks-install", "rtk-setup"):
+    for recipe in ("hooks-install",):
         assert recipe in body, f"setup-worktree never reaches {recipe}"
 
 

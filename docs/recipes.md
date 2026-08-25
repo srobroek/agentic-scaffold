@@ -371,7 +371,7 @@ error, which is why `check` probes `hooks-all` rather than depending on it.
 A fresh clone and a linked worktree need different work, so there are two recipes.
 
 `setup` is for a clone: `mise trust` then `mise install`, each rendered language's
-`<lang>-install`, then `hooks-install`, `rtk-setup`, and `apm-install`. Trust comes first
+`<lang>-install`, then `hooks-install` and `apm-install`. Trust comes first
 because an untrusted config is skipped, after which `mise install` reads nothing and
 reports success.
 
@@ -385,7 +385,6 @@ what a copy cannot provide, plus the language installs.
 | `mise trust` | a new directory is untrusted, and an untrusted config is skipped |
 | `<lang>-install` | the user config excludes `.venv/` and `target/`, and an exclude beats an include, so those cannot be copied |
 | `hooks-install` | a worktree's `$GIT_DIR` is `.git/worktrees/<name>/`, where git looks for its hooks, so shims in the primary never fire |
-| `rtk-setup` | rtk records an absolute path per filter file, so this copy needs its own trust |
 
 The language installs are close to free when a copy warmed them, well under a second for
 each of uv, cargo, and go. They earn their place by catching a branch whose lockfile
@@ -661,7 +660,6 @@ workflow to report a status.
 | `agentic/package` | `apm.yml` with a marketplace block, `packages/<name>/{apm.yml, .apm/skills, plugin manifests}`, `release-please-config.json` + manifest, `.just.d/package.just`, `.gitignore.d/package` | `project_name`, `package_name`, `category`, `marketplace_outputs`, `deploy_kiro`, `apm_cli_version` |
 | `agentic/beads` | `.beads/` through `bd init --skip-hooks`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_dolt_sync`, `bd_sync_remote`, `bd_auto_export`, `bd_dolt_auto_commit`, `bd_push_command` |
 | `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_extra_ignores` |
-| `agentic/rtk` | `.rtk/filters.toml`, `.just.d/rtk.just` | none |
 | `agentic/speckit` | `.gitignore.d/speckit`, `.just.d/speckit.just`, and the locator added to `apm.yml` | `speckit_locator`, `speckit_integration`, `speckit_script_flavor`, `specify_cli_version` |
 | `agentic/marketplace` | nothing; `tasks/recommend.py` reports what to register and install | none |
 

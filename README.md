@@ -83,7 +83,7 @@ Recipes come from four places through one argument:
 | `workspace` | `monorepo`, `just`, `moon`, `devcontainer`, `worktrunk` |
 | `quality` | `hooks` |
 | `release` | `release-please`, `cocogitto`, `goreleaser`, `dep-updates` |
-| `agentic` | `apm`, `package`, `marketplace`, `beads`, `index`, `rtk`, `speckit` |
+| `agentic` | `apm`, `package`, `marketplace`, `beads`, `index`, `speckit` |
 | `iac` | `terraform`, `cdk` |
 | `container` | `image` |
 | `docs` | `site`, `agents`, `adr`, `api-refs`, `deploy-sibling`, `deploy-split` |
