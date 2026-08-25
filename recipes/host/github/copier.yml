@@ -57,3 +57,16 @@ org:
   type: str
   help: Owning person or organisation, written into .github/CODEOWNERS.
   default: ""
+
+# The caller is generated rather than shipped: which reusable workflows exist depends on
+# which lang/* layers rendered, and this layer renders after them. Run through the copy in
+# the generated project, so a render exercises the same script `just ci-sync` does.
+#
+# `--keep-hand-owned` because a repository may already own its ci.yml, and a copier task
+# that fails aborts the whole render.
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.dst_path }}/scripts/gen_caller.py"
+    "{{ _copier_conf.dst_path }}"
+    --default-branch "{{ default_branch }}"
+    --keep-hand-owned

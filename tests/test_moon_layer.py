@@ -122,6 +122,33 @@ def rust_workspace(tmp_path: Path) -> Path:
     return workspace(tmp_path, "rust", RUST)
 
 
+def test_an_unanswered_layout_is_settled_from_the_manifest(tmp_path: Path) -> None:
+    """The manifest already implies the mechanism, so layout need not be answered.
+
+    Rendered over a rust workspace with no layout at all: the toolchain body and
+    the projects glob must come out rust, not the go stub and packages/*.
+    """
+    dest = tmp_path / "derived"
+    dest.mkdir()
+    git_repo(dest)
+    assert render("workspace/monorepo", dest, RUST).returncode == 0
+    src = dest / "crates" / "core" / "src"
+    src.mkdir(parents=True)
+    (src / "lib.rs").write_text("pub fn f() -> u8 { 1 }\n")
+    (dest / "crates" / "core" / "Cargo.toml").write_text(
+        '[package]\nname = "core"\nversion = "0.1.0"\nedition.workspace = true\n'
+    )
+
+    assert render("workspace/moon", dest, 'moon_version: "2.4.6"\n').returncode == 0
+
+    toolchain = (dest / ".moon" / "toolchain.yml").read_text()
+    assert "rust:" in toolchain
+    assert "go declares nothing" not in toolchain
+    body = (dest / ".moon" / "workspace.yml").read_text()
+    assert "- 'crates/*'" in body
+    assert (dest / "crates" / "core" / "moon.yml").is_file()
+
+
 # --- the graph is derived, not asked ---------------------------------------
 
 

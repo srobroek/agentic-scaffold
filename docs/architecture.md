@@ -249,9 +249,9 @@ recipes/lang/python/.github/
 Inclusion follows from which recipes render, not from a conditional in a
 filename. A conditional filename containing a quote breaks jinja compilation.
 
-GitHub needs a caller workflow wiring `needs:` between the reusable workflows;
-the agent writes it from `rules/ci-composition.md`. GitLab does not need a caller,
-because the glob include resolves the same set.
+GitHub needs a caller workflow wiring `needs:` between the reusable workflows.
+`scripts/gen_caller.py` in `host/github` writes it from what rendered, and `just ci-sync`
+reruns it. GitLab needs no caller, because the glob include resolves the same set.
 
 Both hosts are supported. `*` in a GitLab include matches one level; `**`
 recurses. Glob order is not deterministic, so two recipes must not set the same

@@ -1,33 +1,46 @@
 # CI composition
 
-Each recipe contributes reusable workflows. The caller that wires them is written
-per repository, because it depends on which recipes rendered.
+Each recipe contributes reusable workflows. What wires them depends on which recipes
+rendered, so the caller is derived per repository rather than shipped.
 
 ## GitHub
 
-Write `.github/workflows/ci.yml` calling the reusable workflows that the
-rendered recipes provide.
+`.github/workflows/ci.yml` is generated. `scripts/gen_caller.py` reads
+`.github/workflows/`, finds every `wc-lint-<lang>.yml` and `wc-test-<lang>.yml`, and
+rewrites the whole file. `just ci-sync` runs it, and so does the render. Adopting a
+language layer is that one command.
 
 Job graph:
 
 ```
-changes ──> lint-<lang>   ─┐
-       ├──> test-<lang>   ─┤
-       ├──> quality       ─┼──> gate
-       └──> security      ─┘
+changes ─┬─> lint-<lang> ─┐
+         └─> test-<lang> ─┤
+                          ├──> gate
+quality ──────────────────┤
+security ─────────────────┘
 ```
 
-Rules:
+What it emits:
 
-- `changes` runs first and outputs per-language path filters. Every downstream
-  job takes its filter as a condition.
-- Lint, test, quality, and security run in parallel. None depends on another.
-- `gate` lists every other job in `needs:` and passes `toJSON(needs)` to
-  `wc-gate.yml`. `gate` is the only required status check.
-- One `lint-<lang>` and one `test-<lang>` pair per rendered `lang/*` recipe.
-- `quality` and `security` always run, and take no language input. Each is one
-  reusable workflow that reads `.github/quality.d/` or `.github/security.d/` and
-  builds its own matrix, so the caller passes nothing about languages.
+- `changes` runs first and outputs the filter keys that matched. Every language job takes
+  its own key as a condition. A key's path set names that language's sources, the
+  manifests and lockfiles that decide what is built, the workflow that runs it, and
+  `ci.yml`, so the pull request that wires a language exercises the jobs it adds.
+- One `lint-<lang>` and one `test-<lang>` per contributed workflow. Each kind is found on
+  its own: `lang/api` contributes a lint workflow and no test one.
+- `quality` and `security` wait for nothing. Each is one reusable workflow that reads
+  `.github/quality.d/` or `.github/security.d/` and builds its own matrix, so the caller
+  passes nothing about languages and has no filter for them to read.
+- `gate` lists every other job in `needs:`, passes `toJSON(needs)` to `wc-gate.yml`, and
+  carries `if: always()`. `gate` is the only required status check.
+- A push trigger naming the default branch, so a branch with an open pull request runs
+  once rather than twice. The value arrives from this layer's `default_branch` answer at
+  render time, and a later `just ci-sync` reads it back out of the file it replaces.
+
+Only `changes` and `gate` receive an input. Every lint and test workflow declares its
+inputs optional with a default its own layer chose, so a caller passing one would
+overwrite a recorded answer with a guess. A monorepo wanting `working-directory` per
+member is a reason to own the caller, which the last paragraph covers.
 
 `quality` carries a `commits` job that reads the whole pull request range. A
 commit-message hook runs at `commit-msg`, which `--no-verify` defeats, and it sees only the
@@ -52,7 +65,20 @@ scan.
 
 Job-level path filtering goes in the caller, never in `on.push.paths`. A
 workflow gated at the `on:` level does not run for an unrelated change, and a
-required check that never runs leaves the pull request unmergeable.
+required check that never runs leaves the pull request unmergeable. A job the filter
+skipped reports `skipped`, which the gate counts as a pass. `always()` is what lets the
+gate report at all when one of its needs was skipped or failed.
+
+A language with no entry in the generator's filter table is refused by name. An unfiltered
+job runs on every change, and a wrong filter skips a change it should have tested.
+
+A reusable workflow the generator does not model is named in a comment in the file it
+writes, the container build and the tofu plan among them. Calling either needs a role ARN,
+or a push that happens only on the default branch, and the tree states neither.
+
+`ci.yml` is rewritten whole, so it holds nothing hand-written. A repository that needs a
+job the generator cannot derive deletes the marker line at the top to take the file over.
+`ci-sync` then refuses the file, and a re-render leaves it alone.
 
 ## GitLab
 
