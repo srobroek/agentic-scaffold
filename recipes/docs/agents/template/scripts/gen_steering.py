@@ -268,7 +268,7 @@ def block_ci(dest: Path) -> str:
     lines = []
     if names:
         lines += [
-            "Reusable workflows, wired by a caller the agent writes:",
+            "Reusable workflows, wired by `ci.yml`, which `just ci-sync` generates:",
             "",
             "```",
             *names,

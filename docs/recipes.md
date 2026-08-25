@@ -1204,7 +1204,7 @@ reads.
 | `.pre-commit.d/<name>.yaml` | see below |
 | `.mise/conf.d/<name>.toml` | mise reads the directory |
 | `.just.d/<name>.just` | `import?` lines written by `gen_justfile.py` in `workspace/just` |
-| `.github/workflows/wc-*.yml` | the caller the agent writes |
+| `.github/workflows/wc-*.yml` | `ci.yml`, written by `gen_caller.py` in `host/github` |
 | `.gitlab/ci/<name>.yml` | GitLab's `include: local:` glob |
 
 ### The agentic hooks with a git event
