@@ -141,9 +141,12 @@ class Source:
 
 def resolve_source(ref: str) -> Source:
     """In-repo id, local path, git URL, or remote copier template."""
-    in_repo = RECIPES / ref
-    if (in_repo / "copier.yml").is_file():
-        return Source(ref, str(in_repo), REPO_ROOT, in_repo=True)
+    # An id, never a filesystem path: `RECIPES / <absolute path>` IS that path
+    # under pathlib, so an absolute local template would masquerade as in-repo.
+    if not Path(ref).is_absolute() and not ref.startswith("."):
+        in_repo = RECIPES / ref
+        if (in_repo / "copier.yml").is_file():
+            return Source(ref, str(in_repo), REPO_ROOT, in_repo=True)
     if "://" in ref or ref.startswith(("gh:", "gl:", "git@")):
         return Source(ref, ref, None, in_repo=False)
     local = Path(ref).expanduser()
@@ -684,21 +687,26 @@ def update_recipe(source: Source, dest: Path, data: dict) -> int:
     if source.repo is None:
         die(2, f"{source.id} has no git checkout to replay {ref[:12]} from")
 
-    merged_answers = {k: v for k, v in answers.items() if not k.startswith("_")}
-    merged_answers.update(data)
+    recorded = {k: v for k, v in answers.items() if not k.startswith("_")}
+    merged = {**recorded, **data}
 
     conflicts = 0
     touched_fragments: set[str] = set()
     with tempfile.TemporaryDirectory(prefix="scaffold-update-") as scratch:
         base = Path(scratch) / "base"
         new = Path(scratch) / "new"
-        answers_file = Path(scratch) / "answers.yml"
-        answers_file.write_text(yaml.safe_dump(merged_answers))
+        # The base replays the RECORDED answers; only the new render sees --data.
+        # An answer change then surfaces as a template-side diff and 3-way merges
+        # like any other, instead of matching the base and losing to the dest.
+        base_answers = Path(scratch) / "answers-base.yml"
+        base_answers.write_text(yaml.safe_dump(recorded))
+        new_answers = Path(scratch) / "answers-new.yml"
+        new_answers.write_text(yaml.safe_dump(merged))
         base.mkdir()
         new.mkdir()
-        render_at_ref(source, ref, answers_file, base)
+        render_at_ref(source, ref, base_answers, base)
         subprocess.run(["git", "init", "-q", str(new)], check=True)
-        result = copier_copy(source, new, {}, answers_file)
+        result = copier_copy(source, new, {}, new_answers)
         if result.returncode != 0:
             die(4, f"copier failed rendering {source.id} at HEAD")
 
