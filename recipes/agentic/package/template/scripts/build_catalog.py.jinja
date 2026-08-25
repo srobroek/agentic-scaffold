@@ -1,0 +1,182 @@
+{#-
+  scripts/build_catalog.py -- the only writer of both marketplace catalogs.
+
+  Rendered rather than copied, because the marketplace header is repository identity:
+  its name is the `@<marketplace>` install handle. Everything below the header is
+  fixed, so a re-render carries generator fixes into an existing repository.
+-#}
+{%- set plugin = package_name or project_name -%}
+{%- set marketplace = project_name or plugin -%}
+{%- set summary = description or ('The ' + plugin + ' plugin. Replace this description before publishing.') -%}
+#!/usr/bin/env python3
+"""Assemble the marketplace catalogs from the per-plugin manifests.
+
+    build_catalog.py [<repo>] [--check]
+
+OMP compares `plugins[].version` in the single top-level catalog when it decides
+whether an installed plugin can be upgraded, and an entry carrying no `version` is
+invisible to that comparer. Each plugin owns its version in
+`<plugin>/.omp-plugin/plugin.json`, so the catalog is assembled from those manifests
+rather than maintained beside them.
+
+Both catalogs receive the same bytes. OMP reads `.omp-plugin/marketplace.json` and
+falls back to `.claude-plugin/marketplace.json`, so a repository shipping both serves
+OMP and Claude Code from one source.
+
+`--check` compares the committed catalogs against what this would write, and writes
+nothing: that is what `just marketplace-check` and CI run. A gate that regenerates
+before diffing repairs the drift it exists to report, and then always passes.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+# Claude's schema, on the OMP catalog too. There is no separate OMP schema, and OMP
+# reads this format; the two files differ in path only.
+SCHEMA = "https://anthropic.com/claude-code/marketplace.schema.json"
+
+MARKETPLACE_NAME = {{ marketplace | tojson }}
+OWNER = {{ author | tojson }}
+DESCRIPTION = {{ summary | tojson }}
+
+# Both paths are written, and OMP prefers the first.
+CATALOGS = (".omp-plugin/marketplace.json", ".claude-plugin/marketplace.json")
+
+# Capability directories OMP locates by path. `plugin.json` remaps `skills` and
+# `commands` and nothing else, so a capability outside these is not discovered at all.
+FILE_CAPABILITIES = ("agents", "commands", "rules")
+
+
+def capabilities(plugin: Path) -> list[tuple[str, str]]:
+    """Every (kind, name) the plugin contributes.
+
+    A skill is a directory holding SKILL.md, located without recursion; the rest are
+    single markdown files named for the capability.
+    """
+    found = [("skill", path.parent.name) for path in sorted(plugin.glob("skills/*/SKILL.md"))]
+    for kind in FILE_CAPABILITIES:
+        found += [(kind[:-1], path.stem) for path in sorted(plugin.glob(f"{kind}/*.md"))]
+    return found
+
+
+def unprefixed(name: str, found: list[tuple[str, str]]) -> list[str]:
+    """Capabilities whose name does not open with the plugin that owns it.
+
+    OMP identifies a capability by its bare `name`, deduplicates across every
+    configured source, and keeps the first match. A name two plugins share therefore
+    resolves to one of them and hides the other, with nothing said at load time, so the
+    owning plugin's name is the prefix that keeps them apart.
+    """
+    return [
+        f"{kind} {found_name!r}"
+        for kind, found_name in found
+        if found_name != name and not found_name.startswith(f"{name}-")
+    ]
+
+
+def catalog(repo: Path) -> tuple[dict[str, object], list[str]]:
+    """The catalog payload, plus every problem that would make it a lie."""
+    plugins: list[dict[str, object]] = []
+    problems: list[str] = []
+
+    for path in sorted(repo.glob("*/.omp-plugin/plugin.json")):
+        plugin = path.parent.parent
+        try:
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            problems.append(f"{plugin.name}: plugin.json is not valid JSON: {exc}")
+            continue
+
+        missing = [key for key in ("name", "description", "version") if not manifest.get(key)]
+        if missing:
+            problems.append(f"{plugin.name}: plugin.json has no {', '.join(missing)}")
+            continue
+
+        # `source` is the directory, not the manifest name: OMP resolves capabilities by
+        # path, so a name disagreeing with its directory would publish an entry pointing
+        # at nothing. Reported rather than papered over, since both readings are plausible.
+        if manifest["name"] != plugin.name:
+            problems.append(
+                f"{plugin.name}: plugin.json names it {manifest['name']!r}, "
+                "but the catalog resolves `source` by directory"
+            )
+        problems += [
+            f"{plugin.name}: {problem} is not prefixed with the plugin name"
+            for problem in unprefixed(plugin.name, capabilities(plugin))
+        ]
+
+        entry: dict[str, object] = {
+            "name": plugin.name,
+            "description": manifest["description"],
+            "source": f"./{plugin.name}",
+            "version": manifest["version"],
+        }
+        # Optional, and passed through when present: OMP groups a catalog by it.
+        if manifest.get("category"):
+            entry["category"] = manifest["category"]
+        plugins.append(entry)
+
+    payload = {
+        "$schema": SCHEMA,
+        "name": MARKETPLACE_NAME,
+        "owner": {"name": OWNER},
+        "metadata": {"description": DESCRIPTION},
+        # Sorted by directory above, so two runs produce the same bytes.
+        "plugins": plugins,
+    }
+    return payload, problems
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Assemble the marketplace catalogs.")
+    parser.add_argument(
+        "repo",
+        nargs="?",
+        default=str(Path(__file__).resolve().parent.parent),
+        help="repository root; defaults to the parent of scripts/",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="fail when a committed catalog is stale, and write nothing",
+    )
+    args = parser.parse_args()
+
+    repo = Path(args.repo)
+    payload, problems = catalog(repo)
+    if problems:
+        print("FAIL: the plugin manifests are inconsistent:", file=sys.stderr)
+        for problem in problems:
+            print(f"  {problem}", file=sys.stderr)
+        return 1
+
+    expected = json.dumps(payload, indent=2) + "\n"
+    count = len(payload["plugins"])
+
+    if args.check:
+        stale = [
+            name
+            for name in CATALOGS
+            if not (repo / name).is_file() or (repo / name).read_text(encoding="utf-8") != expected
+        ]
+        if stale:
+            print(f"FAIL: stale catalog: {', '.join(stale)}", file=sys.stderr)
+            print("Run: just marketplace-build", file=sys.stderr)
+            return 1
+        print(f"PASS: {len(CATALOGS)} catalogs match {count} plugin manifest(s)")
+        return 0
+
+    for name in CATALOGS:
+        path = repo / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(expected, encoding="utf-8")
+    print(f"wrote {len(CATALOGS)} catalogs with {count} plugin entr{'y' if count == 1 else 'ies'}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

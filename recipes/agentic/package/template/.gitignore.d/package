@@ -1,9 +1,9 @@
-# apm resolves dependencies into apm_modules/, a lockfile-driven artefact rebuilt on
-# install, so committing it would vendor every dependency.
-apm_modules/
+# OMP and Claude plugin install state, written when this repository is added as a local
+# marketplace source during testing. The installs themselves live under ~/.omp/plugins/;
+# these are what a run leaves beside the source it read.
+installed_plugins.json
+omp-plugins.lock.json
 
-# apm pack writes bundle archives here. The marketplace catalogs it also writes
-# (.claude-plugin/marketplace.json, .agents/plugins/marketplace.json) are COMMITTED, which
-# is what lets a consumer resolve the marketplace from a clone with no build step; the
-# archive directory is the throwaway part.
-build/
+# A plugin shipping an extension module declares real dependencies in its package.json.
+# The module sources are committed; the install tree is not.
+node_modules/

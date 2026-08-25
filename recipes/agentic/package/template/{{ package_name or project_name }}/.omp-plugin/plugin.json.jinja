@@ -1,0 +1,18 @@
+{#-
+  <plugin>/.omp-plugin/plugin.json -- the plugin's own manifest.
+
+  `name` has to equal the directory name: the catalog entry's `source` is that path, and
+  OMP locates every capability under it, so a manifest naming something else publishes an
+  entry pointing at nothing. scripts/build_catalog.py refuses the disagreement.
+
+  The version lives here rather than in the catalog. OMP compares `plugins[].version` in
+  the top-level catalog, and `just marketplace-build` is what carries a bump from this
+  file into both catalogs.
+-#}
+{%- set plugin = package_name or project_name -%}
+{%- set summary = description or ('The ' + plugin + ' plugin. Replace this description before publishing.') -%}
+{
+  "name": "{{ plugin }}",
+  "description": {{ summary | tojson }},
+  "version": "0.1.0"
+}
