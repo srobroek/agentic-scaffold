@@ -1,10 +1,13 @@
-"""agentic/package: the self-publishing marketplace repo.
+"""agentic/package: the native marketplace repo.
 
-Where a test needs apm it runs the real CLI against rendered output. Reading a
-template proved nothing here either: `apm pack` builds the root catalogs but not the
-per-package plugin manifests, `kiro` is a deploy target yet not a marketplace output,
-the codex output refuses a package with no category, and `--check-clean` only gates
-with `--dry-run`. Each of those rendered and read correctly.
+Nothing here reads a template and calls it proved. The catalogs are written at render
+time by the generator the layer ships, so the tests run that generator: `--check`
+against the committed bytes, a second run for byte-identity, a hand-added plugin, and
+the failures that stay silent at install time otherwise -- a capability name no plugin
+prefix owns, and a manifest naming something its directory does not.
+
+Where `just` is present the recipes run for real, because the gate a CI workflow calls
+has to exist under the name the workflow uses.
 """
 
 from __future__ import annotations
@@ -12,39 +15,25 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
-import yaml
 from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+RECIPE = REPO_ROOT / "recipes" / "agentic" / "package"
 
 ANSWERS = """\
 project_name: demo-market
 package_name: demo-skill
-description: A demo skill that demonstrates the agentic package scaffold.
+description: A demo skill that demonstrates the native marketplace scaffold.
 author: Sjors Robroek
 owner: srobroek
-category: productivity
-package_tags: [skill]
-marketplace_outputs: claude,codex
-deploy_kiro: true
 """
 
-CLAUDE_ONLY = """\
-project_name: solo-market
-package_name: solo-skill
-description: A claude-only package.
-author: Sjors Robroek
-owner: srobroek
-category: workflow
-package_tags: [skill]
-marketplace_outputs: claude
-deploy_kiro: false
-"""
+CATALOGS = (".omp-plugin/marketplace.json", ".claude-plugin/marketplace.json")
 
-needs_apm = pytest.mark.skipif(shutil.which("apm") is None, reason="apm absent from PATH")
 needs_just = pytest.mark.skipif(shutil.which("just") is None, reason="just absent from PATH")
 
 
@@ -54,17 +43,39 @@ def git_repo(path: Path) -> None:
         subprocess.run(["git", "-C", str(path), "config", key, value], check=True)
 
 
-def commit(path: Path, message: str = "wip") -> None:
-    subprocess.run(["git", "-C", str(path), "add", "-A"], check=True)
-    subprocess.run(
-        ["git", "-C", str(path), "commit", "-q", "-m", message],
-        check=False,
+def catalog(dest: Path, which: str = CATALOGS[0]) -> dict:
+    return json.loads((dest / which).read_text())
+
+
+def generator(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    """The shipped generator, run the way `just marketplace-build` runs it."""
+    return subprocess.run(
+        [sys.executable, "scripts/build_catalog.py", ".", *args],
+        cwd=dest,
         capture_output=True,
+        text=True,
+        check=False,
     )
 
 
-def apm(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["apm", *args], cwd=dest, capture_output=True, text=True, check=False)
+def add_plugin(dest: Path, name: str, **fields: object) -> Path:
+    """A plugin added by hand, which is how the repository grows past its starter."""
+    plugin = dest / name
+    (plugin / ".omp-plugin").mkdir(parents=True)
+    manifest = {"name": name, "description": f"The {name} plugin.", "version": "0.2.0", **fields}
+    (plugin / ".omp-plugin" / "plugin.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    return plugin
+
+
+def add_capability(plugin: Path, kind: str, name: str) -> Path:
+    """One capability file, at the path OMP locates it by."""
+    if kind == "skills":
+        path = plugin / "skills" / name / "SKILL.md"
+    else:
+        path = plugin / kind / f"{name}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"---\nname: {name}\ndescription: A capability.\n---\n\nBody.\n")
+    return path
 
 
 @pytest.fixture
@@ -77,278 +88,220 @@ def package(tmp_path: Path) -> Path:
     return dest
 
 
-@pytest.fixture
-def claude_only(tmp_path: Path) -> Path:
-    dest = tmp_path / "claude"
-    dest.mkdir()
-    git_repo(dest)
-    result = render("agentic/package", dest, CLAUDE_ONLY)
-    assert result.returncode == 0, result.stderr
-    return dest
+# --- one source, two catalogs ----------------------------------------------
 
 
-# --- structure -------------------------------------------------------------
+def test_the_repository_serves_omp_and_claude_from_one_source(package: Path) -> None:
+    """OMP reads `.omp-plugin/marketplace.json` and falls back to `.claude-plugin/`, so the
+    same bytes at both paths make one repository serve both runtimes. Byte equality rather
+    than equal payloads: the generator writes one string twice, and a difference would mean
+    two writers."""
+    first, second = (package / name for name in CATALOGS)
+    assert first.read_bytes() == second.read_bytes()
+    assert catalog(package)["name"] == "demo-market"
+    assert catalog(package)["owner"] == {"name": "Sjors Robroek"}
+    assert "native marketplace scaffold" in catalog(package)["metadata"]["description"]
 
 
-def test_the_root_manifest_is_a_publisher_not_a_consumer(package: Path) -> None:
-    """A marketplace block, not a dependencies block. This is what distinguishes it
-    from agentic/apm, which writes the same filename for a package consumer."""
-    manifest = yaml.safe_load((package / "apm.yml").read_text())
-    assert "marketplace" in manifest
-    assert "dependencies" not in manifest
-    assert manifest["marketplace"]["packages"][0]["source"] == "./packages/demo-skill"
+def test_the_catalog_entry_resolves_to_the_plugin_directory(package: Path) -> None:
+    """OMP locates every capability under the entry's `source`, so an entry whose source is
+    not a directory in the repository lists a plugin that cannot install."""
+    entries = catalog(package)["plugins"]
+    assert len(entries) == 1
+    assert entries[0]["name"] == "demo-skill"
+    assert entries[0]["source"] == "./demo-skill"
+    assert (package / "demo-skill").is_dir()
 
 
-def test_the_package_carries_its_own_manifest_and_skill(package: Path) -> None:
-    """Each package needs an apm.yml, or apm pack --check-versions reports no_apm_yml."""
-    pkg = package / "packages" / "demo-skill"
-    assert (pkg / "apm.yml").is_file()
-    skill = pkg / ".apm" / "skills" / "demo-skill" / "SKILL.md"
-    assert skill.is_file()
+def test_the_catalog_carries_the_version_omp_compares(package: Path) -> None:
+    """OMP compares `plugins[].version` in the top-level catalog when it decides whether an
+    installed plugin can be upgraded, and an entry with no version is invisible to that
+    comparer. The plugin owns the number; the catalog repeats it."""
+    manifest = json.loads((package / "demo-skill" / ".omp-plugin" / "plugin.json").read_text())
+    assert manifest["version"] == "0.1.0"
+    assert catalog(package)["plugins"][0]["version"] == manifest["version"]
+    assert manifest["name"] == "demo-skill"
+
+
+# --- the plugin ------------------------------------------------------------
+
+
+def test_the_plugin_carries_the_omp_recognition_marker(package: Path) -> None:
+    """Recognition comes from a package.json holding an `omp` key. Without it `omp plugin
+    doctor` reports "not an omp plugin" and the plugin's rules and agents are silently absent
+    while its skills still load, which is the loudest failure this file can prevent."""
+    payload = json.loads((package / "demo-skill" / "package.json").read_text())
+    assert "omp" in payload
+    assert payload["name"] == "@srobroek/demo-skill"
+    assert payload["private"] is True
+
+
+def test_the_starter_skill_lands_where_omp_looks(package: Path) -> None:
+    """`skills/<name>/SKILL.md`, located without recursion: a skill one level deeper is not
+    found, and a catalog entry cannot redirect the lookup."""
+    skill = package / "demo-skill" / "skills" / "demo-skill" / "SKILL.md"
     front = skill.read_text().split("---")[1]
     assert "name: demo-skill" in front
+    assert "description: A demo skill" in front
 
 
-def test_the_per_package_plugin_manifests_are_committed(package: Path) -> None:
-    """apm pack writes only the root catalogs, never these.
-
-    Claude's /plugin install reads the per-package manifest at the catalog's source:
-    path, so without it a package lists but does not install. Verified against apm
-    0.26.0, where apm pack left these absent.
-    """
-    pkg = package / "packages" / "demo-skill"
-    claude = json.loads((pkg / ".claude-plugin" / "plugin.json").read_text())
-    assert claude["name"] == "demo-skill"
-    assert claude["skills"] == "./.apm/skills"
-
-    codex = json.loads((pkg / ".codex-plugin" / "plugin.json").read_text())
-    assert codex["name"] == "demo-skill"
+def test_nothing_apm_shaped_survives() -> None:
+    """The layer published through apm until this rewrite. apm's manifest, its kiro deploy
+    target, and the `tagPattern` its marketplace resolved versions against are all gone, and
+    a leftover would be a path the native runtimes never read."""
+    for path in sorted(RECIPE.rglob("*")):
+        if not path.is_file():
+            continue
+        text = f"{path.relative_to(RECIPE)}\n{path.read_text()}"
+        for dead in ("apm", "kiro", "tagPattern", "codex-plugin"):
+            assert dead not in text, f"{path.name} still mentions {dead}"
 
 
-def test_the_tag_pattern_matches_release_please(package: Path) -> None:
-    """The marketplace resolves versions against whatever release-please tags.
-
-    include-component-in-tag + tag-separator "--" tag <component>--v<version>, so the
-    marketplace tagPattern is '{name}--v{version}'. A mismatch is caught by neither
-    apm gate, so the two configs are asserted to agree here.
-    """
-    rp = json.loads((package / "release-please-config.json").read_text())
-    assert rp["include-component-in-tag"] is True
-    assert rp["tag-separator"] == "--"
-
-    manifest = yaml.safe_load((package / "apm.yml").read_text())
-    assert manifest["marketplace"]["build"]["tagPattern"] == "{name}--v{version}"
+def test_the_layer_leaves_release_please_alone(package: Path) -> None:
+    """release/release-please owns both of its files. Two layers writing one config is how a
+    re-render silently reset a released version, so this one writes neither."""
+    assert not (package / "release-please-config.json").exists()
+    assert not (package / ".release-please-manifest.json").exists()
 
 
-def test_the_versions_start_aligned(package: Path) -> None:
-    """apm.yml, the package apm.yml, and the release-please manifest all say 0.1.0."""
-    root = yaml.safe_load((package / "apm.yml").read_text())
-    pkg = yaml.safe_load((package / "packages" / "demo-skill" / "apm.yml").read_text())
-    rp_manifest = json.loads((package / ".release-please-manifest.json").read_text())
-    assert root["version"] == "0.1.0"
-    assert pkg["version"] == "0.1.0"
-    assert rp_manifest["packages/demo-skill"] == "0.1.0"
+# --- the generator ---------------------------------------------------------
 
 
-# --- kiro is a target, not an output ---------------------------------------
+def test_the_render_leaves_the_gate_passing(package: Path) -> None:
+    """The catalogs are committed generated artefacts, so a render that produced none would
+    ship a marketplace nobody can resolve from a clone, and the profile build's
+    `just marketplace-check` would fail on the first render."""
+    result = generator(package, "--check")
+    assert result.returncode == 0, result.stderr
+    assert "match 1 plugin manifest" in result.stdout
 
 
-def test_kiro_is_a_deploy_target_but_not_a_marketplace_output(package: Path) -> None:
-    """The two axes the layer exists to keep separate.
+def test_a_second_run_is_byte_identical(package: Path) -> None:
+    """A generator that iterates a hash map or stamps a time makes every commit carry a
+    reference diff, which makes the staleness check meaningless."""
+    before = [(package / name).read_bytes() for name in CATALOGS]
+    assert generator(package).returncode == 0
+    assert [(package / name).read_bytes() for name in CATALOGS] == before
 
-    apm 0.26.0 registers only claude and codex marketplace mappers
-    (apm_cli/marketplace/output_profiles.py), so `kiro:` under outputs is a hard
-    error. It is a valid `apm targets` deploy destination, so the skill still reaches
-    Kiro users.
-    """
-    manifest = yaml.safe_load((package / "apm.yml").read_text())
-    assert "kiro" in manifest["targets"], "kiro must be a deploy target"
-    assert "kiro" not in manifest["marketplace"]["outputs"], (
-        "kiro has no marketplace mapper; apm rejects it under outputs"
+
+def test_the_check_reports_drift_and_repairs_nothing(package: Path) -> None:
+    """A gate that regenerates before diffing overwrites the drift it exists to report, and
+    then always passes. `--check` writes nothing, so the tampering survives the run and CI
+    is left with a clean tree."""
+    stale = package / CATALOGS[0]
+    stale.write_text(stale.read_text().replace('"0.1.0"', '"9.9.9"'))
+
+    result = generator(package, "--check")
+    assert result.returncode == 1
+    assert "stale catalog" in result.stderr
+    assert "9.9.9" in stale.read_text(), "the check repaired what it was checking"
+
+
+def test_a_missing_catalog_counts_as_stale(package: Path) -> None:
+    """Both paths are the contract: dropping the Claude copy leaves Claude Code with no
+    catalog while OMP still resolves, so the failure would be invisible from OMP."""
+    (package / CATALOGS[1]).unlink()
+    result = generator(package, "--check")
+    assert result.returncode == 1
+    assert CATALOGS[1] in result.stderr
+
+
+def test_the_generator_needs_no_argument(package: Path) -> None:
+    """`just marketplace-build` passes `.`, but a person types the script path. The default
+    is the parent of scripts/, so the run does not depend on the working directory."""
+    result = subprocess.run(
+        [sys.executable, str(package / "scripts" / "build_catalog.py"), "--check"],
+        cwd=package.parent,
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    assert set(manifest["marketplace"]["outputs"]) <= {"claude", "codex"}
+    assert result.returncode == 0, result.stderr
 
 
-def test_deploy_kiro_false_drops_the_kiro_target(claude_only: Path) -> None:
-    manifest = yaml.safe_load((claude_only / "apm.yml").read_text())
-    assert "kiro" not in manifest["targets"]
+# --- growing past the starter ---------------------------------------------
 
 
-def test_claude_only_omits_codex_everywhere(claude_only: Path) -> None:
-    """No codex output, no codex target, and no empty .codex-plugin directory."""
-    manifest = yaml.safe_load((claude_only / "apm.yml").read_text())
-    assert list(manifest["marketplace"]["outputs"]) == ["claude"]
-    assert "codex" not in manifest["targets"]
-    assert not (claude_only / "packages" / "solo-skill" / ".codex-plugin").exists(), (
-        "the codex manifest directory should not render for a claude-only marketplace"
-    )
+def test_a_plugin_added_by_hand_reaches_both_catalogs(package: Path) -> None:
+    """The starter is one plugin; a marketplace is many. Adding a manifest is the whole
+    registration step, and `category` passes through when a plugin declares one."""
+    add_plugin(package, "extra", category="productivity")
+    add_capability(package / "extra", "skills", "extra")
+
+    assert generator(package).returncode == 0
+    entries = catalog(package)["plugins"]
+    assert [entry["name"] for entry in entries] == ["demo-skill", "extra"]
+    assert entries[1]["category"] == "productivity"
+    assert entries[1]["version"] == "0.2.0"
+    assert (package / CATALOGS[0]).read_bytes() == (package / CATALOGS[1]).read_bytes()
 
 
-def test_category_is_a_required_choice(package: Path) -> None:
-    """The codex output refuses a package with no category, so it is asked rather than
-    left free-text. Both the marketplace entry and the package apm.yml carry it."""
-    manifest = yaml.safe_load((package / "apm.yml").read_text())
-    assert manifest["marketplace"]["packages"][0]["category"] == "productivity"
-    pkg = yaml.safe_load((package / "packages" / "demo-skill" / "apm.yml").read_text())
-    assert pkg["category"] == "productivity"
+def test_an_unprefixed_capability_is_refused(package: Path) -> None:
+    """OMP identifies a capability by its bare name, deduplicates across every configured
+    source, and keeps the first match, so a name two plugins share resolves to one and hides
+    the other with nothing said at load time. The owning plugin's name as a prefix is what
+    keeps them apart, and the generator is where that gets enforced."""
+    rule = add_capability(package / "demo-skill", "rules", "quality")
+    result = generator(package, "--check")
+    assert result.returncode == 1
+    assert "not prefixed" in result.stderr
+
+    rule.rename(rule.with_name("demo-skill-quality.md"))
+    assert generator(package, "--check").returncode == 0
 
 
-# --- the real tool ---------------------------------------------------------
+def test_a_manifest_naming_something_other_than_its_directory_is_refused(package: Path) -> None:
+    """`source` is the directory. A manifest naming something else publishes an entry that
+    resolves to nothing, and both readings of the disagreement are plausible, so it is
+    reported rather than picked."""
+    manifest = package / "demo-skill" / ".omp-plugin" / "plugin.json"
+    payload = json.loads(manifest.read_text())
+    payload["name"] = "elsewhere"
+    manifest.write_text(json.dumps(payload, indent=2) + "\n")
+
+    result = generator(package, "--check")
+    assert result.returncode == 1
+    assert "resolves `source` by directory" in result.stderr
 
 
-@needs_apm
-def test_apm_pack_builds_both_catalogs(package: Path) -> None:
-    commit(package)
-    result = apm(package, "pack", "--offline")
-    assert result.returncode == 0, result.stdout + result.stderr
+def test_a_manifest_missing_a_field_writes_no_catalog(package: Path) -> None:
+    """An entry with no version is invisible to OMP's upgrade comparer, so a manifest that
+    cannot produce one stops the build instead of publishing a half entry."""
+    manifest = package / "demo-skill" / ".omp-plugin" / "plugin.json"
+    payload = json.loads(manifest.read_text())
+    del payload["version"]
+    manifest.write_text(json.dumps(payload, indent=2) + "\n")
+    before = (package / CATALOGS[0]).read_bytes()
 
-    claude = json.loads((package / ".claude-plugin" / "marketplace.json").read_text())
-    assert claude["plugins"][0]["source"] == "./packages/demo-skill"
-    assert claude["plugins"][0]["category"] == "productivity"
-
-    codex = json.loads((package / ".agents" / "plugins" / "marketplace.json").read_text())
-    # Codex nests the source under a local descriptor rather than a bare string.
-    assert codex["plugins"][0]["source"]["path"] == "./packages/demo-skill"
-
-
-@needs_apm
-def test_apm_pack_builds_only_claude_when_codex_is_off(claude_only: Path) -> None:
-    commit(claude_only)
-    result = apm(claude_only, "pack", "--offline")
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert (claude_only / ".claude-plugin" / "marketplace.json").is_file()
-    assert not (claude_only / ".agents" / "plugins" / "marketplace.json").exists()
+    result = generator(package)
+    assert result.returncode == 1
+    assert "has no version" in result.stderr
+    assert (package / CATALOGS[0]).read_bytes() == before
 
 
-@needs_apm
-def test_version_alignment_passes_on_the_rendered_repo(package: Path) -> None:
-    """--check-versions confirms every version renders under the tag pattern, and no
-    package reports no_apm_yml."""
-    commit(package)
-    result = apm(package, "pack", "--offline", "--check-versions", "--dry-run")
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "no_apm_yml" not in (result.stdout + result.stderr)
-    assert "demo-skill--v0.1.0" in result.stdout
+# --- re-render -------------------------------------------------------------
 
 
-@needs_apm
-def test_check_clean_needs_dry_run_to_gate(package: Path) -> None:
-    """The trap the recipe encodes.
+def test_a_re_render_keeps_the_written_plugin_and_syncs_the_catalogs(package: Path) -> None:
+    """The skill body and both manifests are the project's once written: a re-render that
+    reset a released version or a real skill body would make the layer unusable after the
+    first commit. The catalogs are not the project's, so the re-render regenerates them and
+    a version bumped by hand reaches them."""
+    skill = package / "demo-skill" / "skills" / "demo-skill" / "SKILL.md"
+    skill.write_text("---\nname: demo-skill\ndescription: Hand written.\n---\n\nReal body.\n")
+    manifest = package / "demo-skill" / ".omp-plugin" / "plugin.json"
+    payload = json.loads(manifest.read_text())
+    payload["version"] = "1.4.0"
+    manifest.write_text(json.dumps(payload, indent=2) + "\n")
 
-    On a clean tree the gate passes. Dirtied, `--check-clean --dry-run` exits 4 and
-    leaves the file untouched, while `--check-clean` alone regenerates the file first
-    and so passes on the very drift it should catch. Verified against apm 0.26.0.
-    """
-    commit(package)
-    assert apm(package, "pack", "--offline").returncode == 0
-    commit(package, "generated")
+    assert render("agentic/package", package, ANSWERS).returncode == 0
 
-    clean = apm(package, "pack", "--offline", "--check-clean", "--dry-run")
-    assert clean.returncode == 0, clean.stdout + clean.stderr
-
-    catalog = package / ".claude-plugin" / "marketplace.json"
-    data = json.loads(catalog.read_text())
-    data["plugins"][0]["category"] = "TAMPERED"
-    catalog.write_text(json.dumps(data, indent=2))
-
-    gated = apm(package, "pack", "--offline", "--check-clean", "--dry-run")
-    assert gated.returncode == 4, "the --dry-run gate must fail on drift"
-    assert "TAMPERED" in catalog.read_text(), "the gate must not rewrite the file it checks"
-
-    ungated = apm(package, "pack", "--offline", "--check-clean")
-    assert ungated.returncode == 0, "without --dry-run the run regenerates and passes"
-    assert "TAMPERED" not in catalog.read_text(), "the ungated run overwrote the drift"
+    assert "Real body." in skill.read_text()
+    assert json.loads(manifest.read_text())["version"] == "1.4.0"
+    assert catalog(package)["plugins"][0]["version"] == "1.4.0"
 
 
 # --- fragments and recipes -------------------------------------------------
-
-
-def test_the_gitignore_fragment_keeps_the_catalogs_but_drops_the_build(package: Path) -> None:
-    """apm_modules/ and build/ are artefacts; the committed catalogs are not."""
-    fragment = (package / ".gitignore.d" / "package").read_text()
-    patterns = [
-        line.strip()
-        for line in fragment.splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    ]
-    assert "apm_modules/" in patterns
-    assert "build/" in patterns
-    # The committed catalogs must not be ignored; comments may mention them.
-    assert not any("marketplace.json" in p for p in patterns)
-
-
-@needs_just
-def test_the_recipes_render_with_the_pinned_cli(package: Path) -> None:
-    """The `:=` line interpolates the CLI version; the recipe bodies stay raw."""
-    render("workspace/just", package)
-    fragment = (package / ".just.d" / "package.just").read_text()
-    assert "apm-cli@0.26.0" in fragment
-
-    listing = subprocess.run(
-        ["just", "--list"], cwd=package, capture_output=True, text=True, check=False
-    )
-    assert listing.returncode == 0, listing.stderr
-    for recipe in ("package-build", "package-check", "package-versions"):
-        assert recipe in listing.stdout
-
-
-def test_the_check_recipe_cannot_repair_what_it_checks(package: Path) -> None:
-    """`--check-clean` without `--dry-run` regenerates before diffing, so it overwrites the
-    drift it is meant to catch and always passes. Verified against apm 0.26.0: exit 4 with
-    the flag on a hand-edited catalog, exit 0 and a silently repaired file without it.
-    """
-    render("workspace/just", package)
-    fragment = (package / ".just.d" / "package.just").read_text()
-    for line in fragment.splitlines():
-        stripped = line.strip()
-        if "--check-clean" in stripped and not stripped.startswith("#"):
-            assert "--dry-run" in stripped, f"the gate can repair what it checks: {stripped!r}"
-
-
-def test_no_catalog_is_written_at_render_time(package: Path) -> None:
-    """The catalogs are committed, but `apm pack` needs uvx and may reach the network, so it
-    cannot be a copier task. A fresh render therefore has none, and `just package-build`
-    produces them.
-    """
-    assert not (package / ".claude-plugin" / "marketplace.json").exists()
-    assert not (package / ".agents" / "plugins" / "marketplace.json").exists()
-
-
-def test_the_catalogs_are_not_gitignored(package: Path) -> None:
-    """They are committed generated artefacts, which is what lets a consumer resolve the
-    marketplace from a clone with no build step. agentic-packages and break-stuff both
-    track them."""
-    fragment = (package / ".gitignore.d" / "package").read_text()
-    patterns = [
-        line.strip() for line in fragment.splitlines() if line.strip() and not line.startswith("#")
-    ]
-    assert not any("marketplace.json" in p for p in patterns)
-    assert not any(p.startswith(".claude-plugin") for p in patterns)
-    # The archive directory is the throwaway part.
-    assert "build/" in patterns
-
-
-@needs_just
-def test_every_recipe_has_a_real_description(package: Path) -> None:
-    """`just` reads the comment above a recipe as its description, so a stray line of
-    rationale becomes one. Three shipped fragments had this before it was caught."""
-    render("workspace/just", package)
-    listing = subprocess.run(
-        ["just", "--list"], cwd=package, capture_output=True, text=True, check=False
-    )
-    for line in listing.stdout.splitlines():
-        if not line.startswith("    ") or "#" not in line:
-            continue
-        name, _, description = line.strip().partition("#")
-        if not name.strip().startswith("marketplace") and name.strip() != "package":
-            continue
-        text = description.strip()
-        assert text and text[0].isupper(), (
-            f"{name.strip()!r} description looks like prose: {text!r}"
-        )
-
-
-# --- integration -----------------------------------------------------------
 
 
 def test_the_fragments_reach_the_aggregating_layers(tmp_path: Path) -> None:
@@ -361,36 +314,61 @@ def test_the_fragments_reach_the_aggregating_layers(tmp_path: Path) -> None:
 
     assert "import? '.just.d/package.just'" in (dest / "justfile").read_text()
     gitignore = (dest / ".gitignore").read_text()
-    assert "apm_modules/" in gitignore
-    assert "build/" in gitignore
+    # Install state a local marketplace test leaves behind, not the catalogs: those are
+    # committed, which is what lets an install resolve from a clone.
+    assert "installed_plugins.json" in gitignore
+    assert "node_modules/" in gitignore
+    assert "marketplace.json" not in gitignore
 
 
-def test_the_catalog_drift_check_reaches_ci(tmp_path: Path) -> None:
-    """The layer ships `package-check` and `package-versions`, and something has to run them.
+@needs_just
+def test_the_recipes_run_the_generator(package: Path) -> None:
+    """The names a CI workflow and the profile build call. `just --list` alone would pass
+    against a recipe whose body is broken, so the check runs."""
+    assert render("workspace/just", package).returncode == 0
+    listing = subprocess.run(
+        ["just", "--list"], cwd=package, capture_output=True, text=True, check=False
+    )
+    assert listing.returncode == 0, listing.stderr
+    for recipe in ("marketplace-build", "marketplace-check"):
+        assert recipe in listing.stdout
 
-    Without this the recipes exist and never fire: the catalogs are committed generated
-    artefacts, so a package added to apm.yml without a repack leaves them behind and a consumer
-    resolving the marketplace from a clone never sees it. The scaffold's own repository shipped
-    exactly that hole.
+    result = subprocess.run(
+        ["just", "marketplace-check"], cwd=package, capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
-    The host layer's `Generated files current` step is where it belongs, beside `just-check`
-    and `gitlab-check`: same class of failure, a generated file that a fragment change made
-    stale.
-    """
+
+@needs_just
+def test_every_recipe_has_a_real_description(package: Path) -> None:
+    """`just` reads the comment above a recipe as its description, so a stray line of
+    rationale becomes one. Three shipped fragments had this before it was caught."""
+    assert render("workspace/just", package).returncode == 0
+    listing = subprocess.run(
+        ["just", "--list"], cwd=package, capture_output=True, text=True, check=False
+    )
+    for line in listing.stdout.splitlines():
+        if not line.startswith("    ") or "#" not in line:
+            continue
+        name, _, description = line.strip().partition("#")
+        if not name.strip().startswith("marketplace"):
+            continue
+        text = description.strip()
+        assert text and text[0].isupper(), (
+            f"{name.strip()!r} description looks like prose: {text!r}"
+        )
+
+
+def test_the_drift_check_reaches_ci() -> None:
+    """A gate nothing runs is a gate that never fires: a plugin added or a version bumped
+    without a rebuild leaves the catalogs behind, and an install resolving from a clone never
+    sees it. The host layer's `Generated files current` step is where it belongs, beside
+    `just-check` and `gitlab-check` -- same class of failure, a generated file a change made
+    stale."""
     workflow = (
-        REPO_ROOT
-        / "recipes"
-        / "host"
-        / "github"
-        / "template"
-        / ".github"
-        / "workflows"
-        / "wc-quality.yml.jinja"
+        REPO_ROOT / "recipes/host/github/template/.github/workflows/wc-quality.yml.jinja"
     ).read_text()
 
-    assert "just package-check" in workflow
-    assert "just package-versions" in workflow
-    # Guarded, since a repository without agentic/package has no apm.yml to pack.
-    assert "grep -q 'marketplace:' apm.yml" in workflow
-    # `--dry-run` lives in the recipe, and the reason is recorded where the guard is.
-    assert "load-bearing" in workflow
+    assert "just marketplace-check" in workflow
+    # Guarded on the generator, since a repository without agentic/package has no catalogs.
+    assert "if [ -f scripts/build_catalog.py ]" in workflow
