@@ -46,10 +46,11 @@ release_app:
 sync_generated:
   type: bool
   help: >-
-    Regenerate the marketplace catalogs onto the release branch. release-please bumps the
-    version in apm.yml and stops, so a catalog carrying that version per package goes stale the
-    moment the release pull request opens. Needs `release_app`, since the amending commit has to
-    trigger the required checks.
+    Regenerate the marketplace catalogs onto the release branch. release-please bumps only
+    the files its config names, so a catalog repeating a plugin's version goes stale the
+    moment the release pull request opens. Answer yes for a marketplace whose config names
+    the plugin manifests; needs `release_app`, since the amending commit has to trigger the
+    required checks.
   default: false
 
 # Empty means a single-package repository. A monorepo passes the member directories,

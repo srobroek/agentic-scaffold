@@ -23,17 +23,17 @@ layers:
   - quality/hooks
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
+
+# agentic/package makes the repository its own marketplace, serving OMP and Claude Code
+# from one catalog source. What a machine CONSUMES is registered per user with `omp plugin
+# marketplace add <owner>/<repo>`, outside any repository, so no layer here writes a
+# consumer manifest and no default marketplace is seeded.
 
 # What varies inside the profile, beyond what the six questions ask. Every key here is
 # either derived per rules/choices.md or fixed for the shape.
 answers:
   # A template or dev-tooling repository, per the licence policy.
   license: apache-2.0
-  # The publisher shape, not the consumer: agentic/package owns apm.yml here, so
-  # agentic/apm is deliberately absent from the layer list. A repository takes one.
-  marketplace_outputs: claude,codex
-  deploy_kiro: true
 
 # How `just check` proves the rendered tree is a working project rather than only a tree
 # that rendered. Each command runs in the destination and must exit 0.
@@ -42,10 +42,8 @@ answers:
 # for the absence of a manifest rather than for anything a recipe got wrong. The agent
 # runs the generator, and `just check` proves the recipe set.
 build:
-  # Built before it is checked. `apm pack` cannot be a copier task, since it needs uvx and
-  # may reach the network, so a freshly rendered repository has no catalog at all and
-  # `--check-clean` would report it missing rather than stale. Building then checking is
-  # the same order agentic-packages uses at release.
-  - just package-build
-  - just package-check
+  # The catalogs are written at render time by the generator the layer ships, so the check
+  # is the whole proof: it compares the committed bytes against what the plugin manifests
+  # imply, and a render that got either side wrong fails here rather than at install time.
+  - just marketplace-check
   - just just-check
