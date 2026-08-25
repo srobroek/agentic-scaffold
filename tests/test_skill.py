@@ -244,8 +244,10 @@ def test_the_update_skill_names_the_ref_it_replays() -> None:
 
 
 def test_the_update_skill_refuses_to_re_run_over_a_conflict() -> None:
-    """The second run replays the same ref and merges into the markers, so the file ends up
-    with nested conflicts and no clean base to resolve against."""
+    """A conflicted update is not applied: the recipe keeps its recorded `_ref`, so a re-run
+    replays the same base and conflicts again rather than reporting success over markers
+    nobody resolved. Resolving them and re-running is what advances the ref.
+    """
     body = UPDATE_SKILL.read_text()
     assert "exit 5" in body
     assert "conflict markers" in body
