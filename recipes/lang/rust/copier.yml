@@ -10,14 +10,20 @@ _scaffold:
 
 crate_kind:
   type: str
-  help: A library ignores Cargo.lock; a binary commits it so builds reproduce.
+  help: >-
+    A library ignores Cargo.lock; a binary commits it so builds reproduce.
+    Authoritative only at a workspace root: where src/ exists, patch_manifest.py
+    settles the fragment from src/main.rs versus src/lib.rs.
   choices: [lib, bin]
   default: lib
 
 rust_edition:
   type: str
-  help: Cargo edition.
-  default: "2024"
+  help: >-
+    Cargo edition. Empty keeps what `cargo init` wrote -- the installed
+    toolchain's own current edition, so cargo is the detection. Set it only for
+    a workspace, whose root pins `edition.workspace` before cargo runs.
+  default: ""
 
 spdx_id:
   type: str

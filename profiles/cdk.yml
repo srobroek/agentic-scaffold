@@ -28,7 +28,6 @@ layers:
 answers:
   license: agpl-3.0-only
   node_version: "24"
-  ts_typeaware: true
   # github: false in .projenrc.ts, so the host layer's reusable workflows are the only CI.
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a

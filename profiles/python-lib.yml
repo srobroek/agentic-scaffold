@@ -24,7 +24,6 @@ answers:
   license: mpl-2.0
   python_version: "3.13"
   python_layout: src
-  python_framework: none
   release_type: python
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a

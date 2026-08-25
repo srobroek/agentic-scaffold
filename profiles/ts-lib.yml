@@ -25,8 +25,6 @@ answers:
   license: mpl-2.0
   node_version: "24"
   ts_framework: none
-  # Type-aware oxlint rules need TypeScript 7.
-  ts_typeaware: true
   release_type: node
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a

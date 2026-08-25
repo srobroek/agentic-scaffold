@@ -14,10 +14,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 RECIPES = REPO_ROOT / "recipes" / "lang"
 
 ANSWERS = {
-    "rust": 'crate_kind: lib\nrust_edition: "2024"\n',
-    "python": 'python_version: "3.13"\npython_layout: src\npython_framework: none\n',
+    "rust": "crate_kind: lib\n",
+    "python": 'python_version: "3.13"\npython_layout: src\n',
     "go": 'go_module_path: github.com/srobroek/demo\ngo_version: "1.26"\ngo_vendor: false\n',
-    "ts": 'node_version: "24"\nts_typeaware: true\n',
+    "ts": 'node_version: "24"\n',
 }
 
 
@@ -297,11 +297,37 @@ def test_type_aware_linting_declares_its_package(tmp_path: Path) -> None:
     assert "oxlint-tsgolint" in task
 
 
-def test_type_aware_can_be_turned_off(tmp_path: Path) -> None:
+def test_a_binary_src_settles_the_lockfile_line(tmp_path: Path) -> None:
+    """crate_kind answers for a workspace root; src/ overrules it.
+
+    A bin crate rendered with the default `crate_kind: lib` used to gitignore
+    Cargo.lock, silently unpinning every build.
+    """
     dest = tmp_path / "d"
     dest.mkdir()
-    render("lang/ts", dest, ANSWERS["ts"].replace("ts_typeaware: true", "ts_typeaware: false"))
-    assert "options" not in json.loads((dest / ".oxlintrc.json").read_text())
+    (dest / "src").mkdir()
+    (dest / "src" / "main.rs").write_text("fn main() {}\n")
+    (dest / "Cargo.toml").write_text(
+        '[package]\nname = "demo"\nversion = "0.1.0"\nedition = "2024"\n'
+    )
+
+    render("lang/rust", dest, ANSWERS["rust"])  # answers lib; the tree says bin
+
+    body = (dest / ".gitignore.d" / "rust").read_text()
+    assert "Cargo.lock\n" not in body, "a binary's lockfile was gitignored"
+
+
+def test_an_empty_edition_keeps_what_cargo_wrote(tmp_path: Path) -> None:
+    """cargo init writes the installed toolchain's edition; cargo is the detection."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    (dest / "Cargo.toml").write_text(
+        '[package]\nname = "demo"\nversion = "0.1.0"\nedition = "2021"\n'
+    )
+
+    render("lang/rust", dest, ANSWERS["rust"])
+
+    assert 'edition = "2021"' in (dest / "Cargo.toml").read_text()
 
 
 def test_a_generated_tsconfig_is_not_overwritten(tmp_path: Path) -> None:

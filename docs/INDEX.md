@@ -32,9 +32,9 @@ Design lives in `recipes.md`; this file is the inventory.
 | `iac/terraform` | 11 | 23 |
 | `lang/api` | 8 | 8 |
 | `lang/go` | 3 | 11 |
-| `lang/python` | 3 | 12 |
+| `lang/python` | 2 | 12 |
 | `lang/rust` | 3 | 14 |
-| `lang/ts` | 2 | 13 |
+| `lang/ts` | 1 | 13 |
 | `quality/hooks` | 3 | 12 |
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
@@ -591,7 +591,6 @@ Requires `uv` on `PATH`.
 |---|---|---|
 | `python_version` | str | `3.13` |
 | `python_layout` | `src` | `flat` | `src` |
-| `python_framework` | `none` | `fastapi` | `django` | `flask` | `none` |
 
 Writes:
 
@@ -619,7 +618,7 @@ Requires `cargo` on `PATH`.
 | Question | Type | Default |
 |---|---|---|
 | `crate_kind` | `lib` | `bin` | `lib` |
-| `rust_edition` | str | `2024` |
+| `rust_edition` | str |  |
 | `spdx_id` | str | `{{ _external_data.license.license | default('Apache-2.0', true) }}` |
 
 Writes:
@@ -650,7 +649,6 @@ Requires `bun` on `PATH`.
 | Question | Type | Default |
 |---|---|---|
 | `node_version` | str | `24` |
-| `ts_typeaware` | bool | `True` |
 
 Writes:
 

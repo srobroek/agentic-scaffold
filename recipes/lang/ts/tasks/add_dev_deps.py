@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Add the dev dependencies the configs this layer writes require.
 
-    add_dev_deps.py <dest> <type-aware>
+    add_dev_deps.py <dest>
 
 `bun add -d` rather than editing package.json, so bun resolves the versions and
 writes the lockfile.
 
 `oxlint-tsgolint` is separate from `oxlint` and is what makes type-aware mode
-work. Without it a config carrying `options.typeAware: true` fails with "Failed to
-find tsgolint executable", so the layer must not write that option without also
-installing the package.
+work. The config always carries `options.typeAware: true`, and without the
+package it fails with "Failed to find tsgolint executable", so both install
+together.
 
 It then runs `biome check --write` once. `bun init` writes an `index.ts` with no
 trailing newline, which the formatter rejects, so a fresh scaffold fails its own
@@ -26,8 +26,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-BASE = ("@biomejs/biome", "oxlint", "typescript", "knip")
-TYPE_AWARE = ("oxlint-tsgolint",)
+WANTED = ("@biomejs/biome", "oxlint", "oxlint-tsgolint", "typescript", "knip")
 
 TIMEOUT_SECONDS = 180
 
@@ -48,12 +47,11 @@ def installed(manifest: Path) -> set[str]:
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 2:
         print(__doc__, file=sys.stderr)
         return 2
 
     dest = Path(sys.argv[1])
-    type_aware = sys.argv[2].strip().lower() in {"true", "1", "yes"}
 
     manifest = dest / "package.json"
     if not manifest.is_file():
@@ -64,8 +62,7 @@ def main() -> int:
         print("bun absent from PATH, skipping the dev dependencies", file=sys.stderr)
         return 0
 
-    wanted = list(BASE) + (list(TYPE_AWARE) if type_aware else [])
-    missing = [name for name in wanted if name not in installed(manifest)]
+    missing = [name for name in WANTED if name not in installed(manifest)]
     if not missing:
         print("every dev dependency is already present")
         return 0

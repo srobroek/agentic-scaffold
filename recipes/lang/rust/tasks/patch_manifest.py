@@ -7,6 +7,15 @@
 the crate itself. It also writes no `[lints]` table, so lint policy would live in
 CI arguments rather than in the manifest where `cargo clippy` reads it.
 
+An empty `<edition>` keeps whatever `cargo init` wrote, which is the installed
+toolchain's own current edition -- the detection is cargo itself. A value is for
+a workspace, where the root manifest pins `edition.workspace` before cargo runs.
+
+Also settles the Cargo.lock line in `.gitignore.d/rust` from the tree: a
+`src/main.rs` is a binary and commits the lockfile, a `src/lib.rs` ignores it.
+The `crate_kind` answer decided the fragment at render time and stays
+authoritative only where no src/ exists yet -- a workspace root.
+
 Edits in place and is idempotent: an existing key is left alone rather than
 duplicated. Does nothing when there is no Cargo.toml, since a workspace root
 renders before its members.
@@ -46,12 +55,40 @@ def has_table(text: str, table: str) -> bool:
     return f"[{table}]" in text or f"[{table}." in text
 
 
+FRAGMENT_LIB = """# rust
+# A library ignores Cargo.lock; a binary commits it so builds reproduce.
+Cargo.lock
+"""
+
+FRAGMENT_BIN = """# rust
+# A binary commits Cargo.lock, so nothing conditional is ignored here.
+"""
+
+
+def settle_lockfile_line(dest: Path) -> None:
+    """Rewrite the rust gitignore fragment from what src/ actually holds."""
+    fragment = dest / ".gitignore.d" / "rust"
+    if not fragment.is_file():
+        return
+    if (dest / "src" / "main.rs").is_file():
+        wanted = FRAGMENT_BIN
+    elif (dest / "src" / "lib.rs").is_file():
+        wanted = FRAGMENT_LIB
+    else:
+        return  # a workspace root: the crate_kind answer already decided
+    if fragment.read_text() != wanted:
+        fragment.write_text(wanted)
+        print("settled .gitignore.d/rust from src/")
+
+
 def main() -> int:
     if len(sys.argv) != 4:
         print(__doc__, file=sys.stderr)
         return 2
 
     dest, spdx_id, edition = sys.argv[1:4]
+    settle_lockfile_line(Path(dest))
+
     manifest = Path(dest) / "Cargo.toml"
     if not manifest.is_file():
         print("no Cargo.toml here, nothing to patch")
@@ -77,7 +114,9 @@ def main() -> int:
         text = f'{text[:index]}license = "{spdx_id}"\n{text[index:]}'
         changed.append(f"license = {spdx_id}")
 
-    if package.get("edition") != edition and "edition" in package:
+    # An empty answer keeps what cargo wrote: cargo's own default IS the
+    # installed toolchain's current edition, so cargo is the detection.
+    if edition and "edition" in package and package.get("edition") != edition:
         text = text.replace(f'edition = "{package["edition"]}"', f'edition = "{edition}"')
         changed.append(f"edition = {edition}")
 

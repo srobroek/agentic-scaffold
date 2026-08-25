@@ -19,16 +19,11 @@ node_version:
   type: str
   help: Runtime version, for CI and the mise pin.
   default: "24"
-
-ts_typeaware:
-  type: bool
-  help: >-
-    Whether oxlint runs its type-aware rules. It carries 59 of typescript-eslint's
-    61 against biome's 4 outside nursery, and requires TypeScript 7.
-  default: true
-
+# Type-aware oxlint is not an answer. It carries 59 of typescript-eslint's 61
+# rules against biome's 4 outside nursery, TypeScript 7 is the floor for a fresh
+# scaffold, and add_dev_deps.py installs the oxlint-tsgolint executable the
+# config requires.
 _tasks:
   - >-
     python3 "{{ _copier_conf.src_path }}/tasks/add_dev_deps.py"
     "{{ _copier_conf.dst_path }}"
-    "{{ ts_typeaware }}"
