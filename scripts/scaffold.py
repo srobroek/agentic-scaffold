@@ -450,7 +450,10 @@ def build_plan(
         if path in answer_files or path.startswith(".copier-answers."):
             klass = "answers"
         elif len(owners) == 1:
-            if (dest / path).exists():
+            if fragment:
+                # One recipe's fold contribution; an aggregator merges the directory.
+                klass = "fragment"
+            elif (dest / path).exists():
                 klass = "skip" if skip_declared.get(path) else "overwrite"
             else:
                 klass = "create"

@@ -90,8 +90,8 @@ Plan first, and show the plan before anything touches disk:
 uv run scripts/scaffold.py plan --profile <profile> --dest <dest> --data-file answers.yml
 ```
 
-Each row is a path, its owning recipes, and its class: `create`, `overwrite`, `skip`, or
-`answers`. Exit 5 is a `conflict`, where two recipes own one path. Stop, name both owners, and
+Each row is a path, its owning recipes, and its class: `create`, `overwrite`, `skip`,
+`fragment`, or `answers`. Exit 5 is a `conflict`, where two recipes own one path. Stop, name both owners, and
 either drop one recipe or declare the path under `_skip_if_exists` in the later one so the
 first writer wins. `--force` renders past a conflict and is the user's call to make.
 
