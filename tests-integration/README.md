@@ -56,10 +56,11 @@ quietly passing because the aggregator happened to run twice.
 
 ## What a case cannot do
 
-The generator does not run, for the same reason `scaffold render --profile` skips it: `cargo new`,
-`uv init`, and `create-better-t-stack` reach the network or need a toolchain the machine may
-not carry. A `build` command needing generator output fails for a missing manifest rather than
-for anything a layer got wrong. Use `setup` to write the minimum by hand when a build needs it.
+The generator does not run, for the same reason `scaffold render --profile` never runs one:
+`cargo new`, `uv init`, and `create-better-t-stack` reach the network or need a toolchain the
+machine may not carry. A `build` command needing generator output fails for a missing manifest
+rather than for anything a layer got wrong. Use `setup` to write the minimum by hand when a
+build needs it.
 
 A `build` command whose binary is absent is skipped, not failed, and the run says so. A case
 that silently checked less than it appears to is worse than one that says it was skipped.
