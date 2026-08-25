@@ -9,6 +9,10 @@ _scaffold:
   # base/repo supplies project_name and the description. base/gitignore and
   # workspace/just aggregate what this contributes, so both follow it.
   after: [base/repo]
+  # A repository is either a package publisher or a package consumer: both this
+  # and agentic/package own apm.yml, so `scaffold check` refuses a profile
+  # naming both.
+  exclusive_group: apm-manifest
 
 _skip_if_exists:
   - apm.yml
