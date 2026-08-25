@@ -16,7 +16,7 @@ RECIPES = REPO_ROOT / "recipes" / "lang"
 ANSWERS = {
     "rust": "crate_kind: lib\n",
     "python": 'python_version: "3.13"\npython_layout: src\n',
-    "go": 'go_module_path: github.com/srobroek/demo\ngo_version: "1.26"\ngo_vendor: false\n',
+    "go": "go_module_path: github.com/srobroek/demo\ngo_vendor: false\n",
     "ts": 'node_version: "24"\n',
 }
 
@@ -45,6 +45,18 @@ def test_every_language_ships_the_same_file_kinds(language: str, tmp_path: Path)
         f".github/security.d/{language}.yml",
     ):
         assert (dest / expected).is_file(), f"{language} is missing {expected}"
+
+
+def test_the_go_pin_comes_from_the_module(tmp_path: Path) -> None:
+    """`go mod init` wrote the installed toolchain's version into go.mod, so the
+    generator is the detection; an empty answer must not leave mise an empty pin."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    (dest / "go.mod").write_text("module github.com/srobroek/demo\n\ngo 1.27.4\n")
+
+    render("lang/go", dest, ANSWERS["go"])
+
+    assert 'go = "1.27.4"' in (dest / ".mise" / "conf.d" / "go.toml").read_text()
 
 
 @pytest.mark.parametrize("language", LANGUAGES)

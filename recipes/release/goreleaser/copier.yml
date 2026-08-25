@@ -65,8 +65,3 @@ syft_version:
   type: str
   help: syft version the release workflow installs. Unused when goreleaser_sbom is false.
   default: "1.50.0"
-
-go_version:
-  type: str
-  help: Go version the release workflow installs.
-  default: "1.26"

@@ -19,8 +19,12 @@ go_module_path:
 
 go_version:
   type: str
-  help: Minimum supported version, and the one CI runs.
-  default: "1.26"
+  help: >-
+    Minimum supported version. Empty reads the `go` directive from go.mod --
+    `go mod init` wrote the installed toolchain's own version there, so the
+    generator is the detection. CI already reads go.mod natively through
+    `go-version-file`.
+  default: ""
 
 go_vendor:
   type: bool
@@ -28,3 +32,9 @@ go_vendor:
     Whether to commit vendor/. The upstream Go template cannot express this, so the
     gitignore fragment carries it.
   default: false
+
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/sync_go_pin.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ go_version }}"

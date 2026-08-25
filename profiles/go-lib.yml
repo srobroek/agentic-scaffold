@@ -23,7 +23,6 @@ layers:
 
 answers:
   license: mpl-2.0
-  go_version: "1.26"
   # A library commits no vendor tree: a consumer resolves its own module graph.
   go_vendor: false
   release_type: go

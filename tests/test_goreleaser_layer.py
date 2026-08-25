@@ -24,7 +24,7 @@ from conftest import mise_bin, render_recipe
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-ANSWERS = 'project_name: demoapp\ngoreleaser_main: "."\ngo_version: "1.26"\n'
+ANSWERS = 'project_name: demoapp\norg: acme\ngoreleaser_main: "."\n'
 
 GORELEASER = Path.home() / ".local/share/mise/installs/goreleaser/2.17.1/goreleaser"
 # Resolved through mise. See conftest.mise_bin for why not an installs/<tool>/latest path.

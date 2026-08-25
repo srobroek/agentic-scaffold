@@ -25,7 +25,6 @@ layers:
 
 answers:
   license: agpl-3.0-only
-  go_version: "1.26"
   go_vendor: false
   release_type: go
   # CGO is disabled in the build stage, so the runtime can be distroless static.

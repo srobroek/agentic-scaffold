@@ -38,7 +38,7 @@ Design lives in `recipes.md`; this file is the inventory.
 | `quality/hooks` | 3 | 12 |
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
-| `release/goreleaser` | 8 | 6 |
+| `release/goreleaser` | 7 | 6 |
 | `release/release-please` | 6 | 4 |
 | `workspace/devcontainer` | 4 | 1 |
 | `workspace/just` | 0 | 3 |
@@ -562,7 +562,7 @@ Requires `go` on `PATH`.
 | Question | Type | Default |
 |---|---|---|
 | `go_module_path` | str |  |
-| `go_version` | str | `1.26` |
+| `go_version` | str |  |
 | `go_vendor` | bool | `False` |
 
 Writes:
@@ -750,7 +750,6 @@ Requires `git` on `PATH`.
 | `goreleaser_sbom` | bool | `True` |
 | `goreleaser_version` | str | `2.17.1` |
 | `syft_version` | str | `1.50.0` |
-| `go_version` | str | `1.26` |
 
 Writes:
 
