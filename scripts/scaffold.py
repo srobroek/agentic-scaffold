@@ -442,6 +442,11 @@ def build_plan(
       skip       a later writer declares `_skip_if_exists`; the first owner wins
       fragment   under a fold directory; the aggregator merges it
       conflict   two owners and no declared resolution -- the plan refuses
+
+    The map covers what the TEMPLATES write. A file the generator creates first
+    (a `uv init` README) shifts create to skip at render time, and a file a task
+    writes (LICENSE, the folded .gitignore) appears in no row at all -- tasks
+    stay off in the plan's scratch renders because they reach the network.
     """
     writers: dict[str, list[str]] = {}
     skip_declared: dict[str, set[str]] = {}
@@ -641,9 +646,18 @@ def demo_answers(profile: dict) -> dict:
 
 
 def run_build(profile: dict, dest: Path) -> int:
-    """Each command in the profile's own build, in order, in the destination."""
+    """`just setup`, then each command in the profile's own build, in the destination.
+
+    Setup first, because the build commands assume the toolchain the fragments
+    pin: three real defects (a missing lockfile, a yaml-less python, a mise pin
+    that cannot resolve) shipped precisely because no profile build exercised
+    the fresh-clone handoff. A setup failure counts as a build failure.
+    """
     failures = 0
-    for command in profile.get("build") or []:
+    commands = list(profile.get("build") or [])
+    if (dest / "justfile").is_file() and shutil.which("just") and commands:
+        commands.insert(0, "just setup")
+    for command in commands:
         binary = command.split()[0]
         if shutil.which(binary) is None:
             print(f"  skip  {command}  ({binary} absent)")
