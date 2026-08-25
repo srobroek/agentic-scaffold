@@ -38,7 +38,7 @@ Design lives in `recipes.md`; this file is the inventory.
 | `quality/hooks` | 3 | 12 |
 | `release/cocogitto` | 2 | 2 |
 | `release/dep-updates` | 3 | 3 |
-| `release/goreleaser` | 7 | 6 |
+| `release/goreleaser` | 8 | 6 |
 | `release/release-please` | 6 | 4 |
 | `workspace/devcontainer` | 4 | 1 |
 | `workspace/just` | 0 | 3 |
@@ -746,6 +746,7 @@ Requires `git` on `PATH`.
 | Question | Type | Default |
 |---|---|---|
 | `project_name` | str |  |
+| `org` | str |  |
 | `goreleaser_main` | str | `.` |
 | `goreleaser_targets` | yaml | `['linux/amd64', 'linux/arm64', 'darwin/amd64', 'darwin/arm64']` |
 | `goreleaser_sbom` | bool | `True` |
