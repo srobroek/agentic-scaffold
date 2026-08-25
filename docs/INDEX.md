@@ -12,7 +12,7 @@ Design lives in `recipes.md`; this file is the inventory.
 |---|---|---|
 | `agentic/beads` | 8 | 3 |
 | `agentic/index` | 2 | 3 |
-| `agentic/package` | 5 | 6 |
+| `agentic/package` | 5 | 7 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 2 | 0 |
 | `base/repo` | 3 | 5 |
@@ -106,6 +106,7 @@ Writes:
 .gitignore.d/package
 .just.d/package.just
 scripts/build_catalog.py
+{{ package_name or project_name }}/.claude-plugin/plugin.json
 {{ package_name or project_name }}/.omp-plugin/plugin.json
 {{ package_name or project_name }}/package.json
 {{ package_name or project_name }}/skills/{{ package_name or project_name }}/SKILL.md
