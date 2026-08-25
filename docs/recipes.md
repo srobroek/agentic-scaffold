@@ -968,9 +968,8 @@ Re-rendering any fragment-contributing recipe therefore needs the merge again.
 lag the fragments.
 
 `workspace/just` and `base/gitignore` aggregate what earlier recipes contributed,
-so they follow every contributor including `agentic/*`: apm and beads add
-ignores for `apm_modules/` and `.beads/dolt/`, and may contribute a
-`.just.d/apm.just`.
+so they follow every contributor including `agentic/*`: beads adds an ignore for
+`.beads/dolt/` and a `.just.d/beads.just`.
 
 Both of the generated files can therefore go stale when a recipe is adopted later.
 `just just-check` and `just hooks-all` catch each case, and the quality workflow runs
