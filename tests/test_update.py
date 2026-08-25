@@ -378,3 +378,21 @@ def test_every_recipe_ships_the_answers_file_update_replays_from() -> None:
             missing.append(f"{recipe_id}: ships no answers-file template")
 
     assert not missing, f"recipes `update` could never replay: {missing}"
+
+
+def test_a_task_written_file_moves_with_the_update(tmp_path: Path) -> None:
+    """LICENSE exists in no scratch render -- tasks stay off there -- so the merge
+    alone left it untouched while _ref advanced: a silent no-op in the refresh
+    path. A clean update re-runs the recipe's own tasks against the dest."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    scaffold(
+        "render", "base/license", "--dest", str(dest),
+        "--data", "license=apache-2.0", "--data", "copyright_name=Acme",
+    )
+    assert "Apache License" in (dest / "LICENSE").read_text()
+
+    result = scaffold("update", "base/license", "--dest", str(dest), "--data", "license=MIT")
+
+    assert result.returncode == 0, result.stderr
+    assert "MIT License" in (dest / "LICENSE").read_text()

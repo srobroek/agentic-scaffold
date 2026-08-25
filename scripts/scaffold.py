@@ -569,6 +569,33 @@ def record_ref(source: Source, dest: Path, config: dict) -> None:
     answers_path.write_text(yaml.safe_dump(answers, sort_keys=True))
 
 
+def run_recipe_tasks(source: Source, dest: Path, answers: dict) -> None:
+    """Run a recipe's own `_tasks` against the destination.
+
+    `update` merges template output only, so files a task writes -- LICENSE, the
+    folded .gitignore, a settled pin -- would otherwise sit still while _ref
+    advances. Each command template renders the same way copier renders it, with
+    the answers plus a `_copier_conf` carrying the source and destination paths.
+    """
+    config = recipe_config(source)
+    tasks = [t for t in config.get("_tasks") or [] if isinstance(t, str)]
+    if not tasks:
+        return
+    import jinja2
+
+    env = jinja2.Environment(undefined=jinja2.ChainableUndefined, keep_trailing_newline=True)
+    context = {
+        **answers,
+        "_copier_conf": {"src_path": source.template, "dst_path": str(dest)},
+    }
+    for template in tasks:
+        command = " ".join(env.from_string(template).render(context).split())
+        print(f"  task      {command}")
+        result = subprocess.run(command, shell=True, cwd=dest, check=False)
+        if result.returncode != 0:
+            die(4, f"{source.id} task failed (exit {result.returncode}): {command}")
+
+
 def render_one(
     source: Source,
     dest: Path,
@@ -765,6 +792,11 @@ def update_recipe(source: Source, dest: Path, data: dict) -> int:
 
     if conflicts == 0:
         record_ref(source, dest, config)
+        # Task-written files -- LICENSE, the folded .gitignore -- exist in no
+        # scratch render (tasks stay off there), so the merge above never moves
+        # them. Every recipe's tasks are idempotent, so the dest runs them once
+        # against the refreshed answers and the task outputs catch up.
+        run_recipe_tasks(source, dest, merged)
     else:
         # The answers file and _ref stay where they were: a conflicted update
         # is not applied. Resolve the markers, commit, and re-run -- the
