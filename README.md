@@ -80,7 +80,7 @@ Recipes come from four places through one argument:
 | `base` | `license`, `repo`, `gitignore` |
 | `lang` | `python`, `ts`, `go`, `rust`, `api` |
 | `host` | `github`, `gitlab` |
-| `workspace` | `monorepo`, `just`, `moon`, `devcontainer`, `worktrunk` |
+| `workspace` | `monorepo`, `just`, `moon`, `worktrunk` |
 | `quality` | `hooks` |
 | `release` | `release-please`, `cocogitto`, `goreleaser`, `dep-updates` |
 | `agentic` | `apm`, `package`, `marketplace`, `beads`, `index`, `speckit` |

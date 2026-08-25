@@ -287,7 +287,6 @@ carries the root config and the repository-wide hygiene hooks alone.
 | `workspace/monorepo` | the workspace manifest (`[workspace] members`, uv workspace, bun workspaces, or one go module), `scripts/add_member.py`, `.just.d/monorepo.just` | `layout`, `members`, `project_name` |
 | `workspace/just` | `justfile` carrying `setup`, the aggregates, and one `import?` per `.just.d/*.just`, plus `scripts/gen_justfile.py` and `.mise/conf.d/just.toml` | none |
 | `workspace/moon` | `.moon/workspace.yml`, `.moon/toolchain.yml`, `moon.yml` per member, `.just.d/moon.just` | `members`, `layout` |
-| `workspace/devcontainer` | `.devcontainer/devcontainer.json` | `project_name`, `base_image`, `docker_in_docker`, `forward_ports` |
 | `workspace/worktrunk` | `.config/wt.toml`, `.worktreeinclude` | `forge_platform`, `forge_hostname`, `worktree_includes` |
 
 `workspace/monorepo` owns `just add`.

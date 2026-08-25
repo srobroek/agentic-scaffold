@@ -40,7 +40,6 @@ Design lives in `recipes.md`; this file is the inventory.
 | `release/dep-updates` | 3 | 3 |
 | `release/goreleaser` | 7 | 6 |
 | `release/release-please` | 6 | 4 |
-| `workspace/devcontainer` | 4 | 1 |
 | `workspace/just` | 0 | 3 |
 | `workspace/monorepo` | 12 | 6 |
 | `workspace/moon` | 5 | 6 |
@@ -784,25 +783,6 @@ Writes:
 .just.d/release.just
 .release-please-manifest.json
 release-please-config.json
-```
-
-## `workspace/devcontainer`
-
-A devcontainer that installs the repository's own toolchain through mise and then runs `just setup`, so a container and a laptop resolve the same versions.
-
-Requires `git` on `PATH`.
-
-| Question | Type | Default |
-|---|---|---|
-| `project_name` | str |  |
-| `base_image` | str | `mcr.microsoft.com/devcontainers/base:ubuntu` |
-| `docker_in_docker` | bool | `False` |
-| `forward_ports` | yaml | `[]` |
-
-Writes:
-
-```
-.devcontainer/devcontainer.json
 ```
 
 ## `workspace/just`
