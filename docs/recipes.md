@@ -697,9 +697,13 @@ under `~/.claude/plugins/`, and Codex reads `.agents/plugins/marketplace.json` -
 so the skill reports each command behind the run's install gate rather than any
 recipe running one.
 
-A Claude-native marketplace serves OMP as-is, verified live: `omp plugin marketplace
-add` accepted a catalog carrying only `.claude-plugin/marketplace.json`, installed a
-pure Claude-format plugin from it, and a fresh session loaded its skill. Two
+All three runtimes were probed live against a throwaway catalog. `omp plugin
+marketplace add` accepted a repository carrying only
+`.claude-plugin/marketplace.json`, installed a pure Claude-format plugin, and a
+fresh session loaded its skill. `codex plugin marketplace add` read
+`.agents/plugins/marketplace.json` -- its own listing names that path as the
+snapshot source -- and `codex plugin add <plugin>@<marketplace>` installed the
+same plugin, whose skill a fresh `codex exec` then reported available. Two
 boundaries carry the whole compatibility story:
 
 - Rules and agents load in OMP only for a plugin whose `package.json` carries the
