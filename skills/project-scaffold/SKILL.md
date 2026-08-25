@@ -122,6 +122,10 @@ Run `just setup` in the destination for the toolchain, the dependencies, and the
 then `just check` for what CI runs. Report every file written, and every command that failed
 with its own output: a summary saying "done" hides a failed build.
 
+Where `commit_scopes` was left empty, say so in the report: scopes are unrestricted
+until the team lists a vocabulary in `commit_scopes` and re-renders `quality/hooks`.
+A render-time note prints the same thing, but a note in a task log reaches nobody.
+
 Recommend packages last. `agentic/marketplace` reads the finished tree and prints what to
 register and install, writing nothing, because registration is machine-global.
 
