@@ -82,3 +82,10 @@ changelog:
 release:
   # release-please created the release and its notes; this only attaches the artefacts.
   mode: append
+{%- if org and project_name %}
+  # Named explicitly so `goreleaser check` works before a remote exists: without an
+  # owner it lists refs from the git remote, and a fresh scaffold has none yet.
+  github:
+    owner: {{ org }}
+    name: {{ project_name }}
+{%- endif %}

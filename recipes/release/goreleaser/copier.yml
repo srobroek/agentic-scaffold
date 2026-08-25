@@ -18,6 +18,14 @@ project_name:
   help: Binary name, used for the archive name and the build id.
   default: ""
 
+org:
+  type: str
+  help: >-
+    Owning person or organisation, used as the GitHub release owner. Without it
+    goreleaser resolves the release target from the git remote, and a freshly
+    scaffolded repository has none until the remote is created.
+  default: ""
+
 # The division of labour, and the reason this is a separate layer rather than a flag on
 # release/release-please: release-please computes the next version from the Conventional
 # Commit subjects and pushes the tag; goreleaser reacts to that tag and builds what it
