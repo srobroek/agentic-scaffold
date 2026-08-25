@@ -658,7 +658,7 @@ workflow to report a status.
 |---|---|---|
 | `agentic/apm` | `apm.yml`, `.just.d/apm.just`, `.gitignore.d/apm` | `apm_packages`, `apm_target`, `apm_cli_version` |
 | `agentic/package` | `apm.yml` with a marketplace block, `packages/<name>/{apm.yml, .apm/skills, plugin manifests}`, `release-please-config.json` + manifest, `.just.d/package.just`, `.gitignore.d/package` | `project_name`, `package_name`, `category`, `marketplace_outputs`, `deploy_kiro`, `apm_cli_version` |
-| `agentic/beads` | `.beads/` through `bd init --skip-hooks`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_dolt_sync`, `bd_sync_remote`, `bd_auto_export`, `bd_dolt_auto_commit`, `bd_push_command` |
+| `agentic/beads` | `.beads/` through `bd init --init-if-missing --skip-hooks --server`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_storage_mode`, `bd_dolt_sync`, `bd_sync_remote`, `bd_auto_export`, `bd_dolt_auto_commit`, `bd_push_command` |
 | `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_extra_ignores` |
 | `agentic/speckit` | `.gitignore.d/speckit`, `.just.d/speckit.just`, and the locator added to `apm.yml` | `speckit_locator`, `speckit_integration`, `speckit_script_flavor`, `specify_cli_version` |
 | `agentic/marketplace` | nothing; `tasks/recommend.py` reports what to register and install | none |

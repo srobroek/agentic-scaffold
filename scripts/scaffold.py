@@ -587,6 +587,8 @@ def demo_answers(profile: dict) -> dict:
         "bd_prefix": "".join(c for c in name if c not in "aeiou-")[:3] or "prj",
         # local-only, because a render must not reach a remote.
         "bd_dolt_sync": "local-only",
+        # embedded, so a throwaway render leaves no dolt server process behind.
+        "bd_storage_mode": "embedded",
     }
 
 

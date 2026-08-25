@@ -96,6 +96,7 @@ def test_the_marketplaces_are_named_with_the_command(bare: Path) -> None:
     output = report(bare)
     assert "apm marketplace add srobroek/agentic-packages" in output
     assert "apm marketplace add srobroek/slopvac" in output
+    assert "omp plugin marketplace add srobroek/omp-plugins" in output
 
 
 def test_a_bare_tree_recommends_only_the_universal_packages(bare: Path) -> None:

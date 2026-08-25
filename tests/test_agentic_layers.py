@@ -26,6 +26,8 @@ apm_cli_version: "0.25.0"
 
 BEADS_ANSWERS = """\
 bd_prefix: demo
+# embedded, so a test render leaves no dolt server process behind.
+bd_storage_mode: embedded
 bd_dolt_sync: local-only
 bd_sync_remote: ""
 bd_auto_export: false
@@ -225,6 +227,17 @@ def test_the_layer_never_skips_the_agent_hooks() -> None:
     # And no answer can introduce it, since the flag is not a variable.
     body = yaml.safe_load((RECIPES / "agentic" / "beads" / "copier.yml").read_text())
     assert "--skip-agents" not in " ".join(body["_tasks"])
+
+
+def test_server_mode_is_the_default_and_reaches_bd() -> None:
+    """rule://beads-setup makes server mode the init default: an embedded database
+    resolves by walking up from the working directory, so a copied checkout gets a
+    second writable database whose claims never reach the run."""
+    assert "--server" in bd_command()
+
+    config = yaml.safe_load((RECIPES / "agentic" / "beads" / "copier.yml").read_text())
+    assert config["bd_storage_mode"]["default"] == "server"
+    assert "--storage-mode" in " ".join(config["_tasks"])
 
 
 @needs_bd
@@ -457,7 +470,7 @@ def test_beads_ships_the_adr_renderer(tmp_path: Path) -> None:
     the rendered project rather than referenced from an installed package.
     """
     dest = git_repo(tmp_path / "d")
-    render("agentic/beads", dest, "bd_prefix: xy\n")
+    render("agentic/beads", dest, "bd_prefix: xy\nbd_storage_mode: embedded\n")
 
     script = dest / "scripts" / "render_adrs.py"
     assert script.is_file()
@@ -485,7 +498,11 @@ Terraform: rejected, BUSL.
 def decisions_rendered(tmp_path: Path) -> Path:
     """A repo with agentic/beads and docs/adr, one closed decision, and ADRs rendered."""
     dest = git_repo(tmp_path / "adr")
-    render("agentic/beads", dest, "bd_prefix: adrt\nbd_dolt_sync: local-only\n")
+    render(
+        "agentic/beads",
+        dest,
+        "bd_prefix: adrt\nbd_storage_mode: embedded\nbd_dolt_sync: local-only\n",
+    )
     render("docs/adr", dest, "project_name: demo\n")
 
     subprocess.run(

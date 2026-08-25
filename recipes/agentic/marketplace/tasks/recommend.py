@@ -28,12 +28,22 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Marketplaces worth registering once per machine. `agentic/apm` names these two in its
-# own recipe; they are repeated here because this report is what a person reads after a
-# render, and a report that omits the prerequisite is a report they cannot act on.
+# Marketplaces worth registering once per machine. `agentic/apm` names the apm two in
+# its own recipe; they are repeated here because this report is what a person reads
+# after a render, and a report that omits the prerequisite is a report they cannot act
+# on. Each row carries the registration command, because apm and OMP register through
+# different CLIs.
 MARKETPLACES = (
-    ("srobroek/agentic-packages", "the language, quality, steering, and agent packages"),
-    ("srobroek/slopvac", "write-docs and review-docs, the prose gate"),
+    (
+        "apm marketplace add srobroek/agentic-packages",
+        "the language, quality, steering, and agent packages",
+    ),
+    ("apm marketplace add srobroek/slopvac", "write-docs and review-docs, the prose gate"),
+    (
+        "omp plugin marketplace add srobroek/omp-plugins",
+        "the OMP plugin catalog: beads, delivery, speckit, per-language rules. OMP reads "
+        ".omp-plugin/ and falls back to .claude-plugin/, so one repo serves both",
+    ),
 )
 
 # What a rendered layer implies. A tuple of (locator, why) per detected layer, so the
@@ -184,9 +194,9 @@ def main() -> int:
     print("agentic/marketplace: nothing was written. What follows is a recommendation.")
     print()
 
-    print("Register these once per machine (`just apm-marketplaces`):")
-    for name, why in MARKETPLACES:
-        print(f"  apm marketplace add {name}")
+    print("Register these once per machine (`just apm-marketplaces` covers the apm two):")
+    for command, why in MARKETPLACES:
+        print(f"  {command}")
         print(f"      {why}")
     print()
 

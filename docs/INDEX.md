@@ -11,7 +11,7 @@ Design lives in `recipes.md`; this file is the inventory.
 | Recipe | Questions | Files |
 |---|---|---|
 | `agentic/apm` | 5 | 3 |
-| `agentic/beads` | 7 | 3 |
+| `agentic/beads` | 8 | 3 |
 | `agentic/index` | 2 | 3 |
 | `agentic/marketplace` | 0 | 0 |
 | `agentic/package` | 15 | 9 |
@@ -77,6 +77,7 @@ Requires `git`, `bd` on `PATH`.
 | Question | Type | Default |
 |---|---|---|
 | `bd_prefix` | str |  |
+| `bd_storage_mode` | `server` | `shared-server` | `embedded` | `server` |
 | `bd_dolt_sync` | `git-origin` | `local-only` | `git-origin` |
 | `bd_sync_remote` | str |  |
 | `bd_auto_export` | bool | `False` |

@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Bootstrap beads in the destination repository.
 
-    bd_init.py <dest> [--prefix P] [--dolt-sync git-origin|local-only] [--auto-export]
+    bd_init.py <dest> [--prefix P] [--storage-mode server|shared-server|embedded]
+                      [--dolt-sync git-origin|local-only] [--auto-export]
 
 Wraps `bd init --init-if-missing --non-interactive --skip-hooks`, which exits 0 on a
-second run rather than aborting.
+second run rather than aborting. Server mode is the default: an embedded database
+resolves by walking up from the working directory, so any copy of the checkout gets a
+second writable database whose claims never reach the run.
 
 `--skip-hooks` always. bd's five git hooks are reproduced as prek entries by
 quality/hooks; letting bd install its own repoints core.hooksPath at .beads/hooks,
@@ -125,6 +128,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dest", type=Path)
     parser.add_argument("--prefix", default="")
+    parser.add_argument(
+        "--storage-mode",
+        default="server",
+        choices=["server", "shared-server", "embedded"],
+    )
     parser.add_argument("--dolt-sync", default="git-origin", choices=["git-origin", "local-only"])
     parser.add_argument("--auto-export", action="store_true")
     parser.add_argument("--agents-template", default="")
@@ -135,6 +143,10 @@ def main(argv: list[str] | None = None) -> int:
 
     dest = args.dest
     command = ["bd", "init", "--init-if-missing", "--non-interactive", "--skip-hooks"]
+    if args.storage_mode == "server":
+        command.append("--server")
+    elif args.storage_mode == "shared-server":
+        command.append("--shared-server")
     if args.prefix:
         command += ["--prefix", args.prefix]
     # bd's own AGENTS.md is 127 lines carrying three overlapping beads blocks, and

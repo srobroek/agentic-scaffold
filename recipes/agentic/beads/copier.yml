@@ -18,6 +18,20 @@ bd_prefix:
     so keep it short.
   default: ""
 
+# Server mode is the documented init default in the beads plugin
+# (rule://beads-setup): an embedded database resolves by walking up from the
+# working directory, so anything that copies the checkout -- isolation, a
+# worktree, a subagent -- gets a second writable database whose claims never
+# reach the run. A server resolves a host and port, which copying cannot change.
+bd_storage_mode:
+  type: str
+  choices: [server, shared-server, embedded]
+  help: >-
+    server runs one Dolt server for this project. shared-server shares one per
+    machine with a database per project. embedded suits a single-agent
+    repository that is never isolated or copied.
+  default: server
+
 bd_dolt_sync:
   type: str
   choices: [git-origin, local-only]
@@ -88,6 +102,7 @@ _tasks:
     python3 "{{ _copier_conf.src_path }}/tasks/bd_init.py"
     "{{ _copier_conf.dst_path }}"
     --prefix "{{ bd_prefix }}"
+    --storage-mode "{{ bd_storage_mode }}"
     --dolt-sync "{{ bd_dolt_sync }}"
     --sync-remote "{{ bd_sync_remote }}"
     --dolt-auto-commit "{{ bd_dolt_auto_commit }}"
