@@ -56,3 +56,5 @@
 {"id":"int-20139d2891eb0e5dda819dca4a8df0bc","kind":"field_change","created_at":"2026-08-25T06:16:45.797234Z","actor":"Main","issue_id":"psc-ebk.7","extra":{"field":"status","new_value":"closed","old_value":"open","reason":"landed on feat/recipes-core"}}
 {"id":"int-a86ae64fc5ad97e73c499f9cb3afdd63","kind":"field_change","created_at":"2026-08-25T06:17:38.829319Z","actor":"Sjors Robroek","issue_id":"psc-ebk.6","extra":{"field":"status","new_value":"in_progress","old_value":"open"}}
 {"id":"int-c3f204bc159809263665a68e04df00e4","kind":"field_change","created_at":"2026-08-25T06:17:38.830509Z","actor":"Sjors Robroek","issue_id":"psc-ebk.6","extra":{"field":"assignee","new_value":"TestsFinish","old_value":""}}
+{"id":"int-db5f3c97af91bc422d9c3d1e2a9aac90","kind":"field_change","created_at":"2026-08-25T06:31:50.864009Z","actor":"TestsFinish","issue_id":"psc-ebk.6","extra":{"field":"status","new_value":"closed","old_value":"in_progress"}}
+{"id":"int-aae514d2dddd873ad05fb89905155463","kind":"field_change","created_at":"2026-08-25T06:31:50.866927Z","actor":"TestsFinish","issue_id":"psc-ebk.6","extra":{"field":"assignee","new_value":"","old_value":"TestsFinish"}}
