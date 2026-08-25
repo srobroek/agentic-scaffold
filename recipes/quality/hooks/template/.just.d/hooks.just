@@ -1,10 +1,11 @@
 # Hook recipes, contributed by quality/hooks and imported by the root justfile.
 
+# hooks-merge goes through uv, because merge_hooks.py imports yaml and a bare
+# python3 -- system or mise-pinned -- ships without it: a fresh clone of every
+# profile failed setup exactly here. `--no-project` keeps the run out of any
+# .venv the repo carries.
+
 # Rebuild .pre-commit-config.yaml from .pre-commit.d/
-#
-# Through uv, because merge_hooks.py imports yaml and a bare python3 -- system or
-# mise-pinned -- ships without it: a fresh clone of every profile failed setup
-# exactly here. `--no-project` keeps the run out of any .venv the repo carries.
 [group('hooks')]
 hooks-merge:
     @uv run --no-project --with pyyaml python3 scripts/merge_hooks.py .
