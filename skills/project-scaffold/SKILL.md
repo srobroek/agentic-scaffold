@@ -32,11 +32,8 @@ Classify before asking. An answer is **strong** when the user stated it or
 turn, because each answer narrows the next. Read a choice question's options verbatim from
 that recipe's `copier.yml`.
 
-Licence answers are open strings, so normalise the obvious before persisting: `apache2`
-is `Apache-2.0`, `gpl3` is `GPL-3.0-only`, `mit` is `MIT`. Say the correction; do not
-ask. The render validates the identifier against GitHub and then the SPDX list, and a
-miss names every key GitHub carries -- correct from that message and re-render rather
-than asking the user to debug an SPDX id.
+Licence answers are open strings: normalise the obvious, say the correction, do not ask --
+`apache2` is `Apache-2.0`. A miss lists every SPDX key GitHub carries; correct and re-render.
 
 ## Propose the recipe set
 
