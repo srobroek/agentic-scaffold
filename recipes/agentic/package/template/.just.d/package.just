@@ -11,7 +11,7 @@
 # any repository. OMP reads the .omp-plugin catalog and falls back to .claude-plugin, so
 # the one registration serves both.
 
-# Rebuild both marketplace catalogs from the plugin manifests
+# Rebuild the marketplace catalogs from the plugin manifests
 [group('marketplace')]
 marketplace-build:
     @python3 scripts/build_catalog.py .
