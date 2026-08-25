@@ -8,7 +8,7 @@ summary: A repository whose product is agentic packages rather than code.
 
 generator: none
 
-# Order matters and is the order in docs/layers.md states. `just check` renders in this
+# Order matters and is the order in docs/recipes.md states. `just check` renders in this
 # sequence, so a layer that reads what an earlier one wrote has to appear after it.
 layers:
   - base/license

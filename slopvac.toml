@@ -2,7 +2,7 @@
 # `just lint` runs that.
 #
 # `normal` rather than `relaxed`, with the Simplified Technical English categories demoted to
-# advisory. Measured on docs/layers.md: `normal` reports 355 findings and scores 43.3, and 241 of
+# advisory. Measured on docs/recipes.md: `normal` reports 355 findings and scores 43.3, and 241 of
 # those warnings come from the eight ste-* categories alone. `relaxed` scores 99.2 but lets
 # obvious slop through -- appending "This is currently a WIP feature that will leverage a robust
 # solution" to a document still PASSED, which is a weaker gate than the one this replaced.
