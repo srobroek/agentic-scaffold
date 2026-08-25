@@ -235,6 +235,22 @@ def test_the_check_rejects_a_missing_requirement(tmp_path: Path) -> None:
     assert "docs/deploy-split" in result.stderr
 
 
+def test_the_check_rejects_two_recipes_in_one_exclusive_group(tmp_path: Path) -> None:
+    """`agentic/apm` and `agentic/package` both write apm.yml, and no committed profile names
+    both, so the assertion above holds vacuously. This is what proves the declaration is
+    load-bearing rather than a comment."""
+    directory = copied_profiles(
+        tmp_path,
+        {
+            "zz-both.yml": "name: zz-both\nsummary: probe\ngenerator: none\n"
+            "layers:\n  - base/repo\n  - agentic/apm\n  - agentic/package\nbuild:\n  - true\n"
+        },
+    )
+    result = check_against(directory)
+    assert result.returncode == 1
+    assert "exclusive_group 'apm-manifest'" in result.stderr
+
+
 def test_the_largest_shape_needs_no_language_layer() -> None:
     """agentic-repo covers 17 of 54 surveyed repositories and is the shape the old catalog
     had no name for: its product is skills and agents rather than code."""
