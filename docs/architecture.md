@@ -9,42 +9,125 @@ How this repository scaffolds projects, and which decisions are fixed.
 
 ## Model
 
-A project is a **profile** plus **layers**.
+A project is a **profile** plus a set of **recipes**.
 
-Each layer is one copier template directory holding files for one tool or
-concern, and a profile names the layer set plus the destination for each. Layers
-render in sequence into one destination; each writes only its own files.
+A recipe is one directory holding a `copier.yml` and, in every case here, a
+`template/`. It carries the files for one tool or one concern. A profile names
+its recipe set and the destination for each, and layers them in that order into
+one destination, where each writes only its own files.
+
+`just` calls its own targets recipes too. A justfile target is always written
+`just <name>` here; an unqualified recipe is one of these directories.
 
 What renders comes from three inputs:
 
 | Input | Source | Example |
 |---|---|---|
-| Fixed preference | hard-coded in the layer | `uv`, `prek`, `biome`, `release-please` |
+| Fixed preference | hard-coded in the recipe | `uv`, `prek`, `biome`, `release-please` |
 | Derived | `rules/choices.md`, applied by the agent | task runner, license, CI job set |
 | Asked | interview, one question at a time | project name, language, repo visibility |
 
 The interview is six questions. Everything else is fixed or derived.
 
+## Plan before render
+
+`scripts/scaffold.py` is the only entry point. `plan` renders each recipe into a
+scratch git repository and reports what the set would write, which is what makes
+a conditional or jinja-templated filename exact rather than guessed.
+
+Every path gets a class:
+
+| Class | Meaning |
+|---|---|
+| `create` | one owner, and the destination does not hold the path |
+| `overwrite` | one owner, and the destination holds a different file |
+| `unchanged` | one owner, path present, left to copier to compare |
+| `skip` | a later owner declares the path under `_skip_if_exists`; the first owner wins |
+| `fragment` | under a fold directory, where an aggregator merges it |
+| `answers` | a `.copier-answers.<name>.yml`, which the CLI owns |
+| `conflict` | two owners and no declared resolution |
+
+Two owners of one path is refused. `plan` exits 5 naming both owners, and
+`render` runs the same plan first and stops before writing anything. `--force`
+exists and is the wrong answer: two recipes owning one file is a defect in the
+profile or in a recipe.
+
+The exception is declared rather than inferred. When every writer after the
+first declares the path under `_skip_if_exists`, the class is `skip` and the
+first writer wins, which is how `host/github` and `host/gitlab` can both carry
+`SECURITY.md`. Fragment directories are the other exception, and
+`_scaffold.merge` globs let a recipe declare a merged path of its own. Two
+recipes writing the same fragment path still conflict.
+
+`render` initialises the destination as a git repository and commits once per
+recipe. That history is what makes a bad render reviewable, since copier
+overwrites and leaves no diff.
+
+## Update on a recorded ref
+
+`copier update` cannot run against an in-repo recipe. copier records `_commit`
+only when the template is a git repository root, and every recipe here is a
+subdirectory of one, so there is no ref to replay from.
+
+`render` therefore records the scaffold repository's HEAD as `_ref` in each
+recipe's answers file, beside `_source`. `update` reads `_ref` back and renders
+the recipe twice, once at that ref through a detached worktree and once at HEAD,
+then merges the difference over the destination file with `git merge-file`.
+
+Local edits survive where they do not overlap a template change. A true overlap
+gets conflict markers and exit 5. The answers file is the one exception: HEAD's
+copy is taken verbatim, because a three-way merge of that YAML mangles it.
+
+`update` prints which aggregator fold to re-run for every fragment directory it
+touched, since folding is the generated repository's own work.
+
+A remote copier template keeps its `_commit`, so `copier update` remains the
+right tool for that source.
+
+## Run record
+
+A scaffold run is tracked as a beads molecule. `formulas/mol-scaffold-run.formula.toml`
+pours nine steps: interview, plan approval, render, setup, remote creation,
+secrets, marketplace installs, verify, and handoff.
+
+`render` is a parent step with no children of its own at pour. The skill creates
+one task bead per selected recipe under it, in profile order, each blocking the
+next. It has to, because the recipe set is read from the profile at run time and
+a formula's step count is fixed when it is cooked.
+
+Four steps are human gates, and three of them are unconditional:
+
+| Gate | Why a person resolves it |
+|---|---|
+| plan approval | the file map is the last point before anything is written |
+| remote creation | `gh repo create --public` publishes immediately and has no undo |
+| secrets | an agent must not mint, paste, or invent a credential |
+| marketplace installs | registering a source reaches every project on the machine |
+
+Only plan approval is conditional, through `--var autonomous=yes`, and skipping
+it does not skip its judgement: the run records on the interview step which paths
+the plan classed `overwrite` and which recipe owns each.
+
 ## Generators
 
 Language and framework scaffolds come from upstream CLIs. This repository owns
-the cross-cutting layers that render on top.
+the cross-cutting recipes that render on top.
 
 | Profile | Generator | Then |
 |---|---|---|
-| `agentic-repo` | none | layers only |
-| `rust-lib`, `rust-app` | `cargo new [--lib]` | layers |
+| `agentic-repo` | none | recipes only |
+| `rust-lib`, `rust-app` | `cargo new [--lib]` | recipes |
 | `rust-gui` | `rust-app`, then `create-tauri-app` at `apps/<name>` | add workspace member, set `edition.workspace` |
-| `python-lib`, `python-app` | `uv init [--lib]` | layers |
-| `go-lib`, `go-app` | `go mod init <path>` | layers |
-| `ts-lib` | `bun init` | layers |
-| `ts-app` | `create-better-t-stack create-json` | layers |
-| `ts-tui` | `create-better-t-stack` + `opentui` addon | layers |
-| `cdk` | `projen new awscdk-app-{ts,py}` | layers |
-| `terraform` | none | layers |
+| `python-lib`, `python-app` | `uv init [--lib]` | recipes |
+| `go-lib`, `go-app` | `go mod init <path>` | recipes |
+| `ts-lib` | `bun init` | recipes |
+| `ts-app` | `create-better-t-stack create-json` | recipes |
+| `ts-tui` | `create-better-t-stack` + `opentui` addon | recipes |
+| `cdk` | `projen new awscdk-app-{ts,py}` | recipes |
+| `terraform` | none | recipes |
 
-Every generator's output accepts copier layers additively. Verified: rendering
-a layer over `create-better-t-stack` and `projen` output writes only new paths,
+Every generator's output accepts recipes additively. Verified: rendering a
+recipe over `create-better-t-stack` and `projen` output writes only new paths,
 and a `projen` re-synth leaves those paths intact.
 
 ### projen
@@ -52,7 +135,7 @@ and a `projen` re-synth leaves those paths intact.
 Set `runner: typescript.TypeScriptRunner.tsx()`, `github: false`,
 `eslint: false`. The `tsx` runner is required: projen's default `ts-node`
 runner fails under TypeScript 7 (`ts-node` issue #2174). `github: false`
-removes projen's own workflows so the `host/*` layer owns CI.
+removes projen's own workflows so the `host/*` recipe owns CI.
 
 Bootstrap order matters. `projen new` writes a `ts-node` task, and the synth
 that would replace it is the thing that fails. Install `tsx`, then run
@@ -82,8 +165,8 @@ below is an enum `create-better-t-stack schema --name <axis>` emits:
 the same `apps/{web,server}` shape and land within one dependency of each other, 45 against
 44. orpc ships `@orpc/openapi` and its generated server registers an `OpenAPIHandler` and an
 `OpenAPIReferencePlugin`, so the contract exists as a document. trpc does not emit an OpenAPI at
-all. `lang/api` gates that document with vacuum and oasdiff, so orpc is what makes the
-contract layer mean anything for a `ts-app`.
+all. `lang/api` gates that document with vacuum and oasdiff, so orpc is what makes
+that gate mean anything for a `ts-app`.
 
 `database` defaults to `none` because it is one of the two questions
 `../rules/choices.md` marks as asked for `ts-app`. A CLI or a static site needs neither a
@@ -97,12 +180,12 @@ Addon defaults:
 | Addon | Default | Condition |
 |---|---|---|
 | `biome`, `turborepo` | on | always |
-| `starlight` | off | the `docs/site` layer supersedes it |
+| `starlight` | off | the `docs/site` recipe supersedes it |
 | `tauri` | off | `ts-app` wanting a desktop shell |
 | `opentui` | off | `ts-tui` |
 | `pwa` | off | asked |
 | `oxlint` | off | requesting it with `biome` drops it silently |
-| `mcp`, `skills`, `nx`, `husky`, `electrobun`, `wxt`, `ultracite`, `vite-plus`, `evlog` | off | superseded by a layer |
+| `mcp`, `skills`, `nx`, `husky`, `electrobun`, `wxt`, `ultracite`, `vite-plus`, `evlog` | off | superseded by a recipe |
 
 `mcp` writes MCP configuration that conflicts with globally managed config.
 
@@ -118,7 +201,7 @@ Monorepo is an axis that every profile crosses:
 | go | one module | `cmd/*`, `internal/*` |
 | ts | bun workspaces | `packages/*`, `apps/*` |
 
-`just add <name> <lang>` renders the language layer at the member path and
+`just add <name> <lang>` renders the language recipe at the member path and
 registers it in the workspace manifest.
 
 ## Fragment merging
@@ -137,7 +220,7 @@ has a native mechanism instead of a merge script.
 
 prek has no include directive and skips dot-prefixed directories during
 discovery, so a `.pre-commit.d/` fragment directory does not work. One
-directory with two language layers concatenates fragments in a `just` recipe.
+directory with two language recipes concatenates fragments in a `just` recipe.
 
 `just` has no glob import either, so one line per fragment has to be written, which
 is what `gen_justfile.py` does between two markers. `mod` was the alternative and
@@ -151,19 +234,19 @@ installs into `.git/hooks` when `core.hooksPath` is set repo-locally.
 
 ## CI
 
-The host layer is language-blind. Each language layer ships its own jobs and
+The host recipe is language-blind. Each language recipe ships its own jobs and
 setup action.
 
 ```
-templates/host/github/.github/
+recipes/host/github/.github/
   workflows/{wc-changes,wc-gate,wc-quality,wc-security}.yml
   actions/ci-gate/action.yml
-templates/lang/python/.github/
+recipes/lang/python/.github/
   workflows/{wc-lint-python,wc-test-python}.yml
   actions/setup-python/action.yml
 ```
 
-Inclusion follows from which layers render, not from a conditional in a
+Inclusion follows from which recipes render, not from a conditional in a
 filename. A conditional filename containing a quote breaks jinja compilation.
 
 GitHub needs a caller workflow wiring `needs:` between the reusable workflows;
@@ -171,7 +254,7 @@ the agent writes it from `rules/ci-composition.md`. GitLab does not need a calle
 because the glob include resolves the same set.
 
 Both hosts are supported. `*` in a GitLab include matches one level; `**`
-recurses. Glob order is not deterministic, so two layers must not set the same
+recurses. Glob order is not deterministic, so two recipes must not set the same
 key.
 
 ## Quality
@@ -206,7 +289,7 @@ Deploy topology depends on whether the build needs the code:
 | Topology | When | Mechanism |
 |---|---|---|
 | Sibling repo builds itself | default | `<name>.github.io` holds source; `upload-pages-artifact` and `deploy-pages` in that repo |
-| Code repo builds, publishes across | the `docs/api-refs` layer is selected | code repo builds, pushes rendered output to the sibling repo over an SSH deploy key |
+| Code repo builds, publishes across | the `docs/api-refs` recipe is selected | code repo builds, pushes rendered output to the sibling repo over an SSH deploy key |
 
 The second topology exists because API reference extraction needs the
 language toolchains, which live with the code. It costs a deploy key, and its
@@ -274,7 +357,7 @@ The build therefore loads into the local daemon rather than pushing. The scan re
 there, and the push is a separate step gated on that scan.
 
 A Dockerfile that already exists is never replaced, because whichever framework
-generated it owns it. The layer contributes the lint, the CI, and the ignore file around
+generated it owns it. The recipe contributes the lint, the CI, and the ignore file around
 whatever is there.
 
 ## Structural tool
@@ -361,20 +444,26 @@ a test docstring when a test pins it, a comment beside the code that works aroun
 it, or the decision record that measured it. Prose collected separately drifts from
 whatever enforces it, and nothing fails when it does.
 
-`AGENTS.md` is an index. Detail sits in `docs/agents`, reached through
-`.apm/context` pointers that `apm compile` weaves in. Directory structure is
-not documented here: gitnexus and repomix answer structural questions, and
-`index.md` names which of them this repository has.
+`AGENTS.md` is an index. The detail sits in `docs/agents`, and `docs/agents`
+writes `AGENTS.md` from its own `AGENTS.body.md`, with `CLAUDE.md` a relative
+symlink to it so one file serves both harnesses. Where `agentic/apm` also
+renders, `just apm-compile` weaves the installed packages' context into that same
+file. Directory structure is not documented here: gitnexus and repomix answer
+structural questions, and `index.md` names which of them this repository has.
 
 `env/index.md` records variable names and what fails without each. Never
 values.
 
 ## Skills
 
+Both skills are plain markdown at `skills/<name>/SKILL.md`. A harness reaches
+them through a pointer into that directory rather than through a compiled copy,
+so there is one source per skill and nothing to recompile after an edit.
+
 | Skill | Scope |
 |---|---|
-| `project-scaffold` | interview, render layers, generate steering |
-| `project-scaffold-update` | adopt a layer, apply template changes, retrofit an existing repository |
+| `project-scaffold` | interview, plan, render the recipe set, generate steering |
+| `project-scaffold-update` | adopt a recipe, merge recipe changes into a rendered repository, retrofit one that predates this tool |
 
 Regenerating steering is `just steering`, not a skill. It is a pure function of
 files on disk, with no prompts and no network, so a skill wrapping it would put

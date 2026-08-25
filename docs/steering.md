@@ -58,7 +58,7 @@ survives.
 
 | Output | Read from |
 |---|---|
-| `index.md` | rendered layer set, `mise.toml`, `rust-toolchain.toml`, workspace manifest |
+| `index.md` | rendered recipe set, `mise.toml`, `rust-toolchain.toml`, workspace manifest |
 | `quality/rust.md` | `clippy.toml`, `[lints]` in `Cargo.toml`, `rustfmt.toml`, `deny.toml` |
 | `quality/python.md` | `ruff.toml`, type checker configuration |
 | `quality/ts.md` | `biome.json`, `.oxlintrc.json` |
@@ -74,9 +74,12 @@ survives.
 
 ## Index files
 
-`AGENTS.md` and `CLAUDE.md` stay an index. Both are produced by `apm compile`
-from `.apm/` primitives, so the generator writes `.apm/context/*.context.md`
-pointers into `docs/agents/` and runs `apm compile` last.
+`AGENTS.md` and `CLAUDE.md` stay an index. The `docs/agents` recipe writes
+`AGENTS.md` from its own `AGENTS.body.md` and points `CLAUDE.md` at it with a
+relative symlink, so one file serves both harnesses. The steering generator
+never touches either: it rewrites marked blocks under `docs/agents/` alone. A
+repository that also renders `agentic/apm` gets `just apm-compile`, which weaves
+the installed packages' context into the same `AGENTS.md`.
 
 Directory structure is not documented. gitnexus and repomix answer structural
 questions, and `index.md` names which of the two this repository has.
@@ -113,7 +116,7 @@ rest accurate, and every row in the index table names a file that exists.
 ```sh
 bd init --prefix <p> --non-interactive --skip-hooks
 rm CLAUDE.md && ln -s AGENTS.md CLAUDE.md
-# then replace the AGENTS.md body with the layer's, keeping .codex/ untouched
+# then replace the AGENTS.md body with the recipe's, keeping .codex/ untouched
 ```
 
 `--skip-agents` is NOT used, because it also skips the codex lifecycle hooks that
@@ -132,8 +135,8 @@ context after compaction without prose. Keeping them and replacing the prose is
 therefore the order, not skipping both.
 
 The generated `AGENTS.md` is 127 lines carrying three overlapping beads blocks,
-and the `minimal` profile is not minimal, so the layer overwrites the body.
-`bd init --agents-template <file>` supplies it instead when the layer prefers
+and the `minimal` profile is not minimal, so the recipe overwrites the body.
+`bd init --agents-template <file>` supplies it instead when the recipe prefers
 that. `bd setup <recipe>` appends exactly one block and is idempotent on re-run.
 
 `--skip-hooks` is equally required. Without it `bd init` copies the ambient hook
@@ -158,18 +161,21 @@ paths, and a workflow that never runs leaves a required check pending forever.
 
 | Skill | Reads | Writes | Network |
 |---|---|---|---|
-| `project-scaffold` | interview answers, templates | a new repository | yes |
-| `project-scaffold-update` | templates, repository state | layers and marked blocks | yes |
+| `project-scaffold` | interview answers, recipes | a new repository | yes |
+| `project-scaffold-update` | recipes, repository state | rendered files and marked blocks | yes |
 
-Regenerating steering is a recipe rather than a skill. `just steering` takes no
+Regenerating steering is a `just` recipe rather than a skill. `just steering` takes no
 arguments and asks nothing, so given the same files on disk it produces the same
 output, which is what lets `just steering-check` verify it in CI. Wrapping a
 deterministic script in a skill would put a model in a decision that has none.
 
-`project-scaffold-update` handles a new layer, a template change landing in an
-existing repository, and retrofitting a repository scaffolded before this
-existed. `copier update` cannot run here, since a layer rendered from a local
-path records no `_commit`, so the method is re-render plus git diff.
+Both skills are plain markdown at `skills/<name>/SKILL.md`.
+
+`project-scaffold-update` handles a recipe a repository does not have yet, a
+recipe change that landed after it was scaffolded, and a repository that predates
+this tool. `copier update` cannot run here, because a recipe rendered from a
+local path records no `_commit`. `scripts/scaffold.py update` re-renders at the
+`_ref` that render recorded and merges the difference over local edits.
 
 Duplication and token-budget judgements belong to the `audit-steering` skill.
 The generator produces content and defers to it.
