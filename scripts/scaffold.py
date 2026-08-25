@@ -646,16 +646,22 @@ def demo_answers(profile: dict) -> dict:
 
 
 def run_build(profile: dict, dest: Path) -> int:
-    """`just setup`, then each command in the profile's own build, in the destination.
+    """Each command in the profile's own build, in the destination.
 
-    Setup first, because the build commands assume the toolchain the fragments
-    pin: three real defects (a missing lockfile, a yaml-less python, a mise pin
-    that cannot resolve) shipped precisely because no profile build exercised
-    the fresh-clone handoff. A setup failure counts as a build failure.
+    Where the profile needs no generator, `just setup` runs first: the build
+    commands assume the toolchain the fragments pin, and three real defects (a
+    missing lockfile, a yaml-less python, a mise pin that cannot resolve)
+    shipped because nothing exercised the fresh-clone handoff. A generator
+    profile cannot run setup here -- its installs read manifests only the
+    generator writes, and generators reach the network, which is why the
+    render deliberately skips them; the skill flow and the end-to-end
+    validation exercise that handoff instead. A setup failure counts as a
+    build failure.
     """
     failures = 0
     commands = list(profile.get("build") or [])
-    if (dest / "justfile").is_file() and shutil.which("just") and commands:
+    generatorless = (profile.get("generator") or "none") == "none"
+    if generatorless and (dest / "justfile").is_file() and shutil.which("just") and commands:
         commands.insert(0, "just setup")
     for command in commands:
         binary = command.split()[0]
