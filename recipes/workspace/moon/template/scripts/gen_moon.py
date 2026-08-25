@@ -113,6 +113,66 @@ def globs_from_manifest(dest: Path) -> tuple[list[str], str]:
     return [], ""
 
 
+# What an empty-layout render leaves in .moon/toolchain.yml: the template's else
+# branch, which is correct for go and a placeholder for everything else. The
+# bodies below mirror the template's other branches; settle_toolchain replaces
+# ONLY an exact placeholder, so a tuned file is never touched.
+TOOLCHAIN_HEAD = "$schema: 'https://moonrepo.dev/schemas/toolchain.json'\n"
+
+TOOLCHAIN_BODIES = {
+    "ts": """
+# `node` with no version key: mise installs the runtime, and moon uses whatever is on
+# PATH. Setting a version here would have moon download a second copy.
+node:
+  packageManager: 'bun'
+  bun: {}
+  # moon otherwise runs an install on every task, which mise and `just setup` already did.
+  inferTasksFromScripts: false""",
+    "rust": """
+rust:
+  # No `version`: rustup and mise own the toolchain. moon reads Cargo.toml to
+  # understand the workspace and leaves installation alone.
+  syncToolchainConfig: false""",
+    "python": """
+python:
+  # uv is the package manager, matching what lang/python and workspace/monorepo write.
+  packageManager: 'uv'
+  uv: {}""",
+}
+
+GO_STUB = (
+    "# go declares nothing here. moon 2.x has no go toolchain, so it shells out to the `go`\n"
+    "# on PATH, which mise pins. A bare `{}` was tried and is invalid YAML in this position:\n"
+    "# a flow mapping cannot follow the `$schema` block key."
+)
+
+KNOWN_GLOBS = ("crates/*", "packages/*", "cmd/*")
+
+
+def settle_from_manifest(dest: Path, layout: str, glob: str) -> None:
+    """Fix what an unanswered layout rendered: the toolchain body and the projects glob.
+
+    Guarded to the exact placeholder content, so a hand-tuned file is never
+    rewritten -- the same contract `_skip_if_exists` gives a re-render.
+    """
+    toolchain = dest / ".moon" / "toolchain.yml"
+    if layout in TOOLCHAIN_BODIES and toolchain.is_file():
+        current = toolchain.read_text()
+        if GO_STUB in current:
+            toolchain.write_text(TOOLCHAIN_HEAD + TOOLCHAIN_BODIES[layout].strip() + "\n")
+            print(f"settled .moon/toolchain.yml for {layout}")
+
+    workspace = dest / ".moon" / "workspace.yml"
+    if glob and workspace.is_file():
+        text = workspace.read_text()
+        for known in KNOWN_GLOBS:
+            wrong = f"  - '{known}'"
+            if known != glob and wrong in text and f"  - '{glob}'" not in text:
+                workspace.write_text(text.replace(wrong, f"  - '{glob}'", 1))
+                print(f"settled the projects glob to {glob}")
+                break
+
+
 def members(dest: Path, override: str = "") -> list[Path]:
     patterns, _ = globs_from_manifest(dest)
     if override:
@@ -329,10 +389,13 @@ def main() -> int:
     args = parser.parse_args()
 
     dest = args.dest
-    _, layout = globs_from_manifest(dest)
+    patterns, layout = globs_from_manifest(dest)
     if not layout:
         print("no workspace manifest found; nothing to generate", file=sys.stderr)
         return 0
+
+    if not args.check:
+        settle_from_manifest(dest, layout, args.members or (patterns[0] if patterns else ""))
 
     found = members(dest, args.members)
     if not found:

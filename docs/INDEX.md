@@ -42,7 +42,7 @@ Design lives in `recipes.md`; this file is the inventory.
 | `release/release-please` | 6 | 4 |
 | `workspace/just` | 0 | 3 |
 | `workspace/monorepo` | 12 | 6 |
-| `workspace/moon` | 5 | 6 |
+| `workspace/moon` | 3 | 6 |
 | `workspace/worktrunk` | 6 | 2 |
 
 ## `agentic/apm`
@@ -839,11 +839,9 @@ Requires `git` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
-| `layout` | `rust` | `python` | `go` | `ts` |  |
-| `project_name` | str |  |
+| `layout` | `` | `rust` | `python` | `go` | `ts` |  |
 | `members` | str |  |
 | `moon_version` | str | `2.4.6` |
-| `node_version` | str | `24` |
 
 Writes:
 

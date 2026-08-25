@@ -18,16 +18,16 @@ _skip_if_exists:
   - .moon/workspace.yml
   - .moon/toolchain.yml
 
+# Not asked. The workspace manifest already implies the mechanism -- Cargo.toml,
+# pyproject.toml, package.json, go.mod -- and gen_moon.py settles the toolchain
+# body and the projects glob from it after render. An answer is for the unusual
+# tree the detection misreads.
 layout:
   type: str
-  choices: [rust, python, go, ts]
+  choices: ["", rust, python, go, ts]
   help: >-
-    Which workspace mechanism the root manifest uses. It decides where members live
-    and which moon toolchain is declared.
-
-project_name:
-  type: str
-  help: The workspace name, used in the generated graph's comments.
+    Which workspace mechanism the root manifest uses. Empty derives it from the
+    manifest, which is the normal case.
   default: ""
 
 # Not asked. Every mechanism resolves members through a glob in the root manifest, so
@@ -47,13 +47,9 @@ moon_version:
     `layer`, so an older CLI rejects the generated files.
   default: "2.4.6"
 
-node_version:
-  type: str
-  help: >-
-    Node version moon's own toolchain declares. moon runs its javascript tasks through
-    this rather than an ambient node.
-  default: "24"
-  when: "{{ layout == 'ts' }}"
+# No project_name and no node_version. The graph's comments name no workspace, and
+# the toolchain declares no versions by design: mise owns every toolchain through
+# .mise/conf.d/, so a version here would give two managers one job.
 
 # `moon run` is not a copier task. It resolves the project graph and may reach the
 # network for its toolchain, so a render that had otherwise succeeded would fail on
