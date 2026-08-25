@@ -41,7 +41,10 @@ commit_scopes:
 # a language layer needs the merge again, and `just hooks-install` and
 # `just hooks-all` both run it first.
 _tasks:
+  # Through uv for the same reason hooks-merge is: merge_hooks.py imports yaml, and
+  # `scaffold update` re-runs tasks with the destination's ambient python3.
   - >-
+    uv run --no-project --with pyyaml
     python3 "{{ _copier_conf.dst_path }}/scripts/merge_hooks.py"
     "{{ _copier_conf.dst_path }}"
   # Said at render time, because the empty default is deliberate and silent: a

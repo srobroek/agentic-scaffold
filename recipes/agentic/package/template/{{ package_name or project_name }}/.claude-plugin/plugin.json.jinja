@@ -1,0 +1,15 @@
+{#-
+  <plugin>/.claude-plugin/plugin.json -- what Claude Code's /plugin install reads.
+
+  The catalog entry's `source` points at the plugin directory, and Claude resolves the
+  install from THIS manifest there: without it the plugin lists in the marketplace and
+  then fails to install. Same name and version as .omp-plugin/plugin.json --
+  scripts/build_catalog.py refuses a disagreement.
+-#}
+{%- set plugin = package_name or project_name -%}
+{%- set summary = description or ('The ' + plugin + ' plugin. Replace this description before publishing.') -%}
+{
+  "name": "{{ plugin }}",
+  "description": {{ summary | tojson }},
+  "version": "0.1.0"
+}

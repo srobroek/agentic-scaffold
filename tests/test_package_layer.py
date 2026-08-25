@@ -32,7 +32,11 @@ author: Sjors Robroek
 owner: srobroek
 """
 
-CATALOGS = (".omp-plugin/marketplace.json", ".claude-plugin/marketplace.json")
+CATALOGS = (
+    ".omp-plugin/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".agents/plugins/marketplace.json",
+)
 
 needs_just = pytest.mark.skipif(shutil.which("just") is None, reason="just absent from PATH")
 
@@ -61,9 +65,12 @@ def generator(dest: Path, *args: str) -> subprocess.CompletedProcess[str]:
 def add_plugin(dest: Path, name: str, **fields: object) -> Path:
     """A plugin added by hand, which is how the repository grows past its starter."""
     plugin = dest / name
-    (plugin / ".omp-plugin").mkdir(parents=True)
     manifest = {"name": name, "description": f"The {name} plugin.", "version": "0.2.0", **fields}
-    (plugin / ".omp-plugin" / "plugin.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    # Both manifests, like the starter: Claude installs from .claude-plugin's, and the
+    # generator refuses a plugin missing it or disagreeing on the version.
+    for owner in (".omp-plugin", ".claude-plugin"):
+        (plugin / owner).mkdir(parents=True)
+        (plugin / owner / "plugin.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return plugin
 
 
@@ -96,8 +103,9 @@ def test_the_repository_serves_omp_and_claude_from_one_source(package: Path) -> 
     same bytes at both paths make one repository serve both runtimes. Byte equality rather
     than equal payloads: the generator writes one string twice, and a difference would mean
     two writers."""
-    first, second = (package / name for name in CATALOGS)
-    assert first.read_bytes() == second.read_bytes()
+    first, *rest = (package / name for name in CATALOGS)
+    for other in rest:
+        assert first.read_bytes() == other.read_bytes(), other
     assert catalog(package)["name"] == "demo-market"
     assert catalog(package)["owner"] == {"name": "Sjors Robroek"}
     assert "native marketplace scaffold" in catalog(package)["metadata"]["description"]
@@ -234,6 +242,7 @@ def test_a_plugin_added_by_hand_reaches_both_catalogs(package: Path) -> None:
     assert entries[1]["category"] == "productivity"
     assert entries[1]["version"] == "0.2.0"
     assert (package / CATALOGS[0]).read_bytes() == (package / CATALOGS[1]).read_bytes()
+    assert (package / CATALOGS[0]).read_bytes() == (package / CATALOGS[2]).read_bytes()
 
 
 def test_an_unprefixed_capability_is_refused(package: Path) -> None:
@@ -289,15 +298,19 @@ def test_a_re_render_keeps_the_written_plugin_and_syncs_the_catalogs(package: Pa
     a version bumped by hand reaches them."""
     skill = package / "demo-skill" / "skills" / "demo-skill" / "SKILL.md"
     skill.write_text("---\nname: demo-skill\ndescription: Hand written.\n---\n\nReal body.\n")
-    manifest = package / "demo-skill" / ".omp-plugin" / "plugin.json"
-    payload = json.loads(manifest.read_text())
-    payload["version"] = "1.4.0"
-    manifest.write_text(json.dumps(payload, indent=2) + "\n")
+    # A release bumps BOTH manifests -- the generator refuses a pair that
+    # disagrees, since Claude reads one and OMP the other.
+    for owner in (".omp-plugin", ".claude-plugin"):
+        manifest = package / "demo-skill" / owner / "plugin.json"
+        payload = json.loads(manifest.read_text())
+        payload["version"] = "1.4.0"
+        manifest.write_text(json.dumps(payload, indent=2) + "\n")
 
     assert render("agentic/package", package, ANSWERS).returncode == 0
 
     assert "Real body." in skill.read_text()
-    assert json.loads(manifest.read_text())["version"] == "1.4.0"
+    omp_manifest = package / "demo-skill" / ".omp-plugin" / "plugin.json"
+    assert json.loads(omp_manifest.read_text())["version"] == "1.4.0"
     assert catalog(package)["plugins"][0]["version"] == "1.4.0"
 
 
@@ -372,3 +385,27 @@ def test_the_drift_check_reaches_ci() -> None:
     assert "just marketplace-check" in workflow
     # Guarded on the generator, since a repository without agentic/package has no catalogs.
     assert "if [ -f scripts/build_catalog.py ]" in workflow
+
+
+def test_a_plugin_without_a_claude_manifest_is_refused(package: Path) -> None:
+    """Claude installs from the per-plugin .claude-plugin/plugin.json at the entry's
+    source path: without one the plugin lists in the marketplace and then fails to
+    install, which is worse than not listing."""
+    (package / "demo-skill" / ".claude-plugin" / "plugin.json").unlink()
+
+    result = generator(package)
+
+    assert result.returncode == 1
+    assert "no .claude-plugin/plugin.json" in result.stderr
+
+
+def test_disagreeing_manifest_versions_are_refused(package: Path) -> None:
+    """One version per plugin: a manifest pair that disagrees makes the upgrade check
+    lie to one runtime or the other."""
+    claude = package / "demo-skill" / ".claude-plugin" / "plugin.json"
+    claude.write_text(claude.read_text().replace('"0.1.0"', '"0.9.9"'))
+
+    result = generator(package)
+
+    assert result.returncode == 1
+    assert "disagree on the version" in result.stderr

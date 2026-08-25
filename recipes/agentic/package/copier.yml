@@ -20,6 +20,7 @@ _scaffold:
 _skip_if_exists:
   - "{{ package_name or project_name }}/package.json"
   - "{{ package_name or project_name }}/.omp-plugin/plugin.json"
+  - "{{ package_name or project_name }}/.claude-plugin/plugin.json"
   - "{{ package_name or project_name }}/skills/{{ package_name or project_name }}/SKILL.md"
 
 project_name:

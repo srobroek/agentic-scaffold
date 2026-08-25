@@ -639,7 +639,7 @@ workflow to report a status.
 
 | Recipe | Writes | Variables |
 |---|---|---|
-| `agentic/package` | `<name>/{package.json, .omp-plugin/plugin.json, skills/<name>/SKILL.md}`, the `.omp-plugin/` and `.claude-plugin/` marketplace catalogs, `scripts/build_catalog.py`, `.just.d/package.just`, `.gitignore.d/package` | `project_name`, `package_name`, `description`, `author`, `owner` |
+| `agentic/package` | `<name>/{package.json, .omp-plugin/plugin.json, skills/<name>/SKILL.md}`, the `.omp-plugin/`, `.claude-plugin/`, and `.agents/plugins/` marketplace catalogs, `scripts/build_catalog.py`, `.just.d/package.just`, `.gitignore.d/package` | `project_name`, `package_name`, `description`, `author`, `owner` |
 | `agentic/beads` | `.beads/` through `bd init --init-if-missing --skip-hooks --server`, plus `.gitignore.d/beads` and `.just.d/beads.just` | `bd_prefix`, `bd_storage_mode`, `bd_dolt_sync`, `bd_sync_remote`, `bd_auto_export`, `bd_dolt_auto_commit`, `bd_push_command` |
 | `agentic/index` | `repomix.config.json`, `.gitignore.d/index`, `.just.d/index.just` | `index_languages`, `index_extra_ignores` |
 
@@ -648,10 +648,10 @@ the user's to state, so nothing here seeds one.
 
 ### `agentic/package`: a repository that is its own marketplace
 
-The layer renders one starter plugin and the two catalogs that publish it, holding the same
-bytes: OMP reads `.omp-plugin/marketplace.json` and falls back to
-`.claude-plugin/marketplace.json`, so one repository serves OMP and Claude Code from one
-source. The `agentic-repo` profile, the 17-repo shape with no language recipe, is where it
+The layer renders one starter plugin and the three catalogs that publish it, holding the
+same bytes: OMP reads `.omp-plugin/marketplace.json` and falls back to
+`.claude-plugin/marketplace.json`, Claude Code reads the second, and Codex reads
+`.agents/plugins/marketplace.json`, so one repository serves all three from one source. The `agentic-repo` profile, the 17-repo shape with no language recipe, is where it
 belongs. It grows to many plugins by adding directories, each with a manifest.
 
 What the runtimes require, measured on a 31-plugin estate:

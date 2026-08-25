@@ -3,7 +3,7 @@
 # Rebuild .gitlab-ci.yml's stages list from .gitlab/ci/
 [group('gitlab')]
 gitlab-sync:
-    @python3 scripts/gen_gitlab_stages.py .
+    @uv run --no-project --with pyyaml python3 scripts/gen_gitlab_stages.py .
 
 # A job naming a stage the pipeline does not declare fails the whole pipeline rather
 # than skipping, and the include is a glob, so a language layer adopted later can
@@ -19,7 +19,7 @@ gitlab-check:
     trap 'rm -rf "$scratch"' EXIT
     cp .gitlab-ci.yml "$scratch/.gitlab-ci.yml"
     ln -s "$PWD/.gitlab" "$scratch/.gitlab" 2>/dev/null || true
-    python3 scripts/gen_gitlab_stages.py "$scratch" >/dev/null
+    uv run --no-project --with pyyaml python3 scripts/gen_gitlab_stages.py "$scratch" >/dev/null
     if ! diff -q .gitlab-ci.yml "$scratch/.gitlab-ci.yml" >/dev/null; then
       echo "stages list is stale; run 'just gitlab-sync'" >&2
       diff .gitlab-ci.yml "$scratch/.gitlab-ci.yml" || true

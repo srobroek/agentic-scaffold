@@ -19,9 +19,9 @@ invisible to that comparer. Each plugin owns its version in
 `<plugin>/.omp-plugin/plugin.json`, so the catalog is assembled from those manifests
 rather than maintained beside them.
 
-Both catalogs receive the same bytes. OMP reads `.omp-plugin/marketplace.json` and
-falls back to `.claude-plugin/marketplace.json`, so a repository shipping both serves
-OMP and Claude Code from one source.
+All three catalogs receive the same bytes. OMP reads `.omp-plugin/marketplace.json`
+and falls back to `.claude-plugin/marketplace.json`; Codex reads
+`.agents/plugins/marketplace.json`. One repository serves all three from one source.
 
 `--check` compares the committed catalogs against what this would write, and writes
 nothing: that is what `just marketplace-check` and CI run. A gate that regenerates
@@ -43,8 +43,13 @@ MARKETPLACE_NAME = {{ marketplace | tojson }}
 OWNER = {{ author | tojson }}
 DESCRIPTION = {{ summary | tojson }}
 
-# Both paths are written, and OMP prefers the first.
-CATALOGS = (".omp-plugin/marketplace.json", ".claude-plugin/marketplace.json")
+# All three paths receive the same bytes. OMP prefers the first and falls back to the
+# second; Claude Code reads the second; Codex discovers plugins through the third.
+CATALOGS = (
+    ".omp-plugin/marketplace.json",
+    ".claude-plugin/marketplace.json",
+    ".agents/plugins/marketplace.json",
+)
 
 # Capability directories OMP locates by path. `plugin.json` remaps `skills` and
 # `commands` and nothing else, so a capability outside these is not discovered at all.
@@ -104,6 +109,25 @@ def catalog(repo: Path) -> tuple[dict[str, object], list[str]]:
                 f"{plugin.name}: plugin.json names it {manifest['name']!r}, "
                 "but the catalog resolves `source` by directory"
             )
+
+        # Claude's /plugin install reads the per-plugin manifest at the entry's
+        # `source` path -- without one the plugin lists but does not install --
+        # and a version disagreeing with .omp-plugin's makes the upgrade check
+        # lie to one runtime or the other.
+        claude = plugin / ".claude-plugin" / "plugin.json"
+        if not claude.is_file():
+            problems.append(f"{plugin.name}: no .claude-plugin/plugin.json beside .omp-plugin's")
+        else:
+            try:
+                claude_manifest = json.loads(claude.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                problems.append(f"{plugin.name}: .claude-plugin/plugin.json is not valid JSON: {exc}")
+            else:
+                if claude_manifest.get("version") != manifest["version"]:
+                    problems.append(
+                        f"{plugin.name}: the two plugin manifests disagree on the version "
+                        f"({claude_manifest.get('version')!r} vs {manifest['version']!r})"
+                    )
         problems += [
             f"{plugin.name}: {problem} is not prefixed with the plugin name"
             for problem in unprefixed(plugin.name, capabilities(plugin))

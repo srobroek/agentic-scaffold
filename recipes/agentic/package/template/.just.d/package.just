@@ -1,7 +1,7 @@
 # Marketplace recipes, contributed by agentic/package and imported by the root justfile.
 #
-# `.omp-plugin/marketplace.json` and `.claude-plugin/marketplace.json` are COMMITTED
-# generated artefacts. OMP and Claude Code resolve a marketplace straight from a clone
+# `.omp-plugin/`, `.claude-plugin/`, and `.agents/plugins/` marketplace.json are COMMITTED
+# generated artefacts. OMP, Claude Code, and Codex resolve a marketplace straight from a clone
 # with no build step, so a catalog that exists only after a build is one nobody can
 # install from. scripts/build_catalog.py is their only writer, which is what makes the
 # check below able to report drift rather than its own idea of the bytes.
