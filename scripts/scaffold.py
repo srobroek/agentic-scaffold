@@ -800,17 +800,20 @@ def update_recipe(source: Source, dest: Path, data: dict) -> int:
                 touched_fragments.add(rel.split("/", 1)[0])
 
         if conflicts == 0:
+            # Task-written files -- LICENSE, the folded .gitignore -- exist in
+            # no scratch render (tasks stay off there), so the merge above never
+            # moves them. Every recipe's tasks are idempotent, so the dest runs
+            # them once against the refreshed answers and the outputs catch up.
+            # Tasks FIRST: a task failure exits 4 with the answers file and
+            # _ref both unmoved -- the same not-applied invariant a conflict
+            # gets -- so the re-run replays everything, including the tasks.
+            run_recipe_tasks(source, dest, merged)
             for rel in answer_rels:
                 shutil.copyfile(new / rel, dest / rel)
                 print(f"  answers   {rel}")
 
     if conflicts == 0:
         record_ref(source, dest, config)
-        # Task-written files -- LICENSE, the folded .gitignore -- exist in no
-        # scratch render (tasks stay off there), so the merge above never moves
-        # them. Every recipe's tasks are idempotent, so the dest runs them once
-        # against the refreshed answers and the task outputs catch up.
-        run_recipe_tasks(source, dest, merged)
     else:
         # The answers file and _ref stay where they were: a conflicted update
         # is not applied. Resolve the markers, commit, and re-run -- the
