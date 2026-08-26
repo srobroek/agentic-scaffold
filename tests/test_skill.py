@@ -381,26 +381,27 @@ def test_the_release_train_is_one_root_component() -> None:
     assert any(entry["path"] == ".claude-plugin/plugin.json" for entry in extra)
 
 
-def test_the_three_catalogs_are_identical_and_track_the_release() -> None:
-    """One catalog serves OMP, Claude Code, and Codex; three copies exist only
-    because each runtime reads its own path. Divergence would install different
-    things per harness, and a version that trails plugin.json makes the upgrade
-    check lie -- release-please bumps all of them through extra-files."""
+def test_the_two_catalogs_are_identical_and_carry_no_version() -> None:
+    """One catalog serves every runtime: Claude Code and OMP read .claude-plugin
+    (OMP falls back to it), Codex reads .agents/plugins. Two copies exist only
+    because the paths differ; divergence would install different things per
+    harness. No version fields on purpose -- the install resolves the version
+    from the plugin's own .claude-plugin/plugin.json (probed live: a versionless
+    entry survived normalization and installed at the manifest's version), so
+    release-please bumps exactly one file.
+    """
     import json
 
     catalogs = [
-        REPO_ROOT / ".omp-plugin" / "marketplace.json",
         REPO_ROOT / ".claude-plugin" / "marketplace.json",
         REPO_ROOT / ".agents" / "plugins" / "marketplace.json",
     ]
-    first, *rest = catalogs
-    for other in rest:
-        assert first.read_bytes() == other.read_bytes(), other
+    first, second = catalogs
+    assert first.read_bytes() == second.read_bytes()
 
-    plugin = json.loads((REPO_ROOT / ".claude-plugin" / "plugin.json").read_text())
-    catalog = json.loads(first.read_text())
-    assert catalog["plugins"][0]["version"] == plugin["version"]
+    entry = json.loads(first.read_text())["plugins"][0]
+    assert "version" not in entry, "the version lives in plugin.json alone"
     # "./", never ".": omp's marketplace normalizer drops a bare-dot source
     # entirely (probed against a local catalog carrying ".", "./", "./sub" --
     # only the latter two survived), so the plugin would list nowhere.
-    assert catalog["plugins"][0]["source"] == "./"
+    assert entry["source"] == "./"
