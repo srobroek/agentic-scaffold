@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.4](https://github.com/srobroek/agentic-scaffold/compare/v3.0.3...v3.0.4) (2026-08-26)
+
+
+### Bug Fixes
+
+* **cli:** skip disabled questions in the validator preflight, pin the real recipe ([2f6a6b1](https://github.com/srobroek/agentic-scaffold/commit/2f6a6b1b1120fe4aec8e8a448498cb12eeccad32))
+
 ## [3.0.3](https://github.com/srobroek/agentic-scaffold/compare/v3.0.2...v3.0.3) (2026-08-26)
 
 
