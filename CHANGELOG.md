@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.3](https://github.com/srobroek/agentic-scaffold/compare/v3.0.2...v3.0.3) (2026-08-26)
+
+
+### Bug Fixes
+
+* **cli:** run question validators in the check-answers preflight ([bec5363](https://github.com/srobroek/agentic-scaffold/commit/bec536346a9ebb4e40a670e662a34316517f11c6))
+
 ## [3.0.2](https://github.com/srobroek/agentic-scaffold/compare/v3.0.1...v3.0.2) (2026-08-26)
 
 
