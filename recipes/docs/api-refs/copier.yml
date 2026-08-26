@@ -28,6 +28,12 @@ api_ref_languages:
     and one page under the reference section. Empty writes none, so the adopt
     flow derives the list from the tree before rendering.
   default: []
+  validator: >-
+    {% for lang in api_ref_languages if lang not in ['rust', 'python', 'ts'] %}
+    no extractor exists for '{{ lang }}': supported are rust, python, ts.
+    An unsupported language renders the freshness gate with nothing behind
+    it -- a gate that can never pass.
+    {% endfor %}
 
 api_ref_section:
   type: str

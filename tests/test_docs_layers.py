@@ -326,3 +326,18 @@ def test_the_pages_repo_derives_from_the_owner(tmp_path: Path) -> None:
     render("docs/deploy-split", dest, "org: acme\n")
     body = (dest / ".github" / "workflows" / "docs-publish.yml").read_text()
     assert "external_repository: acme/acme.github.io" in body
+
+
+def test_an_unsupported_reference_language_is_refused(tmp_path: Path) -> None:
+    """Only rust, python, and ts have extractor stubs. A `go` answer used to render
+    the freshness gate with no extractor behind it -- a gate that can never pass --
+    so the validator refuses it at answer time."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    result = render(
+        "docs/api-refs",
+        dest,
+        "api_ref_languages: [go]\napi_ref_section: reference\n",
+    )
+    assert result.returncode != 0
+    assert not (dest / "docs" / "site" / "scripts" / "check-api-refs-fresh.sh").exists()
