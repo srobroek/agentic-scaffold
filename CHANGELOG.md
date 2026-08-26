@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/srobroek/agentic-scaffold/compare/v1.0.0...v1.1.0) (2026-08-26)
+
+
+### Features
+
+* serve the skills from a marketplace catalog again ([#9](https://github.com/srobroek/agentic-scaffold/issues/9)) ([bf14428](https://github.com/srobroek/agentic-scaffold/commit/bf144289bf14e7a18e9e227f66473ddb5d881550))
+
+
+### Bug Fixes
+
+* point the catalog source at "./", which the normalizer keeps ([#11](https://github.com/srobroek/agentic-scaffold/issues/11)) ([fd69dbd](https://github.com/srobroek/agentic-scaffold/commit/fd69dbd8c179e7fab6cd5b427321327db86139a6))
+
 ## [1.0.0](https://github.com/srobroek/agentic-scaffold/compare/v0.2.2...v1.0.0) (2026-08-26)
 
 
