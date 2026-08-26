@@ -126,10 +126,12 @@ jobs:
           manifest-file: .release-please-manifest.json
 {%- if release_app and sync_generated %}
 
-      # release-please writes the version into apm.yml and the manifest, and stops there. The
-      # marketplace catalogs carry that same version per package, so they go stale the moment
-      # the release pull request opens and `just packages` fails on the drift -- measured on this
-      # scaffold's own PR #2, two differences, one per package.
+      # The marketplace catalogs repeat each plugin's version, and release-please bumps only
+      # the files its config names. Once that config names the plugin manifests -- the
+      # per-plugin `extra-files` shape a marketplace grows into past its first plugin -- both
+      # catalogs go stale the moment the release pull request opens, and `just
+      # marketplace-check` fails on the drift. Under the plain single-component config
+      # nothing the catalogs carry moves, and the step reports "already in sync".
       #
       # Amending them onto the release branch is what clears it. The push uses the App token, so
       # the resulting commit triggers the required checks; a GITHUB_TOKEN push would not, and the
@@ -148,19 +150,21 @@ jobs:
           git fetch "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" "$RELEASE_BRANCH"
           git checkout FETCH_HEAD
 
-          # `package-build` is the recipe agentic/package ships. Checked rather than assumed:
-          # just reports `justfile does not contain recipe` and exits 1, which reads as a broken
-          # workflow rather than a layer that never rendered. This repository hit exactly that.
-          if ! just --list 2>/dev/null | grep -q 'package-build'; then
-            echo "::error::no package-build recipe; sync_generated needs the agentic/package layer"
+          # `marketplace-build` is the recipe agentic/package ships. Checked rather than
+          # assumed: just reports `justfile does not contain recipe` and exits 1, which reads as
+          # a broken workflow rather than a layer that never rendered. This repository hit
+          # exactly that.
+          if ! just --list 2>/dev/null | grep -q 'marketplace-build'; then
+            echo "::error::no marketplace-build recipe; sync_generated needs the agentic/package layer"
             exit 1
           fi
-          just package-build
+          just marketplace-build
 
-          # release-please rewrites apm.yml to bump `version`, and its YAML writer drops every
-          # comment in the file. A repository whose manifest carries a rationale nobody can infer
-          # from the keys defines `release-restore` to put it back; the recipe is optional, so a
-          # repository with no comments to restore needs nothing.
+          # release-please rewrites the version in whatever file its release-type owns, and its
+          # YAML writer drops every comment in a file it touches. A repository whose manifest
+          # carries a rationale nobody can infer from the keys defines `release-restore` to put
+          # it back; the recipe is optional, so a repository with no comments to restore needs
+          # nothing.
           if just --list 2>/dev/null | grep -q 'release-restore'; then
             just release-restore
           fi

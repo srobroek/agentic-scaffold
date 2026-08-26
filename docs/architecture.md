@@ -27,7 +27,8 @@ What renders comes from three inputs:
 | Derived | `rules/choices.md`, applied by the agent | task runner, license, CI job set |
 | Asked | interview, one question at a time | project name, language, repo visibility |
 
-The interview is six questions. Everything else is fixed or derived.
+The interview asks what nothing derives -- a short opening round, then rounds
+grilling the application's shape. Everything else is fixed or derived.
 
 ## Plan before render
 
@@ -83,6 +84,25 @@ touched, since folding is the generated repository's own work.
 
 A remote copier template keeps its `_commit`, so `copier update` remains the
 right tool for that source.
+
+## Recipe authoring rules
+
+Applied across every recipe in the 2026-08 question audit; a new recipe follows
+them or its review says why not.
+
+| Rule | Example |
+|---|---|
+| A question may not ask what the tree already says | `release_type` reads rust-toolchain.toml, pyproject.toml, package.json, go.mod; `simple` is the no-marker fallback |
+| A question may not ask what the toolchain or generator already decided | an empty `rust_edition` keeps what `cargo init` wrote; `go_version` reads go.mod's directive back |
+| A version pin resolves latest at render where the backend lists fast, with a verified floor as the offline fallback; a backend that resolves by listing module versions, or a pin renovate owns in the rendered repo, stays concrete | `resolve_versions.py` asks `mise latest` for opentofu and tflint; govulncheck is pinned concrete because mise's go backend timed out on every measured resolve |
+| A blank a user must fill stays blank, never guessed | `aws_region` and `state_bucket` render empty and fail at `tofu init` with their own message |
+| A question consumed by nothing is deleted, not defaulted | `python_framework` was asked, recorded, and read by nothing |
+
+Settling happens in a `_tasks` script that rewrites only an exact placeholder the
+render produced, so a hand-tuned file is never touched -- the same contract
+`_skip_if_exists` gives a re-render. A value that decides template-time structure
+(a Dockerfile body, a conditional filename) cannot settle afterwards and is
+derived by the skill from the same markers instead.
 
 ## Run record
 
@@ -446,10 +466,9 @@ whatever enforces it, and nothing fails when it does.
 
 `AGENTS.md` is an index. The detail sits in `docs/agents`, and `docs/agents`
 writes `AGENTS.md` from its own `AGENTS.body.md`, with `CLAUDE.md` a relative
-symlink to it so one file serves both harnesses. Where `agentic/apm` also
-renders, `just apm-compile` weaves the installed packages' context into that same
-file. Directory structure is not documented here: gitnexus and repomix answer
-structural questions, and `index.md` names which of them this repository has.
+symlink to it so one file serves both harnesses. Directory structure is not
+documented here: gitnexus and repomix answer structural questions, and `index.md`
+names which of them this repository has.
 
 `env/index.md` records variable names and what fails without each. Never
 values.

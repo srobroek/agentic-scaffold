@@ -171,9 +171,9 @@ def test_no_test_hardcodes_a_mise_latest_path() -> None:
 def test_every_binary_a_recipe_invokes_is_pinned() -> None:
     """A recipe shelling out to an unpinned tool exits 127 in CI while passing locally.
 
-    `just packages` did exactly that: apm came from pipx outside any pin, so the recipe worked
-    here and failed on the runner. The requires_bin check above did not catch it, because no
-    layer declares apm -- the scaffold's own justfile invokes it.
+    The `requires_bin` check above covers what a recipe declares. This covers what this
+    repository's own justfile invokes, which no layer declares: a pipx-installed tool
+    outside any pin passed here and exited 127 on the runner.
     """
     justfile = (REPO_ROOT / "justfile").read_text()
 
@@ -192,11 +192,53 @@ def test_every_binary_a_recipe_invokes_is_pinned() -> None:
 
     # Provided by the runner image, by uv, or by just itself.
     from_elsewhere = {
-        "git", "python3", "echo", "cd", "mkdir", "cp", "rm", "test", "then", "else", "done",
-        "exit", "printf", "grep", "sed", "awk", "find", "sort", "uniq", "head", "tail", "cat",
-        "just", "uv", "true", "false", "export", "local", "shift", "read", "case", "esac",
-        "while", "do", "trap", "shopt", "diff", "ls", "wc", "tr", "xargs", "bash", "sh", "gh",
-        "cargo", "npm", "npx",
+        "git",
+        "python3",
+        "echo",
+        "cd",
+        "mkdir",
+        "cp",
+        "rm",
+        "test",
+        "then",
+        "else",
+        "done",
+        "exit",
+        "printf",
+        "grep",
+        "sed",
+        "awk",
+        "find",
+        "sort",
+        "uniq",
+        "head",
+        "tail",
+        "cat",
+        "just",
+        "uv",
+        "true",
+        "false",
+        "export",
+        "local",
+        "shift",
+        "read",
+        "case",
+        "esac",
+        "while",
+        "do",
+        "trap",
+        "shopt",
+        "diff",
+        "ls",
+        "wc",
+        "tr",
+        "xargs",
+        "bash",
+        "sh",
+        "gh",
+        "cargo",
+        "npm",
+        "npx",
         # mise cannot pin itself: it is what installs everything else, and mise-action puts it
         # on the runner's PATH.
         "mise",

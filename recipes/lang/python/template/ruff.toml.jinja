@@ -28,6 +28,12 @@ convention = "google"
 # `ruff check --fix` rewrites a code to its name for you.
 # A test asserts, and a bare assert is the point.
 "tests/**" = ["assert", "ANN"]
+# scripts/ is scaffold-shipped plumbing (hook merge, steering, governance), vendored
+# with its provenance and re-synced from upstream rather than authored here, so the
+# project's docstring contract and subprocess pedantry do not apply to it. Verified on
+# a fresh render: the shipped scripts fail DOC and the subprocess S rules under this
+# very config, so without this block `just check` is red before the first commit.
+"scripts/**" = ["DOC", "start-process-with-partial-path", "subprocess-without-shell-equals-true"]
 
 
 [format]

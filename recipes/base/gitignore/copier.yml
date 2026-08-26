@@ -8,7 +8,6 @@ _scaffold:
   requires_bin: [gh]
   after:
     - base/repo
-    - agentic/apm
     - agentic/beads
 
 gitignore_templates:

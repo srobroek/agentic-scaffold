@@ -66,6 +66,10 @@ org:
 # layer adopted later cannot leave a fragment declaring a stage the pipeline does not
 # name. GitLab fails the whole pipeline on that, rather than skipping the job.
 _tasks:
+  # Through uv, because gen_gitlab_stages.py imports yaml: at render time the CLI's own
+  # environment carries it, but `scaffold update` re-runs tasks with the destination's
+  # ambient python3, which ships without it.
   - >-
+    uv run --no-project --with pyyaml
     python3 "{{ _copier_conf.dst_path }}/scripts/gen_gitlab_stages.py"
     "{{ _copier_conf.dst_path }}"

@@ -9,6 +9,9 @@
 # than its minimum_release_age, and pinning the hidden one fails to install.
 [tools]
 prek = "0.4.11"
+# hooks-merge runs merge_hooks.py through `uv run --with pyyaml`; without this pin a
+# repository with no python layer has no uv at all.
+uv = "latest"
 betterleaks = "1.7.1"
 trufflehog = "3.96.0"
 typos = "1.48.0"

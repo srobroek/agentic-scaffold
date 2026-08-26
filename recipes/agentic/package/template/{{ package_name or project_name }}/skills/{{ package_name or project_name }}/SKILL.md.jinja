@@ -1,0 +1,23 @@
+---
+name: {{ package_name or project_name }}
+description: {{ description or ('The ' + (package_name or project_name) + ' plugin. Replace this description before publishing.') }}
+---
+
+# {{ package_name or project_name }}
+
+Replace this body with the skill's instructions. The frontmatter `description` is what an
+agent matches against when it decides whether to load the skill, so it says what the skill
+does and when to use it, not what it is.
+
+## Where a capability goes
+
+OMP locates a skill at `skills/<name>/SKILL.md` without recursion, and identifies it by the
+bare frontmatter `name`. Names deduplicate across every configured source and the first
+match wins, so the owning plugin's name is the prefix that stops one resolving to someone
+else's capability of the same name. This skill carries the plugin name itself; a second one
+here goes under `skills/{{ package_name or project_name }}-<thing>/`, and the same rule
+holds for `agents/<name>.md`, `commands/<name>.md`, and `rules/<name>.md`.
+`scripts/build_catalog.py` refuses a capability that breaks it.
+
+Long skills split their detail into `references/*.md` beside this file and link to it, so
+the always-loaded body stays short. This starter ships none; add them as the skill grows.

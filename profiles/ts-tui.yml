@@ -13,18 +13,15 @@ layers:
   - release/release-please
   - docs/agents
   - docs/adr
-  - agentic/apm
   - agentic/beads
   - agentic/index
   - quality/hooks
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
 
 answers:
   license: agpl-3.0-only
   node_version: "24"
-  release_type: node
   # A terminal application publishes no site, so docs/site is absent rather than off.
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a

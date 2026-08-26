@@ -25,13 +25,23 @@ description:
   help: one line for the site. Empty omits the key rather than writing a blank one.
   default: ""
 
-# Mandatory, not a convenience. Without an explicit `site:` the Astro sitemap
-# integration warns and emits nothing, so the sitemap is silently absent.
+org:
+  type: str
+  help: >-
+    Owning person or organisation -- the GitHub owner. Read only to derive the
+    two URL defaults below.
+  default: ""
+
+# Mandatory for the sitemap, derivable for the default topology. Without an
+# explicit `site:` the Astro sitemap integration warns and emits nothing, so the
+# sitemap is silently absent. The default is where the sibling Pages repository
+# serves; a custom domain overrides it.
 site_url:
   type: str
   help: >-
-    Absolute URL the site is served from, such as https://owner.github.io/repo. Required:
-    without it the sitemap is generated empty and nothing fails.
+    Absolute URL the site is served from. Empty derives https://<org>.github.io,
+    the default Pages topology; a custom domain overrides it.
+  default: "{% if org %}https://{{ org }}.github.io{% endif %}"
 
 docs_engine:
   type: str
@@ -50,9 +60,11 @@ node_version:
 repo_url:
   type: str
   help: >-
-    Repository URL. Non-empty wires the edit link and a source link; empty omits both
-    rather than rendering a dead one.
-  default: ""
+    Repository URL, wiring the edit link and a source link. Empty derives
+    https://github.com/<org>/<project> where both are known; an explicit empty
+    answer omits both links rather than rendering a dead one.
+  default: >-
+    {% if org and project_name %}https://github.com/{{ org }}/{{ project_name }}{% endif %}
 
 sidebar_autogenerate:
   type: bool

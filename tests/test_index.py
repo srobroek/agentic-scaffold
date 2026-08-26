@@ -68,8 +68,17 @@ def test_the_index_lists_only_files_git_tracks() -> None:
         if line.strip() and not line.startswith(("#", "|", "`", "Writes", "Requires", "Generated"))
     }
     ignored = subprocess.run(
-        ["git", "-C", str(REPO_ROOT), "ls-files", "--others", "--ignored", "--exclude-standard",
-         "--", "recipes"],
+        [
+            "git",
+            "-C",
+            str(REPO_ROOT),
+            "ls-files",
+            "--others",
+            "--ignored",
+            "--exclude-standard",
+            "--",
+            "recipes",
+        ],
         capture_output=True,
         text=True,
         check=True,

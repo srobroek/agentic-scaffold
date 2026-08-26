@@ -581,3 +581,19 @@ def test_the_lock_script_writes_a_lock_for_every_root(terraform: Path) -> None:
         assert 'provider "registry.opentofu.org/hashicorp/aws"' in text
         # One h1 hash per platform per provider, so a single-platform lock is short.
         assert text.count("h1:") >= 4, f"{root}'s lock covers too few platforms"
+
+
+def test_empty_versions_resolve_and_never_render_blank(tmp_path: Path) -> None:
+    """Empty answers ask mise for the newest release, with the recipe's floor as
+    the offline fallback; either way no rendered pin may be blank."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    result = render("iac/terraform", dest, ANSWERS)  # ANSWERS pins no versions
+    assert result.returncode == 0, result.stderr
+
+    mise = (dest / ".mise" / "conf.d" / "terraform.toml").read_text()
+    for tool in ("opentofu", "tflint"):
+        pin = next(line for line in mise.splitlines() if line.startswith(f"{tool} = "))
+        assert pin.split('"')[1], f"{tool} pin rendered blank"
+    versions_tf = (dest / "infra" / "versions.tf").read_text()
+    assert 'required_version = ">= "' not in versions_tf

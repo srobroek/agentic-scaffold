@@ -6,7 +6,7 @@
   tfvars file and tofu will not read it as one: it holds backend settings only, and
   `just plan <env>` passes it to init while passing the .tfvars to plan.
 -#}
-bucket = "{{ state_bucket | default(project_name | default('project', true) ~ '-tofu-state', true) }}"
+bucket = "{{ state_bucket }}"
 key    = "{{ env }}/tofu.tfstate"
 region = "{{ aws_region }}"
 

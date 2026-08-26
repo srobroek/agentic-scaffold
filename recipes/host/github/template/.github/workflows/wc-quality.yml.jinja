@@ -48,13 +48,12 @@ jobs:
             just gitlab-check
           fi
           # The marketplace catalogs, when agentic/package rendered. They are committed
-          # generated artefacts, so a package added to apm.yml without a repack leaves them
-          # behind and a consumer resolving from a clone never sees it. `--dry-run` is
-          # load-bearing on `--check-clean`: without it the run regenerates and the check
-          # passes against what it just wrote.
-          if [ -f apm.yml ] && grep -q 'marketplace:' apm.yml; then
-            just package-check
-            just package-versions
+          # generated artefacts, so a plugin added or a version bumped without a rebuild
+          # leaves them behind and an install resolving from a clone never sees it. The
+          # generator's `--check` writes nothing, so a failure here is reproducible and
+          # leaves no dirty tree behind.
+          if [ -f scripts/build_catalog.py ]; then
+            just marketplace-check
           fi
 
       # The layer that actually enforces. A local hook is advisory: --no-verify

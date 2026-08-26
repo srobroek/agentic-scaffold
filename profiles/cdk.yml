@@ -9,25 +9,31 @@ summary: An AWS CDK application, owned by projen.
 generator: projen new awscdk-app-ts
 
 layers:
-  - base/license
   - base/repo
   - lang/ts
+  # Before host/github: its re-synth task runs projen with `github: false` and
+  # `licensed: false`, removing the read-only github component and the Apache-2.0
+  # LICENSE `projen new` synthesised, so the host layer can own .github and
+  # base/license -- rendered after for exactly that reason -- can own LICENSE.
+  - iac/cdk
+  - base/license
   - host/github
   - release/release-please
   - docs/agents
   - docs/adr
-  - iac/cdk
-  - agentic/apm
   - agentic/beads
   - agentic/index
   - quality/hooks
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
 
 answers:
   license: agpl-3.0-only
   node_version: "24"
+  # The root shape lies here: projen owns package.json and regenerates it, so a
+  # node release-type editing its version would fight the generator. simple keeps
+  # the version in version.txt, which nothing else owns.
+  release_type: simple
   # github: false in .projenrc.ts, so the host layer's reusable workflows are the only CI.
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a

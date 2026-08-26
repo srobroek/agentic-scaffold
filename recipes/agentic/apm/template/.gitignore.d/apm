@@ -1,3 +1,0 @@
-# apm installs the resolved package tree here. It is a lockfile-driven artefact
-# rebuilt by `just apm-install`, so committing it would vendor every dependency.
-apm_modules/

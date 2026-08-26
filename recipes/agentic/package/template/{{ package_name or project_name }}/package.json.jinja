@@ -1,0 +1,19 @@
+{#-
+  <plugin>/package.json -- the `omp` key is a marker, not a payload.
+
+  OMP walks a plugin's sibling rules/ and agents/ roots only for an extension package it
+  RECOGNISES, and recognition comes from a package.json carrying an `omp` key. Without
+  one, `omp plugin doctor` reports "not an omp plugin" and the plugin's rules and agents
+  are silently absent while its skills still load. The key stays empty for a plugin
+  shipping no extension modules.
+-#}
+{%- set plugin = package_name or project_name -%}
+{%- set summary = description or ('The ' + plugin + ' plugin. Replace this description before publishing.') -%}
+{%- set scope = owner or (author | lower | replace(' ', '-')) -%}
+{
+  "name": "@{{ scope }}/{{ plugin }}",
+  "version": "0.1.0",
+  "description": {{ summary | tojson }},
+  "private": true,
+  "omp": {}
+}

@@ -13,19 +13,16 @@ layers:
   - release/release-please
   - docs/agents
   - docs/adr
-  - agentic/apm
   - agentic/beads
   - agentic/index
   - quality/hooks
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
 
 answers:
   # A niche library has no substitute, so copyleft friction is zero.
   license: mpl-2.0
   crate_kind: lib
-  release_type: rust
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a
 # command needing generator output (cargo build, go build, a projen synth) would fail

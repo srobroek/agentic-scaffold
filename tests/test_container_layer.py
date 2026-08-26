@@ -163,7 +163,7 @@ def test_the_dockerignore_excludes_state_and_secrets(container: Path) -> None:
         for line in (container / ".dockerignore").read_text().splitlines()
         if line.strip() and not line.startswith("#")
     }
-    for name in (".git", ".env", ".venv", "node_modules", ".beads", "apm_modules"):
+    for name in (".git", ".env", ".venv", "node_modules", ".beads"):
         assert name in patterns, f"{name} belongs out of the build context"
 
 

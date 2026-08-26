@@ -39,30 +39,37 @@ environments:
     Order is kept, so the first is what a bare `just plan` uses.
   default: [dev, prod]
 
+# Both stay blank rather than guessed: cloud setup is the user's, and the agent
+# customises after the mechanical render. A blank value fails at `tofu init`
+# with its own message, which is the right place to learn it is unset.
 aws_region:
   type: str
-  help: Region the provider and the backend both default to.
-  default: eu-west-1
+  help: Region the provider and the backend both default to. Blank until the user sets it.
+  default: ""
 
 state_bucket:
   type: str
   help: >-
-    S3 bucket holding state, which `infra/bootstrap` creates. Empty renders
-    `<project_name>-tofu-state`.
+    S3 bucket holding state, which `infra/bootstrap` creates. Blank until the
+    user sets it.
   default: ""
 
 opentofu_version:
   type: str
   help: >-
-    Minimum version, pinned in required_version and the mise fragment. 1.10 or
-    later is required: `use_lockfile` on the S3 backend does not exist before it,
-    and the layer configures no DynamoDB lock table.
-  default: "1.12.5"
+    Minimum version, pinned in required_version and the mise fragment. Empty asks
+    mise for the newest release at render time, so nothing freezes at the
+    template's authoring-day version. 1.10 is the hard floor: `use_lockfile` on
+    the S3 backend does not exist before it, and the layer configures no
+    DynamoDB lock table.
+  default: ""
 
 tflint_version:
   type: str
-  help: tflint version the mise fragment pins, so CI and a commit hook agree.
-  default: "0.64.0"
+  help: >-
+    tflint version the mise fragment pins, so CI and a commit hook agree. Empty
+    asks mise for the newest release at render time.
+  default: ""
 
 aws_provider_version:
   type: str
@@ -101,3 +108,10 @@ first_environment:
   type: str
   default: "{{ environments[0] if environments else 'dev' }}"
   when: false
+
+_tasks:
+  - >-
+    python3 "{{ _copier_conf.src_path }}/tasks/resolve_versions.py"
+    "{{ _copier_conf.dst_path }}"
+    "{{ opentofu_version }}"
+    "{{ tflint_version }}"

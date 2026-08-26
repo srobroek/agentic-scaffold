@@ -36,8 +36,11 @@ rust-cov:
 
 # Fetches into the shared cargo registry cache, so a warm run is 0.55s. `cargo build`
 # would also fetch, but this separates a network failure from a compile failure.
+# `cargo init` writes no lockfile, so the first setup creates it; every later run
+# stays locked, and a stale lockfile is an error instead of a silent re-resolve.
 
 # Fetch the locked dependencies
 [group('rust')]
 rust-install:
+    @test -f Cargo.lock || cargo generate-lockfile
     cargo fetch --locked

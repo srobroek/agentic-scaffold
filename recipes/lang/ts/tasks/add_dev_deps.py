@@ -21,6 +21,7 @@ Skips a package already present, so a second render adds nothing.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -56,6 +57,15 @@ def main() -> int:
     manifest = dest / "package.json"
     if not manifest.is_file():
         print("no package.json here, nothing to add")
+        return 0
+
+    if not os.access(manifest, os.W_OK):
+        # projen writes package.json read-only and regenerates it from .projenrc.ts:
+        # dependencies belong in the projenrc there, and a bun add here would be
+        # overwritten on the next synth anyway.
+        print(
+            "package.json is read-only (generator-owned); declare dev deps in its generator config"
+        )
         return 0
 
     if shutil.which("bun") is None:

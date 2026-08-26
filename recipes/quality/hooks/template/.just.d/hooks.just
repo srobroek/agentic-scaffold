@@ -1,9 +1,14 @@
 # Hook recipes, contributed by quality/hooks and imported by the root justfile.
 
+# hooks-merge goes through uv, because merge_hooks.py imports yaml and a bare
+# python3 -- system or mise-pinned -- ships without it: a fresh clone of every
+# profile failed setup exactly here. `--no-project` keeps the run out of any
+# .venv the repo carries.
+
 # Rebuild .pre-commit-config.yaml from .pre-commit.d/
 [group('hooks')]
 hooks-merge:
-    @python3 scripts/merge_hooks.py .
+    @uv run --no-project --with pyyaml python3 scripts/merge_hooks.py .
 
 # `--git-dir` rather than `core.hooksPath`. prek declines to install while an ambient
 # global hooksPath is set, which is what a machine-wide hook manager leaves behind:

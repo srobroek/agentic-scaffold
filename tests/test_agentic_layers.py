@@ -1,4 +1,4 @@
-"""agentic/*: apm.yml, beads bootstrap, and what they contribute to the aggregators."""
+"""agentic/*: the beads bootstrap and what it contributes to the aggregators."""
 
 from __future__ import annotations
 
@@ -15,14 +15,6 @@ from conftest import render_recipe as render
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RECIPES = REPO_ROOT / "recipes"
-
-APM_ANSWERS = """\
-project_name: demo
-description: A demo project
-apm_packages: []
-apm_target: "claude,codex"
-apm_cli_version: "0.25.0"
-"""
 
 BEADS_ANSWERS = """\
 bd_prefix: demo
@@ -46,77 +38,6 @@ def git_repo(path: Path) -> Path:
 
 
 needs_bd = pytest.mark.skipif(shutil.which("bd") is None, reason="bd absent from PATH")
-
-
-# --- agentic/apm -----------------------------------------------------------
-
-
-@pytest.fixture
-def apm(tmp_path: Path) -> Path:
-    dest = tmp_path / "d"
-    dest.mkdir()
-    result = render("agentic/apm", dest, APM_ANSWERS)
-    assert result.returncode == 0, result.stderr
-    return dest
-
-
-def test_apm_yml_parses_and_carries_the_threaded_values(apm: Path) -> None:
-    spec = yaml.safe_load((apm / "apm.yml").read_text())
-    assert spec["name"] == "demo"
-    assert spec["target"] == "claude,codex"
-    # `includes: auto` is what makes `apm compile` weave package context into
-    # AGENTS.md, which is why docs/agents carries pointers rather than prose.
-    assert spec["includes"] == "auto"
-
-
-def test_an_empty_package_list_is_valid(apm: Path) -> None:
-    """A repository can seed the layer and choose packages later.
-
-    bailiff's version carried a validator refusing the empty list, which made the
-    layer unusable until someone had picked packages. `agentic/marketplace`
-    recommends against the rendered layer set afterwards.
-    """
-    spec = yaml.safe_load((apm / "apm.yml").read_text())
-    assert spec["dependencies"]["apm"] == []
-
-
-def test_the_packages_are_written_when_supplied(tmp_path: Path) -> None:
-    dest = tmp_path / "d"
-    dest.mkdir()
-    locators = [
-        "srobroek/agentic-packages/packages/speckit#>=5.0.0 <6.0.0",
-        "srobroek/slopvac/packages/write-docs#>=1.0.0 <2.0.0",
-    ]
-    render(
-        "agentic/apm",
-        dest,
-        APM_ANSWERS.replace(
-            "apm_packages: []", "apm_packages:\n" + "".join(f'  - "{p}"\n' for p in locators)
-        ),
-    )
-    assert yaml.safe_load((dest / "apm.yml").read_text())["dependencies"]["apm"] == locators
-
-
-def test_the_cli_version_is_pinned_in_the_recipes(apm: Path) -> None:
-    """An unpinned CLI would change what a re-render installs."""
-    body = (apm / ".just.d" / "apm.just").read_text()
-    assert "apm-cli==0.25.0" in body
-    # just's own interpolation has to survive jinja rendering.
-    assert "{{ apm }}" in body
-
-
-def test_apm_ignores_its_install_tree(apm: Path) -> None:
-    assert "apm_modules/" in (apm / ".gitignore.d" / "apm").read_text()
-
-
-def test_an_existing_apm_yml_is_not_overwritten(apm: Path) -> None:
-    """A package list is hand-edited after rendering."""
-    manifest = apm / "apm.yml"
-    manifest.write_text("name: mine\nversion: 9.9.9\n")
-
-    render("agentic/apm", apm, APM_ANSWERS)
-
-    assert "mine" in manifest.read_text()
 
 
 # --- agentic/beads ---------------------------------------------------------
@@ -466,8 +387,8 @@ def test_the_adr_hooks_no_op_without_their_tooling(tmp_path: Path) -> None:
 def test_beads_ships_the_adr_renderer(tmp_path: Path) -> None:
     """agentic/beads owns beads-adjacent scripts, the split bd-dolt-push.sh uses.
 
-    A prek `entry:` cannot point into apm_modules/, so the script is vendored into
-    the rendered project rather than referenced from an installed package.
+    A prek `entry:` has to resolve inside the repository, so the script is vendored into
+    the rendered project rather than referenced from a package installed elsewhere.
     """
     dest = git_repo(tmp_path / "d")
     render("agentic/beads", dest, "bd_prefix: xy\nbd_storage_mode: embedded\n")
@@ -693,14 +614,14 @@ def test_a_hand_edited_index_survives_a_second_render(tmp_path: Path) -> None:
     assert "Do not lose this." in index.read_text()
 
 
-# --- what both contribute to the aggregators -------------------------------
+# --- what beads contributes to the aggregators -----------------------------
 
 
-@pytest.mark.parametrize("layer", ["agentic/apm", "agentic/beads"])
-def test_each_layer_ships_a_just_fragment(layer: str) -> None:
-    name = layer.split("/")[1]
-    matches = list((RECIPES / layer).glob(f"template/.just.d/{name}*.just*"))
-    assert matches, f"{layer} ships no .just.d fragment"
+def test_beads_ships_a_just_fragment() -> None:
+    """workspace/just writes its import block from `.just.d/`, so a fragment under
+    another name is a fragment nothing imports."""
+    matches = list((RECIPES / "agentic" / "beads").glob("template/.just.d/beads*.just*"))
+    assert matches, "agentic/beads ships no .just.d fragment"
 
 
 def test_a_recipe_description_is_not_a_stray_rationale_line() -> None:

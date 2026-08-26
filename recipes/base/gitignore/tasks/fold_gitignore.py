@@ -64,8 +64,7 @@ OS_TEMPLATES = ("gh:Global/macOS", "gh:Global/Windows", "gh:Global/Linux")
 
 # Which languages rendered, read from the tree rather than from an answer the
 # agent had to assemble: each language recipe writes its marker unconditionally,
-# and a recipe whose files were removed by hand stops contributing. Same
-# detection stance as agentic/marketplace's recommend.py.
+# and a recipe whose files were removed by hand stops contributing.
 #
 # iac/terraform is deliberately absent: its fragment carries the whole set,
 # because the upstream Terraform template predates .tofu files.
@@ -206,6 +205,23 @@ def main() -> int:
     # the OS noise, and de-duplicated in case a caller passes one explicitly.
     sources = list(dict.fromkeys([*detected_templates(dest), *extra, *OS_TEMPLATES]))
 
+    target = dest / ".gitignore"
+    if target.exists() and not os.access(target, os.W_OK):
+        # projen writes .gitignore read-only and regenerates it from .projenrc.ts,
+        # whose iac/cdk shape folds .gitignore.d/ itself at synth. This recipe
+        # renders LAST, when every fragment exists, so the re-synth here is what
+        # carries them into projen's copy.
+        if (dest / ".projenrc.ts").is_file() and (dest / "node_modules").is_dir():
+            result = subprocess.run(
+                ["npx", "--yes", "projen"], cwd=dest, check=False, timeout=FETCH_TIMEOUT_SECONDS
+            )
+            if result.returncode != 0:
+                raise SystemExit("projen re-synth failed while folding .gitignore.d")
+            print(".gitignore re-synthesised through projen from the fragments")
+            return 0
+        print(".gitignore is read-only (generator-owned); add entries in its generator config")
+        return 0
+
     parts = [ALWAYS]
 
     fragment_text = fragments(dest)
@@ -216,7 +232,7 @@ def main() -> int:
     if remote:
         parts.append(remote)
 
-    (dest / ".gitignore").write_text("\n".join(part.rstrip() + "\n" for part in parts if part))
+    target.write_text("\n".join(part.rstrip() + "\n" for part in parts if part))
 
     counted = (
         len(list((dest / ".gitignore.d").iterdir())) if (dest / ".gitignore.d").is_dir() else 0

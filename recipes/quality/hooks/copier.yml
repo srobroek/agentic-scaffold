@@ -41,6 +41,16 @@ commit_scopes:
 # a language layer needs the merge again, and `just hooks-install` and
 # `just hooks-all` both run it first.
 _tasks:
+  # Through uv for the same reason hooks-merge is: merge_hooks.py imports yaml, and
+  # `scaffold update` re-runs tasks with the destination's ambient python3.
   - >-
+    uv run --no-project --with pyyaml
     python3 "{{ _copier_conf.dst_path }}/scripts/merge_hooks.py"
     "{{ _copier_conf.dst_path }}"
+  # Said at render time, because the empty default is deliberate and silent: a
+  # scaffold guessing a scope vocabulary teaches people --no-verify on day one,
+  # but a team that never hears about the allowlist never adopts one either.
+  - >-
+    {% if not commit_scopes %}python3 -c "print('quality/hooks: commit scopes are
+    unrestricted. Once a vocabulary settles, list it in commit_scopes and
+    re-render, and the commit-msg hook will enforce it.')"{% else %}true{% endif %}

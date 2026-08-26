@@ -14,19 +14,16 @@ layers:
   - release/goreleaser
   - docs/agents
   - docs/adr
-  - agentic/apm
   - agentic/beads
   - agentic/index
   - container/image
   - quality/hooks
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
 
 answers:
   license: agpl-3.0-only
   go_vendor: false
-  release_type: go
   # CGO is disabled in the build stage, so the runtime can be distroless static.
   container_language: go
   container_runtime_base: distroless

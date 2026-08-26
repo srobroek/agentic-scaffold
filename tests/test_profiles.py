@@ -124,14 +124,6 @@ def test_a_fragment_contributor_precedes_the_aggregator(path: Path) -> None:
 
 
 @pytest.mark.parametrize("path", profile_paths(), ids=ids(profile_paths()))
-def test_a_profile_owns_one_apm_yml(path: Path) -> None:
-    """`agentic/apm` writes a consumer's manifest and `agentic/package` a publisher's, both
-    at the same path, so a repository takes one."""
-    layers = set(load(path)["layers"])
-    assert not {"agentic/apm", "agentic/package"} <= layers
-
-
-@pytest.mark.parametrize("path", profile_paths(), ids=ids(profile_paths()))
 def test_a_layer_that_needs_another_gets_it(path: Path) -> None:
     """`after` orders two layers a profile already named, and says nothing about one being
     absent. docs/api-refs renders scripts under docs/site and generates pages the code repo
@@ -236,19 +228,39 @@ def test_the_check_rejects_a_missing_requirement(tmp_path: Path) -> None:
 
 
 def test_the_check_rejects_two_recipes_in_one_exclusive_group(tmp_path: Path) -> None:
-    """`agentic/apm` and `agentic/package` both write apm.yml, and no committed profile names
-    both, so the assertion above holds vacuously. This is what proves the declaration is
-    load-bearing rather than a comment."""
-    directory = copied_profiles(
-        tmp_path,
-        {
-            "zz-both.yml": "name: zz-both\nsummary: probe\ngenerator: none\n"
-            "layers:\n  - base/repo\n  - agentic/apm\n  - agentic/package\nbuild:\n  - true\n"
+    """No committed profile names two recipes in one group, so the rule holds vacuously
+    across the set. Two fixture recipes are what prove the declaration is load-bearing
+    rather than a comment.
+
+    The fixtures need their own `recipes/` and their own `profiles/`: the probe layers do
+    not exist in the real tree, and the real profiles name nothing that exists in the probe
+    tree, so pointing one override without the other reports unknown layers instead.
+    """
+    recipes = tmp_path / "recipes"
+    for name in ("one", "two"):
+        directory = recipes / "probe" / name
+        (directory / "template").mkdir(parents=True)
+        (directory / "copier.yml").write_text(
+            "_subdirectory: template\n_scaffold:\n  summary: probe\n  exclusive_group: probe\n"
+        )
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    (profiles / "zz-both.yml").write_text(
+        "name: zz-both\nsummary: probe\ngenerator: none\n"
+        "layers:\n  - probe/one\n  - probe/two\nbuild:\n  - true\n"
+    )
+
+    result = scaffold(
+        "check",
+        env={
+            **os.environ,
+            "SCAFFOLD_PROFILES": str(profiles),
+            "SCAFFOLD_RECIPES": str(recipes),
         },
     )
-    result = check_against(directory)
+
     assert result.returncode == 1
-    assert "exclusive_group 'apm-manifest'" in result.stderr
+    assert "exclusive_group 'probe'" in result.stderr
 
 
 def test_the_largest_shape_needs_no_language_layer() -> None:

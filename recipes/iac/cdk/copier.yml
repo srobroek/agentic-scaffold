@@ -7,14 +7,26 @@ _scaffold:
     workflows, plus the fragments the aggregating layers fold in. projen owns the CDK
     and TypeScript build surface; the layers own CI, hooks, agentic, release, licence.
   requires_bin: [git, node]
-  # host/* owns CI, so projen's own workflows are disabled rather than merged. Renders
-  # after the host layer for the same reason iac/terraform does.
-  after: [base/repo, host/github, host/gitlab]
+  # BEFORE the host layer, not after: `projen new` synthesises its own github
+  # component -- read-only workflows and a PR template -- and host/github cannot
+  # write .github until the re-synth below, running with this recipe's
+  # `github: false`, has removed them. The host layer still owns CI: that is
+  # exactly what the re-synth enforces.
+  after: [base/repo, lang/ts]
 
-# .projenrc.ts is the project's own the moment a construct is added, and every file
-# projen generates from it is regenerated rather than rendered.
-_skip_if_exists:
-  - .projenrc.ts
+# .projenrc.ts is rendered over the generated default -- `github: false` is the whole
+# point -- and hand edits after that are protected by `scaffold update`'s 3-way merge,
+# not by a skip. Every file projen generates from it is regenerated rather than
+# rendered.
+
+_tasks:
+  # Re-synthesise with THIS projenrc. Removes the github component projen's own
+  # default enabled, so the host layer can own .github. A render without the
+  # generator has no node_modules, and nothing to re-synthesise.
+  - >-
+    sh -c 'cd "{{ _copier_conf.dst_path }}" &&
+    if [ -d node_modules ] && [ -f .projenrc.ts ]; then npx --yes projen;
+    else echo "no node_modules; skipping projen re-synth"; fi'
 
 project_name:
   type: str

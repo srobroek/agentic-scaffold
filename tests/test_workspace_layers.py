@@ -631,21 +631,20 @@ def test_setup_covers_a_fresh_clone(rendered: Path) -> None:
     commands = [line.strip() for line in body.splitlines() if line.strip().startswith("mise ")]
     assert commands, "setup runs no mise command"
     assert commands[0].startswith("mise trust"), f"trust is not first: {commands}"
-    for recipe in ("hooks-install", "apm-install"):
-        assert recipe in body, f"setup never reaches {recipe}"
+    assert "hooks-install" in body, "setup never reaches hooks-install"
 
 
 @needs_just
-def test_setup_worktree_never_reinstalls_what_a_copy_provides(rendered: Path) -> None:
-    """`.worktreeinclude` copies `apm_modules/`, and a fresh `apm install` is slow."""
+def test_setup_worktree_never_installs_the_toolchain(rendered: Path) -> None:
+    """The deliberate difference from `setup`: mise's tool installs are machine-wide and
+    `wt`'s pre-start blocks on this recipe, so a worktree trusts the config and stops."""
     body = just(rendered, "--show", "setup-worktree").stdout
 
-    assert "apm-install" not in body, "a worktree reinstalls the copied apm tree"
+    assert "mise install" not in body, "a worktree reinstalls the machine-wide toolchain"
     # What a copy cannot provide: a new directory is untrusted, and a worktree's
     # $GIT_DIR differs.
     assert "mise trust" in body
-    for recipe in ("hooks-install",):
-        assert recipe in body, f"setup-worktree never reaches {recipe}"
+    assert "hooks-install" in body, "setup-worktree never reaches hooks-install"
 
 
 @needs_just
@@ -676,7 +675,6 @@ def test_wt_pre_start_runs_the_worktree_recipe(tmp_path: Path) -> None:
 
     # And the copied trees are what make the short list correct.
     include = (dest / ".worktreeinclude").read_text()
-    assert "apm_modules/" in include
     assert "node_modules/" in include
 
 
@@ -686,8 +684,8 @@ def test_the_two_setup_recipes_share_their_steps_verbatim(rendered: Path) -> Non
     on a recipe that may not exist is a parse error.
 
     Duplication drifts, so this pins the parts that must stay identical: the language
-    install discovery, and the probe form. `apm-install` is the one deliberate difference,
-    covered by its own test.
+    install discovery, and the probe form. The toolchain install is the one deliberate
+    difference, covered by its own test.
     """
     setup = just(rendered, "--show", "setup").stdout
     worktree = just(rendered, "--show", "setup-worktree").stdout
@@ -702,11 +700,12 @@ def test_the_two_setup_recipes_share_their_steps_verbatim(rendered: Path) -> Non
     assert 'just --show "$recipe"' in worktree
 
     # Every recipe setup-worktree probes for is one setup probes for too, so a step can
-    # never reach a worktree without also reaching a clone.
+    # never reach a worktree without also reaching a clone. Equality is allowed: the
+    # deliberate difference between the two is the toolchain install, not the probe list.
     probed = re.compile(r"for recipe in ([a-z0-9\- ]+); do")
     setup_probed = set(probed.search(setup).group(1).split())
     worktree_probed = set(probed.search(worktree).group(1).split())
-    assert worktree_probed < setup_probed, (
+    assert worktree_probed <= setup_probed, (
         f"setup-worktree probes {worktree_probed - setup_probed}, which setup does not"
     )
 

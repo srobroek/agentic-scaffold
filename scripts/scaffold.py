@@ -40,10 +40,11 @@ from typing import NoReturn
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RECIPES = REPO_ROOT / "recipes"
-# Overridable so a test can validate a copied directory. Writing a fixture into the
+# Both overridable so a test can validate a copied directory. Writing a fixture into the
 # real profiles/ made the suite fail under `-n auto`: one worker saw another worker's
-# file, and the test reading every profile counted it as real.
+# file, and the test reading every profile counted it as real. A fixture recipe has the
+# same problem, plus `docs/INDEX.md` and the render-every-profile check read recipes/.
+RECIPES = Path(os.environ.get("SCAFFOLD_RECIPES") or REPO_ROOT / "recipes")
 PROFILES = Path(os.environ.get("SCAFFOLD_PROFILES") or REPO_ROOT / "profiles")
 
 # copier 9.17.0 stops applying its own DEFAULT_EXCLUDE once `_subdirectory` is
@@ -368,6 +369,26 @@ def check_profile(path: Path) -> list[str]:
     return problems
 
 
+def dead_answers(path: Path) -> list[str]:
+    """Profile answer keys no selected recipe declares as a question.
+
+    A warning rather than a refusal: shared keys flow to many recipes
+    legitimately, so the comparison is against the union of the selected
+    recipes' questions -- anything outside that union is answered into the
+    void. python_framework was exactly this: asked, recorded, read by nothing.
+    """
+    profile = yaml.safe_load(path.read_text()) or {}
+    answers = profile.get("answers") or {}
+    recipes = [r for r in profile.get("layers") or [] if recipe_exists(r)]
+    declared: set[str] = set()
+    for recipe in recipes:
+        config = yaml.safe_load((RECIPES / recipe / "copier.yml").read_text()) or {}
+        declared |= {k for k, v in config.items() if not k.startswith("_") and isinstance(v, dict)}
+    return [
+        f"answers `{key}`, which no selected recipe asks" for key in answers if key not in declared
+    ]
+
+
 # --- planning ------------------------------------------------------------
 
 
@@ -421,6 +442,11 @@ def build_plan(
       skip       a later writer declares `_skip_if_exists`; the first owner wins
       fragment   under a fold directory; the aggregator merges it
       conflict   two owners and no declared resolution -- the plan refuses
+
+    The map covers what the TEMPLATES write. A file the generator creates first
+    (a `uv init` README) shifts create to skip at render time, and a file a task
+    writes (LICENSE, the folded .gitignore) appears in no row at all -- tasks
+    stay off in the plan's scratch renders because they reach the network.
     """
     writers: dict[str, list[str]] = {}
     skip_declared: dict[str, set[str]] = {}
@@ -548,6 +574,33 @@ def record_ref(source: Source, dest: Path, config: dict) -> None:
     answers_path.write_text(yaml.safe_dump(answers, sort_keys=True))
 
 
+def run_recipe_tasks(source: Source, dest: Path, answers: dict) -> None:
+    """Run a recipe's own `_tasks` against the destination.
+
+    `update` merges template output only, so files a task writes -- LICENSE, the
+    folded .gitignore, a settled pin -- would otherwise sit still while _ref
+    advances. Each command template renders the same way copier renders it, with
+    the answers plus a `_copier_conf` carrying the source and destination paths.
+    """
+    config = recipe_config(source)
+    tasks = [t for t in config.get("_tasks") or [] if isinstance(t, str)]
+    if not tasks:
+        return
+    import jinja2
+
+    env = jinja2.Environment(undefined=jinja2.ChainableUndefined, keep_trailing_newline=True)
+    context = {
+        **answers,
+        "_copier_conf": {"src_path": source.template, "dst_path": str(dest)},
+    }
+    for template in tasks:
+        command = " ".join(env.from_string(template).render(context).split())
+        print(f"  task      {command}")
+        result = subprocess.run(command, shell=True, cwd=dest, check=False)
+        if result.returncode != 0:
+            die(4, f"{source.id} task failed (exit {result.returncode}): {command}")
+
+
 def render_one(
     source: Source,
     dest: Path,
@@ -593,9 +646,24 @@ def demo_answers(profile: dict) -> dict:
 
 
 def run_build(profile: dict, dest: Path) -> int:
-    """Each command in the profile's own build, in order, in the destination."""
+    """Each command in the profile's own build, in the destination.
+
+    Where the profile needs no generator, `just setup` runs first: the build
+    commands assume the toolchain the fragments pin, and three real defects (a
+    missing lockfile, a yaml-less python, a mise pin that cannot resolve)
+    shipped because nothing exercised the fresh-clone handoff. A generator
+    profile cannot run setup here -- its installs read manifests only the
+    generator writes, and generators reach the network, which is why the
+    render deliberately skips them; the skill flow and the end-to-end
+    validation exercise that handoff instead. A setup failure counts as a
+    build failure.
+    """
     failures = 0
-    for command in profile.get("build") or []:
+    commands = list(profile.get("build") or [])
+    generatorless = (profile.get("generator") or "none") == "none"
+    if generatorless and (dest / "justfile").is_file() and shutil.which("just") and commands:
+        commands.insert(0, "just setup")
+    for command in commands:
         binary = command.split()[0]
         if shutil.which(binary) is None:
             print(f"  skip  {command}  ({binary} absent)")
@@ -630,7 +698,11 @@ def render_at_ref(source: Source, ref: str, data_file: Path, out: Path) -> None:
             rel = Path(source.template).resolve().relative_to(source.repo.resolve())
             old_source = Source(source.id, str(old / rel), None, in_repo=False)
             subprocess.run(["git", "init", "-q", str(out)], check=True)
-            result = copier_copy(old_source, out, {}, data_file)
+            # Tasks stay off in a scratch render: they reach the network and
+            # mutate state (bd init, gh fetches, bun installs), and the 3-way
+            # merge compares template output only -- task-written files are the
+            # destination's own and are refolded there after the update.
+            result = copier_copy(old_source, out, {}, data_file, skip_tasks=True)
             if result.returncode != 0:
                 die(4, f"copier failed rendering {source.id} at {ref[:12]}")
         finally:
@@ -707,7 +779,7 @@ def update_recipe(source: Source, dest: Path, data: dict) -> int:
         new.mkdir()
         render_at_ref(source, ref, base_answers, base)
         subprocess.run(["git", "init", "-q", str(new)], check=True)
-        result = copier_copy(source, new, {}, new_answers)
+        result = copier_copy(source, new, {}, new_answers, skip_tasks=True)
         if result.returncode != 0:
             die(4, f"copier failed rendering {source.id} at HEAD")
 
@@ -734,6 +806,14 @@ def update_recipe(source: Source, dest: Path, data: dict) -> int:
                 touched_fragments.add(rel.split("/", 1)[0])
 
         if conflicts == 0:
+            # Task-written files -- LICENSE, the folded .gitignore -- exist in
+            # no scratch render (tasks stay off there), so the merge above never
+            # moves them. Every recipe's tasks are idempotent, so the dest runs
+            # them once against the refreshed answers and the outputs catch up.
+            # Tasks FIRST: a task failure exits 4 with the answers file and
+            # _ref both unmoved -- the same not-applied invariant a conflict
+            # gets -- so the re-run replays everything, including the tasks.
+            run_recipe_tasks(source, dest, merged)
             for rel in answer_rels:
                 shutil.copyfile(new / rel, dest / rel)
                 print(f"  answers   {rel}")
@@ -796,15 +876,20 @@ def cmd_check(args: argparse.Namespace) -> int:
         if args.profiles
         else sorted(PROFILES.glob("*.yml"))
     )
+    warnings = 0
     for path in paths:
         problems = check_profile(path)
         if problems:
             failures += 1
             for problem in problems:
                 print(f"{path.stem}: {problem}", file=sys.stderr)
+            continue
+        for warning in dead_answers(path):
+            warnings += 1
+            print(f"{path.stem}: warning: {warning}", file=sys.stderr)
     if failures:
         return 1
-    print(f"ok: {len(paths)} profile(s)")
+    print(f"ok: {len(paths)} profile(s)" + (f", {warnings} warning(s)" if warnings else ""))
     return 0
 
 
@@ -843,9 +928,11 @@ def cmd_render(args: argparse.Namespace) -> int:
     if not args.pretend and not (dest / ".git").exists():
         dest.mkdir(parents=True, exist_ok=True)
         subprocess.run(["git", "init", "-q", str(dest)], check=True)
-        # The CLI owns this fresh repository's per-recipe commits, and a CI
-        # runner has no global identity, so `git commit` there exits 128.
-        # An existing repository keeps whatever identity its owner set.
+
+    if not args.pretend and args.commit and (dest / ".git").exists():
+        # The CLI's own commits must not depend on ambient identity: a CI
+        # runner has none, and `git commit` there exits 128. Set only where
+        # unset -- `--get` sees global config, so a configured user keeps theirs.
         for key, value in (("user.email", "scaffold@example.com"), ("user.name", "Scaffold")):
             if subprocess.run(
                 ["git", "-C", str(dest), "config", "--get", key],
@@ -853,6 +940,11 @@ def cmd_render(args: argparse.Namespace) -> int:
                 check=False,
             ).returncode:
                 subprocess.run(["git", "-C", str(dest), "config", key, value], check=True)
+        # The generator ran before the render and its output sits uncommitted --
+        # base/repo's precheck would refuse it, and rightly: copier overwrites
+        # with no diff to review. A baseline commit IS that diff, so the first
+        # recipe's change is reviewable against exactly what the generator made.
+        git_commit(dest, "chore: pre-render tree")
 
     for source in sources:
         render_one(source, dest, data, args.data_file, args.pretend)

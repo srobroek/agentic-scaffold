@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # VENDORED from srobroek/agentic-packages, packages/adr-as-beads/scripts/render_adrs.py.
 #
-# Vendored rather than referenced because a prek `entry:` cannot point into
-# apm_modules/: the package may not be installed, and its path is not stable across
-# APM versions. This is the same contract hooks-close-keywords documents for
+# Vendored rather than referenced because a prek `entry:` has to resolve inside this
+# repository. An installed package does not: it may live anywhere on the machine, or
+# nowhere. This is the same contract hooks-close-keywords documents for
 # commit-msg-rewrite.py.
 #
 # NO CHECKER ENFORCES THIS COPY. Both repositories have twin-script checks, and

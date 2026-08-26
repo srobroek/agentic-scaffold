@@ -123,9 +123,7 @@ def test_a_recipe_change_lands_on_an_untouched_file(recipe: Path, rendered: Path
     assert (rendered / "config.toml").read_text() == "one = 1\ntwo = 2\nthree = 33\n"
 
 
-def test_drift_survives_a_recipe_change_elsewhere_in_the_file(
-    recipe: Path, rendered: Path
-) -> None:
+def test_drift_survives_a_recipe_change_elsewhere_in_the_file(recipe: Path, rendered: Path) -> None:
     """The whole point. `render` passes `--overwrite`, so re-rendering would have replaced
     the hand-edited line with no prompt; the 3-way merge keeps both changes."""
     drift(rendered, "one = 111\ntwo = 2\nthree = 3\n")
@@ -168,9 +166,7 @@ def test_a_file_the_recipe_gained_is_created(recipe: Path, rendered: Path) -> No
 # --- a refreshed answer ----------------------------------------------------
 
 
-def test_a_refreshed_answer_lands_in_the_content_it_renders(
-    recipe: Path, rendered: Path
-) -> None:
+def test_a_refreshed_answer_lands_in_the_content_it_renders(recipe: Path, rendered: Path) -> None:
     """`--data` is how a recorded answer changes, and the answer is only worth anything if
     it reaches the files. The base render replays the RECORDED answers and only the new
     render sees `--data`, so the refresh arrives as a template-side diff and merges like any
@@ -185,9 +181,7 @@ def test_a_refreshed_answer_lands_in_the_content_it_renders(
     assert (rendered / "tone.txt").read_text() == "tone = loud\n"
 
 
-def test_a_refreshed_answer_is_recorded_for_the_next_update(
-    recipe: Path, rendered: Path
-) -> None:
+def test_a_refreshed_answer_is_recorded_for_the_next_update(recipe: Path, rendered: Path) -> None:
     """The answers file is the only memory of it. Were the old answer left recorded, the
     next update would replay `plain` as its base and revert the refresh."""
     assert update(recipe, rendered, "tone=loud").returncode == 0
@@ -338,9 +332,7 @@ def test_a_recipe_with_no_checkout_is_refused(recipe: Path, rendered: Path) -> N
 # --- the aggregators it cannot re-fold -------------------------------------
 
 
-def test_it_names_the_fold_to_re_run_when_a_fragment_changed(
-    recipe: Path, rendered: Path
-) -> None:
+def test_it_names_the_fold_to_re_run_when_a_fragment_changed(recipe: Path, rendered: Path) -> None:
     """`update` merges the fragment and stops. The generated file the aggregator writes is
     stale from that moment, and nothing in the destination re-folds `.gitignore.d` -- its
     fold runs from a copier task inside base/gitignore. So the note is the whole handover.
@@ -378,3 +370,62 @@ def test_every_recipe_ships_the_answers_file_update_replays_from() -> None:
             missing.append(f"{recipe_id}: ships no answers-file template")
 
     assert not missing, f"recipes `update` could never replay: {missing}"
+
+
+def test_a_task_written_file_moves_with_the_update(tmp_path: Path) -> None:
+    """LICENSE exists in no scratch render -- tasks stay off there -- so the merge
+    alone left it untouched while _ref advanced: a silent no-op in the refresh
+    path. A clean update re-runs the recipe's own tasks against the dest."""
+    dest = tmp_path / "d"
+    dest.mkdir()
+    scaffold(
+        "render",
+        "base/license",
+        "--dest",
+        str(dest),
+        "--data",
+        "license=apache-2.0",
+        "--data",
+        "copyright_name=Acme",
+    )
+    assert "Apache License" in (dest / "LICENSE").read_text()
+
+    result = scaffold("update", "base/license", "--dest", str(dest), "--data", "license=MIT")
+
+    assert result.returncode == 0, result.stderr
+    assert "MIT License" in (dest / "LICENSE").read_text()
+
+
+def test_a_failing_task_leaves_the_update_unapplied(tmp_path: Path) -> None:
+    """Tasks run before _ref moves: a task failure gets the same not-applied
+    invariant a conflict gets, so the re-run replays everything. Without the
+    ordering, a gh outage during base/license reported a refresh that moved
+    nothing and recorded a ref that said it had."""
+    recipe = tmp_path / "widget"
+    (recipe / "template").mkdir(parents=True)
+    (recipe / "copier.yml").write_text(
+        "_subdirectory: template\n"
+        "_answers_file: .copier-answers.widget.yml\n"
+        "flavour:\n  type: str\n  default: vanilla\n"
+        "_tasks:\n  - \"{% if flavour == 'boom' %}false{% else %}true{% endif %}\"\n"
+    )
+    (recipe / "template" / "a.txt.jinja").write_text("flavour = {{ flavour }}\n")
+    (recipe / "template" / "{{ _copier_conf.answers_file }}.jinja").write_text(
+        "{{ _copier_answers|to_nice_yaml -}}\n"
+    )
+    git(recipe.parent, "init", "-q", str(recipe))
+    git(recipe, "config", "user.email", "t@e.com")
+    git(recipe, "config", "user.name", "T")
+    commit(recipe, "the recipe")
+
+    dest = tmp_path / "dest"
+    scaffold("render", str(recipe), "--dest", str(dest))
+    answers = dest / ".copier-answers.widget.yml"
+    ref_before = yaml.safe_load(answers.read_text())["_ref"]
+
+    result = scaffold("update", str(recipe), "--dest", str(dest), "--data", "flavour=boom")
+
+    assert result.returncode == 4, result.stderr
+    after = yaml.safe_load(answers.read_text())
+    assert after["_ref"] == ref_before, "_ref advanced past a failed task"
+    assert after.get("flavour") != "boom", "the answers file took the failed refresh"

@@ -22,15 +22,14 @@
 repomix-full.xml
 graphify-out/
 
-# Installed dependency trees. Copying beats reinstalling: `apm install` is slow, and a
-# warm refresh afterwards is 43ms for uv and 0.55s for cargo, so `setup-worktree` catches
-# a branch whose lockfile moved without paying for a cold install.
+# Installed dependency trees. Copying beats reinstalling: a cold `node_modules` install is
+# slow, and a warm refresh afterwards is 43ms for uv and 0.55s for cargo, so
+# `setup-worktree` catches a branch whose lockfile moved without paying for a cold install.
 #
 # `.venv/` and `target/` are deliberately absent: the user config excludes both, and an
 # exclude beats an include, so listing them here would copy nothing. That is why
 # `setup-worktree` still runs the language installs -- for python and rust they are a
 # cold install rather than a refresh.
-apm_modules/
 node_modules/
 
 # Caches, valid at the HEAD a new worktree branches from.

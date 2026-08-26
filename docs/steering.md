@@ -77,9 +77,7 @@ survives.
 `AGENTS.md` and `CLAUDE.md` stay an index. The `docs/agents` recipe writes
 `AGENTS.md` from its own `AGENTS.body.md` and points `CLAUDE.md` at it with a
 relative symlink, so one file serves both harnesses. The steering generator
-never touches either: it rewrites marked blocks under `docs/agents/` alone. A
-repository that also renders `agentic/apm` gets `just apm-compile`, which weaves
-the installed packages' context into the same `AGENTS.md`.
+never touches either: it rewrites marked blocks under `docs/agents/` alone.
 
 Directory structure is not documented. gitnexus and repomix answer structural
 questions, and `index.md` names which of the two this repository has.

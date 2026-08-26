@@ -10,12 +10,9 @@ Design lives in `recipes.md`; this file is the inventory.
 
 | Recipe | Questions | Files |
 |---|---|---|
-| `agentic/apm` | 5 | 3 |
 | `agentic/beads` | 8 | 3 |
 | `agentic/index` | 2 | 3 |
-| `agentic/marketplace` | 0 | 0 |
-| `agentic/package` | 15 | 9 |
-| `agentic/speckit` | 4 | 2 |
+| `agentic/package` | 5 | 7 |
 | `base/gitignore` | 1 | 0 |
 | `base/license` | 2 | 0 |
 | `base/repo` | 3 | 5 |
@@ -23,9 +20,9 @@ Design lives in `recipes.md`; this file is the inventory.
 | `docs/adr` | 1 | 2 |
 | `docs/agents` | 1 | 11 |
 | `docs/api-refs` | 2 | 6 |
-| `docs/deploy-sibling` | 3 | 1 |
-| `docs/deploy-split` | 4 | 1 |
-| `docs/site` | 9 | 9 |
+| `docs/deploy-sibling` | 2 | 1 |
+| `docs/deploy-split` | 5 | 1 |
+| `docs/site` | 10 | 9 |
 | `host/github` | 6 | 15 |
 | `host/gitlab` | 7 | 10 |
 | `iac/cdk` | 6 | 5 |
@@ -44,28 +41,6 @@ Design lives in `recipes.md`; this file is the inventory.
 | `workspace/monorepo` | 12 | 6 |
 | `workspace/moon` | 3 | 6 |
 | `workspace/worktrunk` | 6 | 2 |
-
-## `agentic/apm`
-
-apm.yml naming the marketplaces and the package set, plus the .just.d and .gitignore.d fragments the aggregating layers fold in.
-
-Requires `git` on `PATH`.
-
-| Question | Type | Default |
-|---|---|---|
-| `project_name` | str |  |
-| `description` | str |  |
-| `apm_packages` | yaml | `[]` |
-| `apm_target` | str | `claude,codex` |
-| `apm_cli_version` | str | `0.25.0` |
-
-Writes:
-
-```
-.gitignore.d/apm
-.just.d/apm.just
-apm.yml
-```
 
 ## `agentic/beads`
 
@@ -111,16 +86,9 @@ Writes:
 repomix.config.json
 ```
 
-## `agentic/marketplace`
-
-Reads the finished tree and reports which marketplaces to register and which packages suit the layers that rendered. Writes no per-harness configuration file.
-
-Requires `git` on `PATH`.
-
-
 ## `agentic/package`
 
-A self-publishing agentic-package repo: the root apm.yml with a marketplace block, one package under packages/<name> carrying a skill, the per-package plugin manifests apm pack does not generate, and the release-please config whose tag shape the marketplace resolves against.
+A native marketplace repo: one starter plugin under <name>/ carrying a skill and the package.json `omp` marker, plus the root .omp-plugin/ and .claude-plugin/ catalogs that scripts/build_catalog.py assembles from the plugin manifests. OMP reads the first and falls back to the second, so one repository serves OMP and Claude Code from one source.
 
 Requires `git` on `PATH`.
 
@@ -131,49 +99,17 @@ Requires `git` on `PATH`.
 | `description` | str |  |
 | `author` | str |  |
 | `owner` | str |  |
-| `category` | `productivity` | `learning` | `security` | `documentation` | `testing` | `workflow` | `language` | `productivity` |
-| `package_tags` | yaml | `['skill']` |
-| `marketplace_outputs` | `claude,codex` | `claude` | `claude,codex` |
-| `deploy_kiro` | bool | `True` |
-| `apm_cli_version` | str | `0.26.0` |
-| `resolved_package` | str | `{{ package_name or project_name }}` |
-| `resolved_owner` | str | `{{ owner or (author | lower | replace(' ', '-')) }}` |
-| `resolved_description` | str | `{{ description or ('The ' + (package_name or project_name) + ' package. Replace this description before publishing.') }}` |
-| `output_list` | yaml | `{{ marketplace_outputs.split(',') }}` |
-| `build_codex` | bool | `{{ 'codex' in marketplace_outputs.split(',') }}` |
 
 Writes:
 
 ```
 .gitignore.d/package
 .just.d/package.just
-.release-please-manifest.json
-apm.yml
-packages/{{ package_name }}/.apm/skills/{{ package_name }}/SKILL.md
-packages/{{ package_name }}/.claude-plugin/plugin.json
-packages/{{ package_name }}/apm.yml
-packages/{{ package_name }}/{% if build_codex %}.codex-plugin{% endif %}/plugin.json
-release-please-config.json
-```
-
-## `agentic/speckit`
-
-Declares the speckit-conductor package, contributes the gitignore fragment its setup script would otherwise append to a generated file, and adds the recipes that run the bootstrap. The scaffolding itself belongs to the package's own setup skill.
-
-Requires `git` on `PATH`.
-
-| Question | Type | Default |
-|---|---|---|
-| `speckit_locator` | str | `srobroek/speckit-conductor#>=4.0.0 <5.0.0` |
-| `speckit_integration` | `claude` | `codex` | `claude` |
-| `speckit_script_flavor` | `sh` | `ps` | `sh` |
-| `specify_cli_version` | str | `0.12.0` |
-
-Writes:
-
-```
-.gitignore.d/speckit
-.just.d/speckit.just
+scripts/build_catalog.py
+{{ package_name or project_name }}/.claude-plugin/plugin.json
+{{ package_name or project_name }}/.omp-plugin/plugin.json
+{{ package_name or project_name }}/package.json
+{{ package_name or project_name }}/skills/{{ package_name or project_name }}/SKILL.md
 ```
 
 ## `base/gitignore`
@@ -323,7 +259,6 @@ Requires `git` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
-| `pages_repo` | str |  |
 | `default_branch` | str | `main` |
 | `job_timeout_minutes` | int | `15` |
 
@@ -341,7 +276,8 @@ Requires `git` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
-| `pages_repo` | str |  |
+| `org` | str |  |
+| `pages_repo` | str | `{% if org %}{{ org }}/{{ org }}.github.io{% endif %}` |
 | `deploy_key_secret` | str | `DOCS_DEPLOY_KEY` |
 | `default_branch` | str | `main` |
 | `job_timeout_minutes` | int | `15` |
@@ -362,10 +298,11 @@ Requires `git` on `PATH`.
 |---|---|---|
 | `project_name` | str |  |
 | `description` | str |  |
-| `site_url` | str |  |
+| `org` | str |  |
+| `site_url` | str | `{% if org %}https://{{ org }}.github.io{% endif %}` |
 | `docs_engine` | `starlight` | `fumadocs` | `starlight` |
 | `node_version` | str | `24` |
-| `repo_url` | str |  |
+| `repo_url` | str | `{% if org and project_name %}https://github.com/{{ org }}/{{ project_name }}{% endif %}` |
 | `sidebar_autogenerate` | bool | `True` |
 | `is_starlight` | bool | `{{ docs_engine == 'starlight' }}` |
 | `is_fumadocs` | bool | `{{ docs_engine == 'fumadocs' }}` |
@@ -485,10 +422,10 @@ Requires `git` on `PATH`.
 |---|---|---|
 | `project_name` | str |  |
 | `environments` | yaml | `['dev', 'prod']` |
-| `aws_region` | str | `eu-west-1` |
+| `aws_region` | str |  |
 | `state_bucket` | str |  |
-| `opentofu_version` | str | `1.12.5` |
-| `tflint_version` | str | `0.64.0` |
+| `opentofu_version` | str |  |
+| `tflint_version` | str |  |
 | `aws_provider_version` | str | `~> 6.0` |
 | `pre_commit_terraform_rev` | str | `v1.108.1` |
 | `default_branch` | str | `main` |
@@ -724,7 +661,7 @@ Requires `git` on `PATH`.
 | Question | Type | Default |
 |---|---|---|
 | `default_branch` | str | `main` |
-| `auto_merge` | bool | `True` |
+| `auto_merge` | bool | `False` |
 | `renovate_timezone` | str | `Europe/Amsterdam` |
 
 Writes:
@@ -770,7 +707,7 @@ Requires `git` on `PATH`.
 
 | Question | Type | Default |
 |---|---|---|
-| `release_type` | `node` | `python` | `rust` | `go` | `simple` | `simple` |
+| `release_type` | `` | `node` | `python` | `rust` | `go` | `simple` |  |
 | `initial_version` | str | `0.1.0` |
 | `default_branch` | str | `main` |
 | `release_app` | bool | `False` |

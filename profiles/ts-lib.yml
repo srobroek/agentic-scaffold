@@ -13,19 +13,19 @@ layers:
   - release/release-please
   - docs/agents
   - docs/adr
-  - agentic/apm
   - agentic/beads
   - agentic/index
   - quality/hooks
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
 
 answers:
   license: mpl-2.0
   node_version: "24"
+
+# Read by the agent when it runs the generator; no recipe asks it.
+generator_answers:
   ts_framework: none
-  release_type: node
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a
 # command needing generator output (cargo build, go build, a projen synth) would fail

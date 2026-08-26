@@ -3,4 +3,8 @@
 [tools]
 go = "{{ go_version }}"
 golangci-lint = "latest"
-"go:golang.org/x/vuln/cmd/govulncheck" = "latest"
+# Concrete, not "latest": mise's go backend resolves latest by listing module versions
+# and timed out at its 20s ceiling on every fresh-clone setup measured, while the same
+# machine listed golang.org/x/vuln versions in under a second through `go list`.
+# renovate owns the bump.
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.7.0"

@@ -38,9 +38,25 @@ ts-cov:
     bun test --coverage
 
 # `--frozen-lockfile` fails rather than updating the lockfile, so CI and a developer
-# install the same tree.
+# install the same tree. The generator writes no lockfile, so the first setup creates
+# it. Two shapes are notes, not failures: no package.json at the root (a rust
+# workspace whose ts shell lives in a member directory), and a package-lock.json
+# (projen manages its repo with npm, and a bun install would write a second,
+# disagreeing lockfile).
 
 # Install the locked dependencies into node_modules
 [group('ts')]
 ts-install:
-    bun install --frozen-lockfile
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f package.json ]; then
+      echo "ts-install: no package.json at the root; members install their own"
+      exit 0
+    fi
+    if [ -f package-lock.json ]; then
+      npm ci
+    elif [ ! -f bun.lock ] && [ ! -f bun.lockb ]; then
+      bun install
+    else
+      bun install --frozen-lockfile
+    fi

@@ -22,14 +22,12 @@ layers:
   - release/release-please
   - docs/agents
   - docs/adr
-  - agentic/apm
   - agentic/beads
   - agentic/index
   - quality/hooks
   - workspace/moon
   - workspace/just
   - base/gitignore
-  - agentic/marketplace
 
 answers:
   license: agpl-3.0-only
@@ -37,8 +35,10 @@ answers:
   members: "crates/*"
   crate_kind: bin
   rust_edition: "2024"
-  release_type: rust
-  # The shell needs no starlight: docs/site supersedes it, and the addon is off by default.
+
+# Read by the agent when it runs the generator; no recipe asks it. The shell needs no
+# starlight: docs/site supersedes it, and the addon is off by default.
+generator_answers:
   ts_framework: none
 
 # Only what the RECIPES produce. `scaffold render` does not run the generator, so a

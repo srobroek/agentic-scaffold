@@ -48,9 +48,11 @@ python-matrix:
     uv run nox
 
 # `--frozen` fails rather than resolving when the lockfile and manifest disagree, so a
-# stale lockfile is an error instead of a silent re-resolve. 43ms warm.
+# stale lockfile is an error instead of a silent re-resolve. 43ms warm. The generator
+# writes no lockfile, so the first setup creates it; every later run stays frozen.
 
 # Install the locked dependencies into .venv
 [group('python')]
 python-install:
+    @test -f uv.lock || uv lock
     uv sync --frozen

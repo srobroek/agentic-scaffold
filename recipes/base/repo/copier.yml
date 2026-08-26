@@ -4,11 +4,17 @@ _answers_file: .copier-answers.repo.yml
 _scaffold:
   summary: README, editorconfig, gitattributes, and the docs and scripts directories.
   requires_bin: [git]
-  after: [base/license]
+  # No `after`: nothing here reads another recipe's output. The old base/license
+  # edge encoded a licence-first convention with no mechanism behind it, and the
+  # cdk shape legitimately renders the licence late (projen owns LICENSE until
+  # its re-synth releases it).
   precheck: precheck.py
 
 _skip_if_exists:
   - README.md
+  # projen writes .gitattributes read-only and regenerates it from .projenrc.ts, so a
+  # generator that already wrote it keeps it -- same first-writer rule as README.
+  - .gitattributes
 
 project_name:
   type: str

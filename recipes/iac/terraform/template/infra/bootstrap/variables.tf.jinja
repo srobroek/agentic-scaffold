@@ -16,7 +16,7 @@ variable "aws_region" {
 variable "state_bucket" {
   description = "Name of the state bucket. Must match `bucket` in every envs/<env>.tfbackend."
   type        = string
-  default     = "{{ state_bucket | default(project_name | default('project', true) ~ '-tofu-state', true) }}"
+  default     = "{{ state_bucket }}"
 }
 
 variable "state_retention_days" {
