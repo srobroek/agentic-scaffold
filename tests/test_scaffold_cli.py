@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from conftest import render_recipe, scaffold
+from conftest import load_scaffold, render_recipe, scaffold
 
 SHARED = "shared.txt"
 FRAGMENT = ".gitignore.d/40-probe.gitignore"
@@ -312,3 +312,89 @@ def test_an_answered_recipe_renders_what_the_answer_says(tmp_path: Path) -> None
 
     assert result.returncode == 0, result.stderr
     assert (dest / "name.txt").read_text() == "widget\n"
+
+
+# --- a profile plus positional extras ---------------------------------------
+
+
+def test_profile_plus_extras_union(tmp_path: Path) -> None:
+    """`--profile` used to ignore positional recipes with exit 0 -- a plan for the
+    wrong set. Now they union in and the extra's files appear in the map."""
+    result = scaffold(
+        "plan",
+        "--profile",
+        "go-app",
+        "release/dep-updates",
+        "--dest",
+        str(tmp_path / "dest"),
+        "--demo",
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    owners = {entry["path"]: entry["owners"] for entry in json.loads(result.stdout)["files"]}
+    assert owners.get("renovate.json") == ["release/dep-updates"]
+
+
+def test_profile_plus_extras_orders_fragments_before_aggregators(tmp_path: Path) -> None:
+    """lang/api appended naively lands after workspace/just and quality/hooks and
+    would refuse; the union is toposorted by `after` and fragment edges instead."""
+    result = scaffold(
+        "plan",
+        "--profile",
+        "go-app",
+        "lang/api",
+        "--dest",
+        str(tmp_path / "dest"),
+        "--demo",
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "warning:" not in result.stderr
+
+
+def test_profile_plus_impossible_extra_refuses(tmp_path: Path) -> None:
+    """Reordering fixes position, not absence: docs/api-refs without docs/site is a
+    REQUIRES problem and exits 2 naming what is missing."""
+    result = scaffold(
+        "plan",
+        "--profile",
+        "go-app",
+        "docs/api-refs",
+        "--dest",
+        str(tmp_path / "dest"),
+        "--demo",
+    )
+
+    assert result.returncode == 2
+    assert "docs/site" in result.stderr
+
+
+def test_positional_set_warns_but_runs() -> None:
+    """A hand-named order is the user's own; a violated `after` prints a warning
+    rather than refusing."""
+    result = scaffold("check-answers", "host/github", "lang/go")
+
+    assert "warning: puts host/github before lang/go" in result.stderr
+
+
+def test_order_set_places_an_extra_by_its_declared_edges() -> None:
+    """The unit under the union: lang/api sorts before the aggregators it feeds
+    (.just.d, .pre-commit.d) and before host/github, which declares `after: lang/*`."""
+    ordered = load_scaffold().order_set(
+        [
+            "base/license",
+            "base/repo",
+            "lang/go",
+            "host/github",
+            "workspace/just",
+            "quality/hooks",
+            "base/gitignore",
+            "lang/api",
+        ]
+    )
+
+    position = {recipe: index for index, recipe in enumerate(ordered)}
+    for later in ("workspace/just", "quality/hooks", "host/github"):
+        assert position["lang/api"] < position[later], ordered
