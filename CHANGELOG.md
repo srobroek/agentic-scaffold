@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.2](https://github.com/srobroek/agentic-scaffold/compare/v3.0.1...v3.0.2) (2026-08-26)
+
+
+### Bug Fixes
+
+* **recipes:** refuse api-refs languages that have no extractor ([0ac4aaa](https://github.com/srobroek/agentic-scaffold/commit/0ac4aaa3eef1758baa612c57e650002090e8ee4d))
+
 ## [3.0.1](https://github.com/srobroek/agentic-scaffold/compare/v3.0.0...v3.0.1) (2026-08-26)
 
 
