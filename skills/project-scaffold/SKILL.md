@@ -49,6 +49,10 @@ before the recipe set is proposed. Work the open decisions in rounds:
 
 - A round is every question whose prerequisites are settled, numbered, each carrying
   your recommended answer so one word accepts it.
+- A question belongs to the recipe that asks it, so a recipe's selection is a
+  prerequisite for every question in its `copier.yml`. An either/or between recipes
+  (iac/terraform vs iac/cdk) is a round of exactly that one question; the winner's
+  keys enter a later round, never the same one.
 - In scope: the generator's axes (`generator_answers`: frontend, backend, runtime, api,
   addons), auth and persistence, deployment target, the host contacts.
 - Not here: marketplaces stay at the install gate, where registering is imminent.
@@ -66,6 +70,15 @@ Read the profile for its `layers`, `generator`, `answers`, and `build`, then pro
 as one numbered table: Mandatory is the profile's own `layers`, Recommended what the answers
 imply, Optional what the user may decline, with the cost of declining. Wait for confirmation.
 
+An extra recipe on top of a profile is a shape check, not an append:
+
+- The CLI unions `--profile <p> <extra...>`, orders the result, and validates it; a
+  refusal naming REQUIRES or ordering is a verdict, not an obstacle to `--force` past.
+- A recipe that is itself a profile's core -- profiles/<name>.yml with its own
+  `generator` or pinned answers -- changes the shape: a second generator, a second
+  language, an ordering the profile never validated. Present the real options: its
+  own repository, a swap inside this one, or dropping it.
+
 ## Answers
 
 The CLI never prompts. Every answer goes in one YAML file passed as `--data-file`, with
@@ -79,6 +92,12 @@ uv run scripts/scaffold.py check-answers --profile <profile> --data-file answers
 It reports every gap at once, as `Provide a value for '<key>' in recipe '<id>'`. Re-ask
 exactly those keys. Render once it prints `answers complete`.
 
+The gap list IS the question list: run it on the currently-resolved set, ask exactly
+what it reports, and re-run it after any answer that changes the set -- a recipe
+added, an either/or settled -- because the new recipe's keys and `when:`-gated
+questions exist only from that point. A key the preflight does not report is not
+asked; hand-reading copier.yml re-derives `when:` logic the tool already computes.
+
 **A secret-shaped value never reaches the answers file.** The shapes: `ghp_`, `gho_`, `sk-`,
 `AKIA`, `ASIA`, `glpat-`, `xox[baprs]-`, and a PEM header. Refuse to persist it, say the
 credential now sits in a transcript and has to be rotated, and leave the key a gap. A secret
@@ -87,20 +106,34 @@ variable name and what fails without it, never a value.
 
 ## Record the run in beads
 
-Where the destination has beads, pour the run before rendering:
+The run record is not optional, and it is poured AFTER the render: agentic/beads'
+own task is the only correct `bd init` (server mode, the rendered AGENTS body, the
+gitignore fragment), and a pre-render init would pin embedded storage that
+`--init-if-missing` can never correct. The moment the render finishes:
 
 ```bash
-bd mol pour mol-scaffold-run --var feature=<slug> --var profile=<profile>
+mkdir -p <dest>/.beads/formulas
+cp "$SCAFFOLD/formulas/mol-scaffold-run.formula.toml" <dest>/.beads/formulas/
+cd <dest> && bd mol pour mol-scaffold-run --var feature=<slug> --var profile=<profile>
 bd update <root-id> --metadata '{"dest":"<dest>"}'
 ```
 
-Create one task bead per selected recipe under `<root>.render`, in profile order, each blocking
-the next. Four steps are human gates only `bd gate resolve` closes: plan approval, remote
-creation, secrets, marketplace installs. Remote creation precedes secrets, because the secret
-needs the repository, and a gate with nothing to approve resolves on that reason.
+Then bring the record up to now, and let the rest run live from the DAG:
 
-Pour `--var autonomous=yes` where no human can answer: the plan gate drops out, the secrets gate
-still stalls. Without beads, degrade to a plain run: warn once, then carry on.
+- Close `interview` with the decision table. A gate is its own issue attached to the
+  step (`bd show <step>` names it): `bd gate resolve <gate-id> --reason "who approved
+  the plan, when"`, then `bd close <step>`.
+- Create one task bead per rendered recipe under `<root>.render`, each closed with
+  its render commit.
+- Setup, secrets, build, verify, handoff, and the remote and install gates stay
+  live. Each gate commits what an agent must not decide alone: a published
+  repository, a credential, a machine-global registration.
+- Pour `--var autonomous=yes` where no human can answer: the plan gate drops out,
+  the secrets gate still stalls.
+
+A crash before the pour has no DAG; the answers file and the printed plan are the
+resume artifacts for that window, and a re-render from them is idempotent. Degrade
+to a plain run only when `bd` itself is absent -- warn once, then carry on.
 
 ## Render
 

@@ -284,37 +284,13 @@ def exclusive_groups(recipes: list[str]) -> list[str]:
     return problems
 
 
-def check_profile(path: Path) -> list[str]:
-    """Every problem with one profile, so a run reports them together."""
+def check_set(recipes: list[str]) -> list[str]:
+    """Problems with a recipe list independent of any profile file."""
     problems: list[str] = []
-    try:
-        profile = yaml.safe_load(path.read_text()) or {}
-    except yaml.YAMLError as exc:
-        return [f"is not valid YAML: {exc}"]
-
-    for key in REQUIRED_PROFILE_KEYS:
-        if key not in profile:
-            problems.append(f"has no `{key}`")
-    if problems:
-        return problems
-
-    if profile["name"] != path.stem:
-        problems.append(f"names itself {profile['name']!r} but the file is {path.stem!r}")
-
-    recipes = profile["layers"]
-    if not isinstance(recipes, list) or not recipes:
-        return [*problems, "`layers` is empty"]
-
-    for recipe in recipes:
-        if not recipe_exists(recipe):
-            problems.append(f"names {recipe}, which has no recipes/{recipe}/copier.yml")
-
-    if not profile["build"]:
-        problems.append("`build` is empty, so rendering it would prove nothing")
 
     # Ordering. A recipe's own `after` is the authority, and a glob there
-    # matches whatever the profile selected: `lang/*` in host/github's list
-    # means every language recipe the profile names, not every one that exists.
+    # matches whatever the run selected: `lang/*` in host/github's list
+    # means every language recipe the set names, not every one that exists.
     present = [recipe for recipe in recipes if recipe_exists(recipe)]
     position = {recipe: index for index, recipe in enumerate(present)}
     for recipe in present:
@@ -330,10 +306,10 @@ def check_profile(path: Path) -> list[str]:
     problems += exclusive_groups(present)
 
     for recipe, needed in REQUIRES.items():
-        if recipe not in recipes:
+        if recipe not in present:
             continue
         for requirement in needed:
-            if requirement not in recipes:
+            if requirement not in present:
                 problems.append(f"names {recipe}, which cannot work without {requirement}")
 
     # A recipe that contributes to an aggregated directory has to precede the
@@ -365,6 +341,78 @@ def check_profile(path: Path) -> list[str]:
                     f"renders {language} before workspace/monorepo, so the member "
                     "glob does not exist yet"
                 )
+
+    return problems
+
+
+def order_set(recipes: list[str]) -> list[str]:
+    """A stable topological order for a recipe set nobody hand-ordered.
+
+    Input order breaks ties, so a valid list passes through unchanged. Edges are
+    the three ordering authorities `check_set` enforces: a recipe's `after`
+    globs, fragment contributors before their aggregator, and workspace/monorepo
+    before every language recipe.
+    """
+    present = [recipe for recipe in recipes if recipe_exists(recipe)]
+    edges: dict[str, set[str]] = {recipe: set() for recipe in present}
+    for recipe in present:
+        for pattern in declared_after(recipe):
+            for earlier in matches(pattern, present):
+                if earlier != recipe:
+                    edges[recipe].add(earlier)
+    for aggregator, directory in AGGREGATORS:
+        if aggregator not in edges:
+            continue
+        for recipe in present:
+            if recipe != aggregator and contributes(recipe, directory):
+                edges[aggregator].add(recipe)
+    if "workspace/monorepo" in edges:
+        for language in matches("lang/*", present):
+            edges[language].add("workspace/monorepo")
+
+    ordered = []
+    remaining = list(present)
+    while remaining:
+        ready = next(
+            (r for r in remaining if not (edges[r] & set(remaining))),
+            None,
+        )
+        if ready is None:
+            die(2, f"recipe ordering is cyclic: {', '.join(remaining)}")
+        remaining.remove(ready)
+        ordered.append(ready)
+    return ordered + [recipe for recipe in recipes if not recipe_exists(recipe)]
+
+
+def check_profile(path: Path) -> list[str]:
+    """Every problem with one profile, so a run reports them together."""
+    problems: list[str] = []
+    try:
+        profile = yaml.safe_load(path.read_text()) or {}
+    except yaml.YAMLError as exc:
+        return [f"is not valid YAML: {exc}"]
+
+    for key in REQUIRED_PROFILE_KEYS:
+        if key not in profile:
+            problems.append(f"has no `{key}`")
+    if problems:
+        return problems
+
+    if profile["name"] != path.stem:
+        problems.append(f"names itself {profile['name']!r} but the file is {path.stem!r}")
+
+    recipes = profile["layers"]
+    if not isinstance(recipes, list) or not recipes:
+        return [*problems, "`layers` is empty"]
+
+    for recipe in recipes:
+        if not recipe_exists(recipe):
+            problems.append(f"names {recipe}, which has no recipes/{recipe}/copier.yml")
+
+    if not profile["build"]:
+        problems.append("`build` is empty, so rendering it would prove nothing")
+
+    problems += check_set(recipes)
 
     return problems
 
@@ -846,12 +894,28 @@ def parse_data(pairs: list[str]) -> dict:
 
 
 def select_sources(args: argparse.Namespace) -> tuple[list[Source], dict | None]:
-    """The recipe set: either a profile's, in its order, or the ones named."""
+    """The recipe set: a profile's, the ones named, or the union of both.
+
+    With `--profile` alone the profile's order is the order. Positional recipes
+    union into a profile's set, placed by `order_set`, and the result must pass
+    `check_set` -- reordering fixes position, not absence, so a REQUIRES or
+    exclusive-group problem refuses. A positional set with no profile is the
+    user's own order: problems print as warnings and the set runs as named.
+    """
     if args.profile:
         profile = load_profile(args.profile)
-        return [resolve_source(recipe) for recipe in profile["layers"]], profile
+        recipes = list(profile["layers"])
+        extras = [recipe for recipe in args.recipes if recipe not in recipes]
+        if extras:
+            recipes = order_set(recipes + extras)
+            problems = check_set(recipes)
+            if problems:
+                die(2, "; ".join(problems))
+        return [resolve_source(recipe) for recipe in recipes], profile
     if not args.recipes:
         die(2, "name recipes or pass --profile")
+    for problem in check_set(args.recipes):
+        print(f"warning: {problem}", file=sys.stderr)
     return [resolve_source(recipe) for recipe in args.recipes], None
 
 
@@ -1003,7 +1067,11 @@ def main() -> int:
 
     def common(p: argparse.ArgumentParser, dest_required: bool = True) -> None:
         p.add_argument("recipes", nargs="*", help="recipe ids, paths, or URLs")
-        p.add_argument("--profile", help="take the recipe set from a profile")
+        p.add_argument(
+            "--profile",
+            help="take the recipe set from a profile; positional recipes union in, "
+            "ordered by their declared `after`",
+        )
         p.add_argument("--dest", type=Path, required=dest_required)
         p.add_argument("--data", action="append", default=[], metavar="KEY=VALUE")
         p.add_argument("--data-file", type=Path, help="YAML file of answers")
