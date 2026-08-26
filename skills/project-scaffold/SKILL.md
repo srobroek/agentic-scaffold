@@ -104,37 +104,6 @@ credential now sits in a transcript and has to be rotated, and leave the key a g
 belongs in the environment or a secret manager, and `docs/agents/env/index.md` records the
 variable name and what fails without it, never a value.
 
-## Record the run in beads
-
-The run record is not optional, and it is poured AFTER the render: agentic/beads'
-own task is the only correct `bd init` (server mode, the rendered AGENTS body, the
-gitignore fragment), and a pre-render init would pin embedded storage that
-`--init-if-missing` can never correct. The moment the render finishes:
-
-```bash
-mkdir -p <dest>/.beads/formulas
-cp "$SCAFFOLD/formulas/mol-scaffold-run.formula.toml" <dest>/.beads/formulas/
-cd <dest> && bd mol pour mol-scaffold-run --var feature=<slug> --var profile=<profile>
-bd update <root-id> --metadata '{"dest":"<dest>"}'
-```
-
-Then bring the record up to now, and let the rest run live from the DAG:
-
-- Close `interview` with the decision table. A gate is its own issue attached to the
-  step (`bd show <step>` names it): `bd gate resolve <gate-id> --reason "who approved
-  the plan, when"`, then `bd close <step>`.
-- Create one task bead per rendered recipe under `<root>.render`, each closed with
-  its render commit.
-- Setup, secrets, build, verify, handoff, and the remote and install gates stay
-  live. Each gate commits what an agent must not decide alone: a published
-  repository, a credential, a machine-global registration.
-- Pour `--var autonomous=yes` where no human can answer: the plan gate drops out,
-  the secrets gate still stalls.
-
-A crash before the pour has no DAG; the answers file and the printed plan are the
-resume artifacts for that window, and a re-render from them is idempotent. Degrade
-to a plain run only when `bd` itself is absent -- warn once, then carry on.
-
 ## Render
 
 Plan first, and show the plan before anything touches disk:
@@ -165,6 +134,37 @@ Order comes from the profile, and `scaffold check` proves it. Two cases bite:
 - **A fragment contributor precedes its aggregator.** `workspace/just` folds `.just.d/`,
   `quality/hooks` folds `.pre-commit.d/`, and `base/gitignore` rebuilds `.gitignore` from
   `.gitignore.d/`.
+
+## Record the run in beads
+
+The run record is not optional, and it is poured AFTER the render: agentic/beads'
+own task is the only correct `bd init` (server mode, the rendered AGENTS body, the
+gitignore fragment), and a pre-render init would pin embedded storage that
+`--init-if-missing` can never correct. The moment the render finishes:
+
+```bash
+mkdir -p <dest>/.beads/formulas
+cp "$SCAFFOLD/formulas/mol-scaffold-run.formula.toml" <dest>/.beads/formulas/
+cd <dest> && bd mol pour mol-scaffold-run --var feature=<slug> --var profile=<profile>
+bd update <root-id> --metadata '{"dest":"<dest>"}'
+```
+
+Then bring the record up to now, and let the rest run live from the DAG:
+
+- Close `interview` with the decision table. A gate is its own issue attached to the
+  step (`bd show <step>` names it): `bd gate resolve <gate-id> --reason "who approved
+  the plan, when"`, then `bd close <step>`.
+- Create one task bead per rendered recipe under `<root>.render`, each closed with
+  its render commit.
+- Setup, secrets, build, verify, handoff, and the remote and install gates stay
+  live. Each gate commits what an agent must not decide alone: a published
+  repository, a credential, a machine-global registration.
+- Pour `--var autonomous=yes` where no human can answer: the plan gate drops out,
+  the secrets gate still stalls.
+
+A crash before the pour has no DAG; the answers file and the printed plan are the
+resume artifacts for that window, and a re-render from them is idempotent. Degrade
+to a plain run only when `bd` itself is absent -- warn once, then carry on.
 
 ## After rendering
 
