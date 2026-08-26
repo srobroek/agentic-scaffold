@@ -4,15 +4,13 @@
     "name": "srobroek"
   },
   "metadata": {
-    "description": "Copier-recipe project scaffolding: the project-scaffold and project-scaffold-update skills, served to OMP, Claude Code, and Codex from one catalog.",
-    "version": "1.1.0"
+    "description": "Copier-recipe project scaffolding: the project-scaffold and project-scaffold-update skills, served to OMP, Claude Code, and Codex from one catalog."
   },
   "plugins": [
     {
       "name": "project-scaffold",
       "description": "Scaffold a new repository from composable copier recipes, or update one that was scaffolded before. The skills run the interview and drive the scaffold CLI; rendering needs a checkout of this repository.",
-      "source": "./",
-      "version": "1.1.0"
+      "source": "./"
     }
   ]
 }
