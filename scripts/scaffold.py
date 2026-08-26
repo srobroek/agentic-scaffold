@@ -928,9 +928,11 @@ def cmd_render(args: argparse.Namespace) -> int:
     if not args.pretend and not (dest / ".git").exists():
         dest.mkdir(parents=True, exist_ok=True)
         subprocess.run(["git", "init", "-q", str(dest)], check=True)
-        # The CLI owns this fresh repository's per-recipe commits, and a CI
-        # runner has no global identity, so `git commit` there exits 128.
-        # An existing repository keeps whatever identity its owner set.
+
+    if not args.pretend and args.commit and (dest / ".git").exists():
+        # The CLI's own commits must not depend on ambient identity: a CI
+        # runner has none, and `git commit` there exits 128. Set only where
+        # unset -- `--get` sees global config, so a configured user keeps theirs.
         for key, value in (("user.email", "scaffold@example.com"), ("user.name", "Scaffold")):
             if subprocess.run(
                 ["git", "-C", str(dest), "config", "--get", key],
@@ -938,8 +940,6 @@ def cmd_render(args: argparse.Namespace) -> int:
                 check=False,
             ).returncode:
                 subprocess.run(["git", "-C", str(dest), "config", key, value], check=True)
-
-    if not args.pretend and args.commit and (dest / ".git").exists():
         # The generator ran before the render and its output sits uncommitted --
         # base/repo's precheck would refuse it, and rightly: copier overwrites
         # with no diff to review. A baseline commit IS that diff, so the first
