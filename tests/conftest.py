@@ -105,9 +105,7 @@ def mise_bin(tool: str) -> Path | None:
     """
     if shutil.which("mise") is None:
         return None
-    result = subprocess.run(
-        ["mise", "which", tool], capture_output=True, text=True, check=False
-    )
+    result = subprocess.run(["mise", "which", tool], capture_output=True, text=True, check=False)
     if result.returncode != 0:
         return None
     return Path(result.stdout.strip()).parent

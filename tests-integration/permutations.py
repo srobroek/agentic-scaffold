@@ -141,6 +141,22 @@ def run_profile(name: str, scratch: Path) -> dict:
             continue
         ok = step(command, command, dest, timeout=1800) and ok
 
+    if name == "cdk" and ok:
+        # Exit codes are not outcomes here: the generator-owned deferrals must
+        # still land the interview's answers through the projenrc.
+        licence = (dest / "LICENSE").read_text() if (dest / "LICENSE").is_file() else ""
+        checks = {
+            "LICENSE is the profile's, not projen's": "GNU AFFERO" in licence,
+            "gitignore carries the fragments": "repomix" in (dest / ".gitignore").read_text(),
+            "oxlint devDep declared": "oxlint" in (dest / "package.json").read_text(),
+            "projenrc kept github off": "github: false" in (dest / ".projenrc.ts").read_text(),
+        }
+        for label, passed in checks.items():
+            steps.append((label, "ok" if passed else "FAIL"))
+            if not passed:
+                failures.append(f"--- cdk outcome: {label}")
+                ok = False
+
     return {"profile": name, "steps": steps, "ok": ok, "failures": failures}
 
 

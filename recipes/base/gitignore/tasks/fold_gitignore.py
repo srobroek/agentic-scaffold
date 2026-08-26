@@ -207,9 +207,18 @@ def main() -> int:
 
     target = dest / ".gitignore"
     if target.exists() and not os.access(target, os.W_OK):
-        # projen writes .gitignore read-only and regenerates it from .projenrc.ts.
-        # A generator that claims the file that hard keeps it: entries belong in the
-        # projenrc, and a fold here would be overwritten on the next synth anyway.
+        # projen writes .gitignore read-only and regenerates it from .projenrc.ts,
+        # whose iac/cdk shape folds .gitignore.d/ itself at synth. This recipe
+        # renders LAST, when every fragment exists, so the re-synth here is what
+        # carries them into projen's copy.
+        if (dest / ".projenrc.ts").is_file() and (dest / "node_modules").is_dir():
+            result = subprocess.run(
+                ["npx", "--yes", "projen"], cwd=dest, check=False, timeout=FETCH_TIMEOUT_SECONDS
+            )
+            if result.returncode != 0:
+                raise SystemExit("projen re-synth failed while folding .gitignore.d")
+            print(".gitignore re-synthesised through projen from the fragments")
+            return 0
         print(".gitignore is read-only (generator-owned); add entries in its generator config")
         return 0
 

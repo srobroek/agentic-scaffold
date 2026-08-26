@@ -939,6 +939,13 @@ def cmd_render(args: argparse.Namespace) -> int:
             ).returncode:
                 subprocess.run(["git", "-C", str(dest), "config", key, value], check=True)
 
+    if not args.pretend and args.commit and (dest / ".git").exists():
+        # The generator ran before the render and its output sits uncommitted --
+        # base/repo's precheck would refuse it, and rightly: copier overwrites
+        # with no diff to review. A baseline commit IS that diff, so the first
+        # recipe's change is reviewable against exactly what the generator made.
+        git_commit(dest, "chore: pre-render tree")
+
     for source in sources:
         render_one(source, dest, data, args.data_file, args.pretend)
         print(f"  ok    render {source.id}")

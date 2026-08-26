@@ -7,7 +7,11 @@ _scaffold:
     type-aware linting, vitest, tsc, knip, plus the CI jobs and the fragments
     every aggregating layer folds in.
   requires_bin: [bun]
-  after: [base/license, workspace/monorepo]
+  # Only the constraint with a mechanism behind it: the member glob must exist
+  # before a language renders into it. No file here depends on base/license, and
+  # the cdk shape legitimately renders the licence late (projen owns LICENSE
+  # until its re-synth releases it).
+  after: [workspace/monorepo]
 
 _skip_if_exists:
   # better-t-stack writes both when it generates the project. Its versions win,

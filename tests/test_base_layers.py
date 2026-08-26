@@ -106,16 +106,29 @@ def test_repo_layer_leaves_docs_contents_alone(tmp_path: Path) -> None:
     assert not (dest / "docs" / "agents").exists()
 
 
-def test_precheck_refuses_a_dirty_destination(tmp_path: Path) -> None:
+def test_a_dirty_destination_is_baselined_or_refused(tmp_path: Path) -> None:
+    """The precheck's job is a reviewable diff, not a clean tree for its own sake.
+
+    With commits on (the default), the render baselines the pre-existing state --
+    generator output, hand edits -- so the first recipe's change is reviewable
+    against exactly what was there. With --no-commit nothing provides that diff,
+    and the precheck still refuses.
+    """
     dest = tmp_path / "d"
     dest.mkdir()
     git_init(dest)
     (dest / "dirty.txt").write_text("uncommitted\n")
 
-    result = render("base/repo", dest, "project_name: demo\norg: acme\n")
+    refused = render("base/repo", dest, "project_name: demo\norg: acme\n", "--no-commit")
+    assert refused.returncode == 3
+    assert "uncommitted changes" in refused.stderr
 
-    assert result.returncode == 3
-    assert "uncommitted changes" in result.stderr
+    baselined = render("base/repo", dest, "project_name: demo\norg: acme\n")
+    assert baselined.returncode == 0, baselined.stderr
+    log = subprocess.run(
+        ["git", "-C", str(dest), "log", "--format=%s"], capture_output=True, text=True
+    ).stdout
+    assert "chore: pre-render tree" in log
 
 
 # --- base/gitignore --------------------------------------------------------

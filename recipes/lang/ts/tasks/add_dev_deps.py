@@ -64,8 +64,7 @@ def main() -> int:
         # dependencies belong in the projenrc there, and a bun add here would be
         # overwritten on the next synth anyway.
         print(
-            "package.json is read-only (generator-owned); "
-            "declare dev deps in its generator config"
+            "package.json is read-only (generator-owned); declare dev deps in its generator config"
         )
         return 0
 

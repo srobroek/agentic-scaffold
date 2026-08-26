@@ -139,11 +139,11 @@ def check_expectations(case: dict, dest: Path) -> list[str]:
     problems = []
     for expression in case.get("expect") or []:
         try:
-            if eval(expression, {"tree": dest, "Path": Path}):  # noqa: S307
+            if eval(expression, {"tree": dest, "Path": Path}):
                 print(f"  ok    expect {expression}")
             else:
                 problems.append(f"expect failed: {expression}")
-        except Exception as error:  # noqa: BLE001 - a bad expression is a case defect
+        except Exception as error:
             problems.append(f"expect raised on {expression}: {error!r}")
     return problems
 
