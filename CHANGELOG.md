@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.1](https://github.com/srobroek/agentic-scaffold/compare/v3.0.0...v3.0.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **skills:** the run-record section follows the render it depends on ([180e2a7](https://github.com/srobroek/agentic-scaffold/commit/180e2a7ba212a3578e432da8f707f0cd06cc9d10))
+
 ## [3.0.0](https://github.com/srobroek/agentic-scaffold/compare/v2.0.0...v3.0.0) (2026-08-26)
 
 
