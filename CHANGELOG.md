@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/srobroek/agentic-scaffold/compare/v1.1.0...v2.0.0) (2026-08-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* rules/choices.md no longer derives a licence.
+
+### Bug Fixes
+
+* resolve the checkout, reconfirm remembered answers, unrule the licence ([#14](https://github.com/srobroek/agentic-scaffold/issues/14)) ([1e1b1cd](https://github.com/srobroek/agentic-scaffold/commit/1e1b1cdac4d85c00fa79430c31f0aabd5bbb94de))
+
+
+### Refactors
+
+* one version source, two catalogs ([#12](https://github.com/srobroek/agentic-scaffold/issues/12)) ([9f89d08](https://github.com/srobroek/agentic-scaffold/commit/9f89d088e8fb33ad762837ba4fceba08c921f7b5))
+
 ## [1.1.0](https://github.com/srobroek/agentic-scaffold/compare/v1.0.0...v1.1.0) (2026-08-26)
 
 
