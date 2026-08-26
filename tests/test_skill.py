@@ -400,4 +400,7 @@ def test_the_three_catalogs_are_identical_and_track_the_release() -> None:
     plugin = json.loads((REPO_ROOT / ".claude-plugin" / "plugin.json").read_text())
     catalog = json.loads(first.read_text())
     assert catalog["plugins"][0]["version"] == plugin["version"]
-    assert catalog["plugins"][0]["source"] == "."
+    # "./", never ".": omp's marketplace normalizer drops a bare-dot source
+    # entirely (probed against a local catalog carrying ".", "./", "./sub" --
+    # only the latter two survived), so the plugin would list nowhere.
+    assert catalog["plugins"][0]["source"] == "./"
