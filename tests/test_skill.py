@@ -379,3 +379,25 @@ def test_the_release_train_is_one_root_component() -> None:
     # reports a version the repository left behind.
     extra = config["packages"]["."]["extra-files"]
     assert any(entry["path"] == ".claude-plugin/plugin.json" for entry in extra)
+
+
+def test_the_three_catalogs_are_identical_and_track_the_release() -> None:
+    """One catalog serves OMP, Claude Code, and Codex; three copies exist only
+    because each runtime reads its own path. Divergence would install different
+    things per harness, and a version that trails plugin.json makes the upgrade
+    check lie -- release-please bumps all of them through extra-files."""
+    import json
+
+    catalogs = [
+        REPO_ROOT / ".omp-plugin" / "marketplace.json",
+        REPO_ROOT / ".claude-plugin" / "marketplace.json",
+        REPO_ROOT / ".agents" / "plugins" / "marketplace.json",
+    ]
+    first, *rest = catalogs
+    for other in rest:
+        assert first.read_bytes() == other.read_bytes(), other
+
+    plugin = json.loads((REPO_ROOT / ".claude-plugin" / "plugin.json").read_text())
+    catalog = json.loads(first.read_text())
+    assert catalog["plugins"][0]["version"] == plugin["version"]
+    assert catalog["plugins"][0]["source"] == "."
