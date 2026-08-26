@@ -5,10 +5,13 @@ description: Scaffold a new project or repository in any language from composabl
 
 # Project scaffold
 
-Interview, derive, plan, render. From a scaffold checkout, one CLI renders:
+Interview, derive, plan, render. One CLI renders everything, from a checkout resolved
+in order: a development checkout when present; else **this skill's own plugin install**
+(two levels above this SKILL.md, verified by `recipes/`); else clone `srobroek/agentic-scaffold`.
 
 ```bash
-uv run scripts/scaffold.py <list|check|plan|render|check-answers|update>
+# --project resolves the CLI's environment wherever the destination is; first run creates it.
+uv run --project "$SCAFFOLD" python "$SCAFFOLD/scripts/scaffold.py" <list|check|plan|render|check-answers|update>
 ```
 
 ## Interview
@@ -20,7 +23,8 @@ the tree.
 1. **What are you building?** Name plus one line.
 2. **Which language?** rust, python, go, ts, or none for an agentic repository.
 3. **One package, a monorepo, or several repos?**
-4. **Licence.** State the derived answer and accept an override.
+4. **Licence.** Recommend one with its tradeoff (`rules/choices.md` lists the starting
+   points) and ask -- never derived, the choice is the user's.
 5. **Create the remote now?**
 6. **Private or public**, if yes.
 
@@ -29,11 +33,14 @@ for a `ts-app`: a CLI or a static site needs neither, and no project name says w
 about infrastructure where the first answer implies it. Marketplaces are asked at the
 install gate, when registering is imminent, not here.
 
-Classify before asking: an answer is **strong** when the user stated it or `rules/choices.md`
-derives it, a **gap** otherwise. Read a choice question's options verbatim from that recipe's
-`copier.yml`. Licence answers are open strings: normalise the obvious, say the correction,
-do not ask -- `apache2` is `Apache-2.0`. A miss lists every SPDX key GitHub carries; correct
-and re-render.
+Classify before asking: an answer is **strong** when the user stated it IN THIS
+conversation or `rules/choices.md` derives it from one, a **gap** otherwise. Memory,
+stored preferences, and tool lookups (a gh login, a past project's licence) are
+RECOMMENDATIONS: offer them as the default in the question, never record one as
+decided -- what the user often chooses is still theirs to choose. Read a choice
+question's options verbatim from that recipe's `copier.yml`. Licence answers are open
+strings: normalise the obvious, say the correction, do not ask -- `apache2` is
+`Apache-2.0`. A miss lists every SPDX key GitHub carries; correct and re-render.
 
 ## Grill the shape
 
@@ -139,14 +146,13 @@ and register exactly those. Nothing here ships or derives a list: naming a sourc
 supply-chain decision, suggesting one makes it for the user, and "none" is a complete answer.
 
 Registration is machine-global, so each source goes behind the run's marketplace gate:
-`omp plugin marketplace add <owner/repo>`, Claude Code's `/plugin marketplace add <owner/repo>`,
-and for Codex the plugin source it resolves from `.agents/plugins/marketplace.json`. OMP
-installs from Claude-native marketplaces directly -- it reads `.omp-plugin/marketplace.json`
-and falls back to `.claude-plugin/marketplace.json` -- so one catalog serves both, verified
-live: a pure Claude-format skills plugin installs and its skills load. Two caveats carry the
-whole compatibility story: rules and agents load in OMP only for a plugin whose package.json
-carries the `omp` marker, and Claude hooks are inert there (OMP has no hooks.json runner), so
-a plugin leaning on either serves one runtime and silently under-delivers in the other.
+`omp plugin marketplace add <owner/repo>`; Claude `/plugin marketplace add <owner/repo>`;
+Codex reads `.agents/plugins/marketplace.json`.
+
+- One Claude-native catalog serves Claude and OMP, verified live (OMP falls back to
+  `.claude-plugin/`).
+- Boundaries: OMP loads rules and agents only with the `omp` package.json marker, and
+  Claude hooks are inert there -- a plugin leaning on either under-delivers in one runtime.
 
 ## Rules
 

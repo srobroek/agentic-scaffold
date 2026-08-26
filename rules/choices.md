@@ -9,7 +9,7 @@ Six questions, one at a time.
 1. What are you building? Name plus one line.
 2. Which language?
 3. One package, a monorepo, or several repos?
-4. License. State the derived answer and accept an override.
+4. Licence. Recommend one with its tradeoff and ask; the choice is the user's.
 5. Create the remote now?
 6. If yes, private or public. Read a public answer back before running.
 
@@ -19,6 +19,14 @@ Ask about infrastructure only when the answer to question 1 implies it.
 Ask about `api` and `database` for `ts-app`. A CLI or static site needs
 neither, and the choice is not inferable from the project name.
 
+The licence is never derived: recommend one with its tradeoff and let the user choose.
+Starting points:
+
+- `mpl-2.0` -- file-level copyleft, suits a library
+- `agpl-3.0-only` -- copyleft extended to network use; deters SaaS forks and some adopters alike
+- `apache-2.0` -- permissive with a patent grant
+- `mit` -- permissive and minimal
+
 ## Derive
 
 | Decision | Rule |
@@ -26,7 +34,6 @@ neither, and the choice is not inferable from the project name.
 | Task runner | `just` at the root of every profile |
 | Sub-runner | all-TypeScript monorepo uses turbo, which better-t-stack generates; mixed-language monorepo uses moon; single package uses `just` alone |
 | Layout | one language and one deployable is `single`; two deployables or two languages is `monorepo` |
-| License | niche library is `mpl-2.0`; application is `agpl-3.0-only`; template or dev tooling is `apache-2.0` |
 | CI languages | the set of `lang/*` recipes that rendered |
 | CI jobs | the union of jobs those recipes contribute, plus quality and security |
 | CI host | `github` unless the remote is GitLab |

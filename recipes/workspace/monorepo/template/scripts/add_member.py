@@ -245,9 +245,23 @@ def main() -> int:
         if not render.is_file():
             die(f"no scaffold.py under {args.scaffold}")
         print(f"add-member: rendering lang/{args.lang} at {member.relative_to(repo)}")
+        # Through uv with the SCAFFOLD's own project: the CLI imports yaml and
+        # copier, and `sys.executable` here is whatever python runs this script
+        # -- in a rendered repo, one with neither installed.
         if (
             subprocess.run(
-                [sys.executable, str(render), "render", f"lang/{args.lang}", "--dest", str(member)],
+                [
+                    "uv",
+                    "run",
+                    "--project",
+                    str(args.scaffold),
+                    "python",
+                    str(render),
+                    "render",
+                    f"lang/{args.lang}",
+                    "--dest",
+                    str(member),
+                ],
                 check=False,
             ).returncode
             != 0
