@@ -87,9 +87,9 @@ def test_the_frontmatter_carries_a_matching_trigger(path: Path) -> None:
 @pytest.mark.parametrize("path", [SCAFFOLD_SKILL, UPDATE_SKILL], ids=NAMES)
 def test_it_stays_under_the_line_budget(path: Path) -> None:
     """A skill long enough to skim is a skill nobody reads. The ceiling rose from 120 when
-    both absorbed the retired runner's semantics, and to 160 when the interview grew the
-    grill-the-shape rounds."""
-    assert len(path.read_text().splitlines()) <= 160
+    both absorbed the retired runner's semantics, to 160 with the grill-the-shape rounds,
+    and to 170 when checkout resolution and the memory-reconfirmation rule landed."""
+    assert len(path.read_text().splitlines()) <= 170
 
 
 def test_the_scaffold_skill_names_the_verbs_a_person_types() -> None:

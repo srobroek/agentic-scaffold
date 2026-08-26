@@ -15,6 +15,12 @@ Change a repository that already exists. Which job it is decides everything afte
 
 `project-scaffold` owns a repository that does not exist yet.
 
+The scaffold checkout resolves the same way as in `project-scaffold`: this skill ships
+inside the repository (two levels above this SKILL.md when installed as a plugin,
+verified by `recipes/` existing there), a development checkout wins when present, and
+cloning `srobroek/agentic-scaffold` is the fallback. Invoke the CLI as
+`uv run --project "$SCAFFOLD" python "$SCAFFOLD/scripts/scaffold.py" ...`.
+
 Commit the destination first, in every job. copier overwrites, and the git diff is the only
 review this has.
 
