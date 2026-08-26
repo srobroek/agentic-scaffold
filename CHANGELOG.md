@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/srobroek/agentic-scaffold/compare/v2.0.0...v3.0.0) (2026-08-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** --profile no longer ignores positional recipes.
+
+### Features
+
+* **cli:** union --profile with positional recipes ([#15](https://github.com/srobroek/agentic-scaffold/issues/15)) ([d880a5b](https://github.com/srobroek/agentic-scaffold/commit/d880a5baf09dce7b0e4ad623e432b40690a62bec))
+
 ## [2.0.0](https://github.com/srobroek/agentic-scaffold/compare/v1.1.0...v2.0.0) (2026-08-26)
 
 
