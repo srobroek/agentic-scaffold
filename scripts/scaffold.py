@@ -576,12 +576,17 @@ def required_questions(config: dict) -> list[str]:
     return gaps
 
 
-def collect_gaps(
-    sources: list[Source], data: dict, data_file: Path | None
-) -> list[tuple[str, str]]:
+def merge_provided(data: dict, data_file: Path | None) -> dict:
     provided = dict(data)
     if data_file is not None:
         provided.update(yaml.safe_load(data_file.read_text()) or {})
+    return provided
+
+
+def collect_gaps(
+    sources: list[Source], data: dict, data_file: Path | None
+) -> list[tuple[str, str]]:
+    provided = merge_provided(data, data_file)
     gaps = []
     for source in sources:
         config = recipe_config(source)
@@ -589,6 +594,41 @@ def collect_gaps(
             if key not in provided:
                 gaps.append((source.id, key))
     return gaps
+
+
+def invalid_answers(
+    sources: list[Source], data: dict, data_file: Path | None
+) -> list[tuple[str, str, str]]:
+    """Provided answers a question's own `validator` refuses.
+
+    Rendered the way copier renders them, so the refusal lands in the round
+    that asked the question instead of surfacing later as a failed render.
+    """
+    import jinja2
+
+    env = jinja2.Environment(undefined=jinja2.ChainableUndefined, keep_trailing_newline=True)
+    provided = merge_provided(data, data_file)
+    problems = []
+    for source in sources:
+        for key, spec in recipe_config(source).items():
+            if key.startswith("_") or not isinstance(spec, dict):
+                continue
+            if key not in provided or "validator" not in spec:
+                continue
+            # `--data key=[go]` arrives as a string; copier parses a yaml-typed
+            # answer before validating, so the preflight parses it the same way.
+            value = provided[key]
+            if spec.get("type") == "yaml" and isinstance(value, str):
+                try:
+                    value = yaml.safe_load(value)
+                except yaml.YAMLError:
+                    problems.append((source.id, key, "not valid YAML"))
+                    continue
+            context = {**provided, key: value}
+            message = env.from_string(spec["validator"]).render(context).strip()
+            if message:
+                problems.append((source.id, key, " ".join(message.split())))
+    return problems
 
 
 # --- rendering -----------------------------------------------------------
@@ -1032,11 +1072,14 @@ def cmd_check_answers(args: argparse.Namespace) -> int:
     if profile is not None:
         data = {**(profile.get("answers") or {}), **data}
     gaps = collect_gaps(sources, data, args.data_file)
-    if not gaps:
+    invalid = invalid_answers(sources, data, args.data_file)
+    if not gaps and not invalid:
         print("answers complete")
         return 0
     for recipe, key in gaps:
         print(f"Provide a value for {key!r} in recipe {recipe!r}", file=sys.stderr)
+    for recipe, key, message in invalid:
+        print(f"Invalid value for {key!r} in recipe {recipe!r}: {message}", file=sys.stderr)
     return 1
 
 

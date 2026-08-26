@@ -286,6 +286,33 @@ def test_a_provided_answer_closes_the_gap(tmp_path: Path) -> None:
     assert "answers complete" in result.stdout
 
 
+def test_a_validator_refusal_is_a_preflight_problem(tmp_path: Path) -> None:
+    """A question's own `validator` fires at check-answers time, in the round that
+    asked it -- not later as a copier-wrapped render failure."""
+    source = recipe(
+        tmp_path,
+        "picky",
+        {"l.txt.jinja": "{{ langs }}\n"},
+        extra=(
+            "\nlangs:\n"
+            "  type: yaml\n"
+            "  default: []\n"
+            "  validator: >-\n"
+            "    {% for lang in langs if lang not in ['rust', 'ts'] %}\n"
+            "    no extractor for '{{ lang }}'\n"
+            "    {% endfor %}\n"
+        ),
+    )
+
+    refused = scaffold("check-answers", source, "--data", "langs=[go]")
+    accepted = scaffold("check-answers", source, "--data", "langs=[ts]")
+
+    assert refused.returncode == 1
+    assert "Invalid value for 'langs'" in refused.stderr
+    assert "no extractor for 'go'" in refused.stderr
+    assert accepted.returncode == 0
+
+
 def test_a_question_carrying_a_default_is_not_a_gap(tmp_path: Path) -> None:
     """`--defaults` fills it, so asking would spend a turn on an answer already decided."""
     source = recipe(
