@@ -313,6 +313,15 @@ def test_a_validator_refusal_is_a_preflight_problem(tmp_path: Path) -> None:
     assert accepted.returncode == 0
 
 
+def test_the_api_refs_language_set_is_validated_preflight() -> None:
+    """The motivating case, against the real recipe: api_ref_languages has a default,
+    so a presence-only preflight would skip it entirely."""
+    result = scaffold("check-answers", "docs/api-refs", "--data", "api_ref_languages=[go]")
+
+    assert result.returncode == 1
+    assert "no extractor exists for 'go'" in result.stderr
+
+
 def test_a_question_carrying_a_default_is_not_a_gap(tmp_path: Path) -> None:
     """`--defaults` fills it, so asking would spend a turn on an answer already decided."""
     source = recipe(

@@ -613,7 +613,7 @@ def invalid_answers(
         for key, spec in recipe_config(source).items():
             if key.startswith("_") or not isinstance(spec, dict):
                 continue
-            if key not in provided or "validator" not in spec:
+            if key not in provided or "validator" not in spec or spec.get("when") is False:
                 continue
             # `--data key=[go]` arrives as a string; copier parses a yaml-typed
             # answer before validating, so the preflight parses it the same way.
