@@ -49,39 +49,49 @@ def die(message: str) -> None:
     raise SystemExit(1)
 
 
-def member_glob(repo: Path) -> str:
-    """Read the member path from the workspace manifest.
+def member_glob(repo: Path, lang: str) -> str:
+    """Read the member path from the LANGUAGE'S OWN workspace manifest.
 
-    Deriving it rather than taking an argument keeps `just add` and the manifest from
-    disagreeing about where a member goes.
+    Deriving it rather than taking an argument keeps `just add` and the manifest
+    from disagreeing about where a member goes. Dispatching on the language
+    matters in a mixed workspace: a rust-layout root carries Cargo.toml, and
+    resolving that glob for a ts member would drop a package.json project into
+    crates/*, which cargo then fails to load as a crate.
     """
-    cargo = repo / "Cargo.toml"
-    if cargo.is_file():
-        data = tomllib.loads(cargo.read_text())
-        members = (data.get("workspace") or {}).get("members") or []
-        if members:
-            return members[0]
+    if lang == "go":
+        if (repo / "go.mod").is_file():
+            return "cmd/*"
+        die("no go.mod found; render workspace/monorepo first")
 
-    pyproject = repo / "pyproject.toml"
-    if pyproject.is_file():
-        data = tomllib.loads(pyproject.read_text())
+    manifests = {
+        "rust": ("Cargo.toml", "[workspace] members"),
+        "python": ("pyproject.toml", "[tool.uv.workspace] members"),
+        "ts": ("package.json", "workspaces"),
+    }
+    filename, axis = manifests[lang]
+    path = repo / filename
+    if not path.is_file():
+        die(
+            f"a {lang} member needs {filename} with a {axis} list at the root, "
+            "and this workspace has none. A ts shell in a rust workspace comes "
+            "from its own generator (see the profile's generator_then), not from "
+            "`just add`."
+        )
+
+    if lang == "rust":
+        data = tomllib.loads(path.read_text())
+        members = (data.get("workspace") or {}).get("members") or []
+    elif lang == "python":
+        data = tomllib.loads(path.read_text())
         members = ((data.get("tool") or {}).get("uv") or {}).get("workspace", {}).get(
             "members"
         ) or []
-        if members:
-            return members[0]
+    else:
+        members = json.loads(path.read_text()).get("workspaces") or []
 
-    package = repo / "package.json"
-    if package.is_file():
-        members = json.loads(package.read_text()).get("workspaces") or []
-        if members:
-            return members[0]
-
-    if (repo / "go.mod").is_file():
-        return "cmd/*"
-
-    die("no workspace manifest found; render workspace/monorepo first")
-    raise AssertionError  # unreachable, keeps the type checker happy
+    if not members:
+        die(f"{filename} declares no members; render workspace/monorepo first")
+    return members[0]
 
 
 def install_member_hooks(member: Path) -> bool:
@@ -212,7 +222,7 @@ def main() -> int:
         )
 
     repo = args.repo.resolve()
-    glob = member_glob(repo)
+    glob = member_glob(repo, args.lang)
     if not glob.endswith("/*"):
         die(f"member glob {glob!r} does not end in /*, so a member path cannot be derived")
     member = repo / glob[:-2] / args.name

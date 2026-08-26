@@ -14,6 +14,7 @@ an identifier GitHub does not carry falls through to the SPDX licence list.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import urllib.error
@@ -131,7 +132,14 @@ def main() -> int:
         )
 
     body, spdx_id = found
-    (Path(dest) / "LICENSE").write_text(substitute(body, holder, year))
+    target = Path(dest) / "LICENSE"
+    if target.exists() and not os.access(target, os.W_OK):
+        # projen writes LICENSE and chmods it read-only, because it owns the file
+        # and regenerates it from .projenrc.ts. A generator that claims the file
+        # that hard keeps it; overriding would be overwritten on the next synth.
+        print(f"LICENSE is read-only (generator-owned), leaving it as {licence_id} was not applied")
+        return 0
+    target.write_text(substitute(body, holder, year))
     print(f"LICENSE written for {spdx_id} (via {source})")
     return 0
 

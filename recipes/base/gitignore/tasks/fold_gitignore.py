@@ -205,6 +205,14 @@ def main() -> int:
     # the OS noise, and de-duplicated in case a caller passes one explicitly.
     sources = list(dict.fromkeys([*detected_templates(dest), *extra, *OS_TEMPLATES]))
 
+    target = dest / ".gitignore"
+    if target.exists() and not os.access(target, os.W_OK):
+        # projen writes .gitignore read-only and regenerates it from .projenrc.ts.
+        # A generator that claims the file that hard keeps it: entries belong in the
+        # projenrc, and a fold here would be overwritten on the next synth anyway.
+        print(".gitignore is read-only (generator-owned); add entries in its generator config")
+        return 0
+
     parts = [ALWAYS]
 
     fragment_text = fragments(dest)
@@ -215,7 +223,7 @@ def main() -> int:
     if remote:
         parts.append(remote)
 
-    (dest / ".gitignore").write_text("\n".join(part.rstrip() + "\n" for part in parts if part))
+    target.write_text("\n".join(part.rstrip() + "\n" for part in parts if part))
 
     counted = (
         len(list((dest / ".gitignore.d").iterdir())) if (dest / ".gitignore.d").is_dir() else 0

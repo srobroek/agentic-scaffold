@@ -9,6 +9,9 @@ _scaffold:
 
 _skip_if_exists:
   - README.md
+  # projen writes .gitattributes read-only and regenerates it from .projenrc.ts, so a
+  # generator that already wrote it keeps it -- same first-writer rule as README.
+  - .gitattributes
 
 project_name:
   type: str

@@ -12,11 +12,14 @@ layers:
   - base/license
   - base/repo
   - lang/ts
+  # Before host/github: its re-synth task runs projen with `github: false`, removing
+  # the read-only github component `projen new` synthesised, so the host layer can
+  # own .github.
+  - iac/cdk
   - host/github
   - release/release-please
   - docs/agents
   - docs/adr
-  - iac/cdk
   - agentic/beads
   - agentic/index
   - quality/hooks
