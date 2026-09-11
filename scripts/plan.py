@@ -81,6 +81,7 @@ def main() -> int:
     parser.add_argument("target", type=Path)
     parser.add_argument("--tag", default="HEAD")
     parser.add_argument("--data", action="append", default=[])
+    args = parser.parse_args()
     try:
         data = parse_data(args.data)
         if not target_is_greenfield(args.target):

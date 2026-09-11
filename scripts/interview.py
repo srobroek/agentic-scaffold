@@ -122,6 +122,7 @@ def inspect(
                 question["choices"] = choices
         if raw.get("default") is not None or question_id == "hook_manager":
             question["default"] = facts.get(question_id, raw.get("default"))
+        questions.append(question)
     complete = not questions
     return {
         "facts": facts,

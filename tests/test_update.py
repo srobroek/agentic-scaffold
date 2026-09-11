@@ -16,7 +16,12 @@ conflict_files = plan.conflict_files
 
 def test_update_round_trip_and_conflict_detection(tmp_path: Path):
     source = tmp_path / "template-repo"
-    shutil.copytree(ROOT, source, ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__"))
+    shutil.copytree(
+        ROOT,
+        source,
+        symlinks=True,
+        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__"),
+    )
     git_init(source)
     git_commit(source, "template v-test")
     subprocess.run(["git", "-C", str(source), "tag", "v-test"], check=True)

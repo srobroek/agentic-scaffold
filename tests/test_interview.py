@@ -41,7 +41,9 @@ private_only:
   when: "{{ not hooks }}"
 """
     )
-    result = interview.inspect(source, tmp_path / "sample", {"hooks": True})
+    cwd = tmp_path / "sample"
+    cwd.mkdir()
+    result = interview.inspect(source, cwd, {"hooks": True})
     assert result["facts"]["name"] == "sample"
     question_ids = [question["id"] for question in result["ask"]["questions"]]
     assert "public_contact" in question_ids
