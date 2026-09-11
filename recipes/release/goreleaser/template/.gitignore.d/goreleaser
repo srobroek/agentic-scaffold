@@ -1,2 +1,0 @@
-# goreleaser writes every artefact here, and rebuilds it from the tag on demand.
-dist/

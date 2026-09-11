@@ -1,0 +1,28 @@
+set shell := ["bash", "-uc"]
+
+# List the available repository commands.
+default:
+    @just --list
+
+# Install pinned tools and repository integrations.
+bootstrap:
+    mise install
+{% if hooks and hook_manager == "prek" %}    prek install --git-dir "$(git rev-parse --absolute-git-dir)"
+{% elif hooks and hook_manager == "git-defender" %}    git-defender precommit-tool-setup
+{% endif %}{% if agentic and beads %}    bd init --init-if-missing --skip-hooks
+{% endif %}
+# Run the repository checks.
+verify:
+{% if hooks %}    prek run --all-files
+{% endif %}    if compgen -G '.github/ISSUE_TEMPLATE/*.yml' >/dev/null; then yamllint .github/ISSUE_TEMPLATE; fi
+    if compgen -G '.github/workflows/*' >/dev/null; then actionlint .github/workflows/*; fi
+# Update Copier-owned files and refuse unresolved merge markers.
+update-scaffold:
+    uvx copier update --defaults --conflict inline
+    markers="$(git grep -l '<''<''<''<''<''<' || true)"; if [ -n "$markers" ]; then printf 'unresolved conflict markers in:\n%s\n' "$markers"; exit 1; fi
+{%- if agentic %}
+
+# Refresh repository context for agents.
+context:
+    python3 .omp/context.py refresh
+{%- endif %}

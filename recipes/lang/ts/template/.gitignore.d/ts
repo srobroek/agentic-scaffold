@@ -1,5 +1,0 @@
-# ts
-# The upstream gh:Node template covers node_modules, dist, and the log files. These are the
-# tool caches this stack adds.
-.oxlintcache
-*.tsbuildinfo
