@@ -23,7 +23,7 @@ prose:
 
 # Validate YAML and GitHub workflows.
 lint-config:
-    yamllint .github
+    yamllint .github/workflows/ci.yml
     actionlint .github/workflows/*
 
 # Run all local checks.

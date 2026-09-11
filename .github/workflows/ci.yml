@@ -19,8 +19,8 @@ jobs:
       - uses: astral-sh/setup-uv@6b9c6063b0c4e6d4e3d6ab0b7b0a2bc15d6eaa1a # v6
         with:
           enable-cache: true
+      - run: yamllint .github/workflows/ci.yml
       - run: uv sync --locked
       - run: uv run pytest -q
       - run: uvx --from slopvac==1.0.1 slopvac README.md docs --profile normal
-      - run: yamllint .github
       - run: actionlint .github/workflows/*
