@@ -1,6 +1,0 @@
-{#- .mise/conf.d/container.toml -- mise reads every file in this directory. -#}
-[tools]
-hadolint = "{{ hadolint_version }}"
-# trivy scans both the image and the Dockerfile. iac/terraform pins it too; mise resolves
-# one version for the pair.
-trivy = "latest"
