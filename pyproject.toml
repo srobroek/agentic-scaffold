@@ -1,40 +1,19 @@
 [project]
 name = "project-scaffold"
 version = "0.1.0"
-description = "Layered copier templates and an agent skill that scaffolds a repository"
+description = "A Copier template and planning tools for new repositories"
 requires-python = ">=3.13"
 license = "Apache-2.0"
 dependencies = [
-    "copier>=9.16",
+    "copier>=9.18",
+    "jinja2>=3.1",
     "pyyaml>=6.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.0",
-    # Every test renders into its own tmp_path and shares no state, so the suite
-    # parallelises cleanly. Most of the wall-clock cost is waiting on a real toolchain.
-    "pytest-xdist>=3.6",
-    "ruff>=0.14",
 ]
 
-[tool.ruff]
-line-length = 100
-# Vendored verbatim from another repository, which lints it under its own rule set.
-# Reformatting a copy to satisfy this one breaks byte-fidelity with the source, so the
-# next re-sync would silently revert the change -- and the copy's own header says not to
-# edit it. Excluded rather than annotated, because the `noqa` codes the source needs are
-# themselves unused-noqa findings here.
-extend-exclude = [
-    "recipes/agentic/beads/template/scripts/render_adrs.py",
-    # Same contract: vendored verbatim from agentic-packages, which lints it under its own
-    # rule set. Reformatting a copy breaks byte-fidelity with the source, so the next
-    # re-sync would silently revert the change.
-    "recipes/quality/hooks/template/scripts/attribution_patterns.py",
-    "recipes/quality/hooks/template/scripts/commit-msg-rewrite.py",
-    "recipes/quality/hooks/template/scripts/close_keywords.py",
-]
-
-[tool.ruff.lint]
-preview = true
-select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]

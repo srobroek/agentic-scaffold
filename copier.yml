@@ -1,0 +1,85 @@
+_min_copier_version: "9.18.0"
+_answers_file: .copier-answers.yml
+_skip_if_exists:
+  - README.md
+_subdirectory: template
+_exclude:
+  - copier.yml
+  - scripts/**
+  - skills/**
+
+
+name:
+  type: str
+  help: Repository name
+  default: "{{ _copier_conf.dst_path | basename }}"
+
+github_owner:
+  type: str
+  help: GitHub owner
+  default: ""
+
+license:
+  type: str
+  help: License
+  choices:
+    - apache-2.0
+    - mit
+    - mpl-2.0
+    - none
+  default: apache-2.0
+
+visibility:
+  type: str
+  help: Repository visibility
+  choices:
+    - public
+    - private
+  default: private
+
+hooks:
+  type: bool
+  help: Install repository hooks
+  default: true
+
+hook_manager:
+  type: str
+  help: Hook manager
+  choices:
+    - prek
+    - git-defender
+  default: prek
+  when: "{{ hooks }}"
+
+agentic:
+  type: bool
+  help: Include agent configuration
+  default: true
+
+beads:
+  type: bool
+  help: Initialize Beads
+  default: true
+  when: "{{ agentic }}"
+
+conduct_contact:
+  type: str
+  help: Code of Conduct contact
+  default: ""
+  when: "{{ visibility == 'public' }}"
+
+codeowner:
+  type: str
+  help: Code owner
+  default: "@{{ github_owner }}"
+
+language:
+  type: str
+  help: Primary language
+  choices:
+    - none
+    - python
+    - rust
+    - ts
+    - go
+  default: none
