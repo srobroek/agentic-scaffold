@@ -81,6 +81,24 @@ def test_the_wrapper_has_no_checkout_fallback() -> None:
     assert not any("--from" in line for line in returns)
 
 
+def test_an_unusable_slopvac_shim_falls_back_to_uvx(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A PATH shim without a configured tool is not an installed linter."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("lint_prose", WRAPPER)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    monkeypatch.setattr(module.shutil, "which", lambda name: f"/shim/{name}")
+
+    def fake_run(argv: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(argv, 1 if argv[0] == "slopvac" else 0, "", "")
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+    assert module.linter() == ["uvx", "slopvac"]
+
+
 # --- the committed config --------------------------------------------------
 
 

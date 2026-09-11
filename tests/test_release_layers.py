@@ -315,28 +315,23 @@ def workflow_of(dest: Path) -> dict:
     return yaml.safe_load((dest / ".github" / "workflows" / "release-please.yml").read_text())
 
 
-def test_without_the_app_the_release_pr_carries_no_checks(release_please: Path) -> None:
-    """The default, and the trap it leaves is recorded in the workflow itself.
+def test_explicitly_disabling_the_app_records_the_release_pr_trap(tmp_path: Path) -> None:
+    """The opt-out records why GITHUB_TOKEN release pull requests carry no checks."""
+    dest = git_repo(tmp_path / "no-app")
+    result = render("release/release-please", dest, RP_ANSWERS + "release_app: false\n")
+    assert result.returncode == 0, result.stderr
 
-    A pull request opened with GITHUB_TOKEN triggers no workflow. GitHub refuses this on
-    purpose, to stop a workflow from causing its own next run. The release pull request
-    therefore reports no checks, and a required check blocks it: measured on this scaffold's own
-    repository, where PR #2 came up with zero check runs against a required `gate`.
-    """
-    steps = workflow_of(release_please)["jobs"]["release-please"]["steps"]
-    assert not any("create-github-app-token" in str(s.get("uses", "")) for s in steps)
+    steps = workflow_of(dest)["jobs"]["release-please"]["steps"]
+    assert not any("create-github-app-token" in str(step.get("uses", "")) for step in steps)
 
-    body = (release_please / ".github" / "workflows" / "release-please.yml").read_text()
+    body = (dest / ".github" / "workflows" / "release-please.yml").read_text()
     assert "will carry no checks" in body, "the trap has to be stated where the token is chosen"
 
 
-def test_the_app_token_makes_the_release_pr_trigger_ci(tmp_path: Path) -> None:
-    """An App token is not subject to the no-recursive-trigger rule, which is the only reason
-    the mint step exists."""
-    dest = tmp_path / "app"
-    dest.mkdir()
-    subprocess.run(["git", "init", "-q", str(dest)], check=True)
-    result = render("release/release-please", dest, RP_ANSWERS + "release_app: true\n")
+def test_the_default_app_token_makes_the_release_pr_trigger_ci(tmp_path: Path) -> None:
+    """The default App token avoids GitHub's no-recursive-trigger rule."""
+    dest = git_repo(tmp_path / "app")
+    result = render("release/release-please", dest, RP_ANSWERS)
     assert result.returncode == 0, result.stderr
 
     steps = workflow_of(dest)["jobs"]["release-please"]["steps"]
@@ -354,6 +349,7 @@ def test_the_app_token_makes_the_release_pr_trigger_ci(tmp_path: Path) -> None:
     # which zizmor reports as `github-app` at HIGH. CI caught this and a local run did not: the
     # audit needs a GitHub token, and without one zizmor quietly drops it.
     assert mint["with"]["permission-contents"] == "write"
+    assert mint["with"]["permission-issues"] == "write"
     assert mint["with"]["permission-pull-requests"] == "write"
 
     # No GITHUB_TOKEN fallback. A release pull request opened with that token carries no checks,
@@ -434,8 +430,11 @@ def test_the_sync_step_does_not_persist_the_token(tmp_path: Path) -> None:
     assert mise["with"]["cache"] is False
 
 
-def test_the_sync_step_is_absent_without_the_app(release_please: Path) -> None:
-    """The amending commit has to trigger the required checks, and only an App-token commit
-    does. Syncing with GITHUB_TOKEN would push a commit that no check ever sees."""
-    steps = workflow_of(release_please)["jobs"]["release-please"]["steps"]
-    assert not any("Sync the generated catalogs" in s.get("name", "") for s in steps)
+def test_the_sync_step_is_absent_without_the_app(tmp_path: Path) -> None:
+    """The opt-out cannot render an App-authored catalog sync step."""
+    dest = git_repo(tmp_path / "no-app-sync")
+    result = render("release/release-please", dest, RP_ANSWERS + "release_app: false\n")
+    assert result.returncode == 0, result.stderr
+
+    steps = workflow_of(dest)["jobs"]["release-please"]["steps"]
+    assert not any("Sync the generated catalogs" in step.get("name", "") for step in steps)
