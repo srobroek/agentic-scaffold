@@ -73,6 +73,7 @@ def test_update_round_trip_and_conflict_detection(tmp_path: Path):
     (destination / "justfile").write_text(
         (destination / "justfile").read_text().replace("# List the available", "# Local list", 1)
     )
+    git_commit(destination, "local edit")
     (source / "template/justfile.jinja").write_text(
         (source / "template/justfile.jinja").read_text().replace("# List the available", "# Changed list", 1)
     )
