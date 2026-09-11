@@ -11,6 +11,7 @@ def expected_files(*, hooks: bool, agentic: bool, beads: bool, visibility: str, 
     files = {
         ".copier-answers.yml",
         ".editorconfig",
+        ".yamllint",
         ".gitattributes",
         ".gitignore",
         ".github/CODEOWNERS",

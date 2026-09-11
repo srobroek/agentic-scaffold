@@ -53,3 +53,33 @@ private_only:
 def test_command_emission_uses_data_pairs():
     command = interview.command("/template", "/destination", "v-test", ["name=demo", "hooks=true"])
     assert command == "uvx copier copy --vcs-ref v-test --data name=demo --data hooks=true /template /destination"
+
+
+def test_inspect_emits_ask_pages_and_clean_data(tmp_path: Path):
+    target = tmp_path / "e2e"
+    target.mkdir()
+    subprocess_git = ["git", "-C", str(target)]
+    import subprocess
+
+    subprocess.run([*subprocess_git, "init", "-q"], check=True)
+    subprocess.run([*subprocess_git, "remote", "add", "origin", "git@github.com:acme/e2e.git"], check=True)
+    first = interview.inspect(ROOT / "copier.yml", target, {})
+    assert first["facts"]["github_owner"] == "acme" and first["facts"]["name"] == "e2e"
+    questions = first["ask"]["questions"]
+    assert 0 < len(questions) <= 5 and first["complete"] is False
+    for question in questions:
+        assert 1 <= len(question["options"]) <= 5, question["id"]
+        assert all(set(option) <= {"label", "description"} for option in question["options"])
+        assert 0 <= question["recommended"] < len(question["options"])
+    booleans = {q["id"]: [o["label"] for o in q["options"]] for q in questions if q["id"] in {"hooks", "agentic"}}
+    assert booleans == {"hooks": ["true", "false"], "agentic": ["true", "false"]}
+    answered = {"license": "mit", "visibility": "public", "hooks": True, "hook_manager": "prek", "agentic": True, "beads": interview.MORE_CHOICES}
+    second = interview.inspect(ROOT / "copier.yml", target, answered)
+    ids = [q["id"] for q in second["ask"]["questions"]]
+    assert "beads" in ids, "the navigation sentinel is not an answer"
+    codeowner = next(q for q in second["ask"]["questions"] if q["id"] == "codeowner")
+    assert codeowner["options"][0]["label"] == "@acme"
+    assert all("{{" not in item for item in second["data"])
+    assert not any(item.startswith("conduct_contact=") for item in second["data"]), "a pending free-text answer is not emitted"
+    done = interview.inspect(ROOT / "copier.yml", target, {**answered, "beads": True, "conduct_contact": "x@y.z", "codeowner": "@acme", "language": "none"})
+    assert done["complete"] is True and "codeowner=@acme" in done["data"] and "name=e2e" in done["data"]

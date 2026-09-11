@@ -16,11 +16,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@6b9c6063b0c4e6d4e3d6ab0b7b0a2bc15d6eaa1a # v6
+      # mise installs every tool the checks need (uv, just, yamllint, actionlint) from mise.toml.
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
-          enable-cache: true
-      - run: yamllint .github/workflows/ci.yml
+          install: true
+          cache: true
+      - run: just lint-config
       - run: uv sync --locked
-      - run: uv run pytest -q
-      - run: uvx --from slopvac==1.0.1 slopvac README.md docs --profile normal
-      - run: actionlint .github/workflows/*
+      - run: just test
+      - run: just prose
