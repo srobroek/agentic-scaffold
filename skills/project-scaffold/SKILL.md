@@ -1,6 +1,6 @@
 ---
 name: project-scaffold
-description: Scaffold a new project or repository in any language from composable recipes. Use when asked to set up, start, initialize, or bootstrap a project, service, API, app, or repo, or to add a monorepo member.
+description: Scaffold repositories from composable recipes. Use when asked to set up, initialize, or bootstrap a project, service, app, or monorepo.
 ---
 
 # Project scaffold
@@ -27,7 +27,6 @@ the tree.
    points) and ask -- never derived, the choice is the user's.
 5. **Create the remote now?**
 6. **Private or public**, if yes.
-
 More where the answers demand them, all in `rules/choices.md`. Ask `api` and `database`
 for a `ts-app`: a CLI or a static site needs neither, and no project name says which. Ask
 about infrastructure where the first answer implies it. Marketplaces are asked at the
@@ -196,4 +195,6 @@ Codex reads `.agents/plugins/marketplace.json`.
 - Read name, owner, and visibility back before `gh repo create --public`: it publishes at once.
 - Verify by running the real tool against rendered output, not by reading the recipe. Every
   defect found while building these recipes rendered cleanly first.
+- Release Please defaults to App auth (`release_app: true`): route its two credential names
+  through the secrets gate, scope tokens to contents, issues, and pull requests, never persist values or fall back to `GITHUB_TOKEN`, and disable only without required release checks.
 - `just add <name> <lang>` adds a monorepo member: recipe at the member path, manifest entry.

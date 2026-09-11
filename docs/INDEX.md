@@ -710,7 +710,7 @@ Requires `git` on `PATH`.
 | `release_type` | `` | `node` | `python` | `rust` | `go` | `simple` |  |
 | `initial_version` | str | `0.1.0` |
 | `default_branch` | str | `main` |
-| `release_app` | bool | `False` |
+| `release_app` | bool | `True` |
 | `sync_generated` | bool | `False` |
 | `release_packages` | yaml | `[]` |
 

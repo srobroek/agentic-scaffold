@@ -72,7 +72,11 @@ def linter() -> list[str] | None:
     and in CI, where the linter is installed.
     """
     if shutil.which("slopvac") is not None:
-        return ["slopvac"]
+        probe = subprocess.run(
+            ["slopvac", "--version"], capture_output=True, text=True, check=False
+        )
+        if probe.returncode == 0:
+            return ["slopvac"]
     if shutil.which("uvx") is None:
         return None
     probe = subprocess.run(
