@@ -469,10 +469,11 @@ needs two credentials on the repository:
 | `RELEASE_APP_CLIENT_ID` | variable | not sensitive, and keeping it visible makes a wrong-app failure readable |
 | `RELEASE_APP_PRIVATE_KEY` | secret | the App's signing key |
 
-The default is off, since a scaffold cannot provision an App. With it off the workflow still
-runs and still opens the pull request; merging it just needs an admin override. The workflow
-says so beside the token it chose, rather than leaving the reader to discover it from a blocked
-pull request.
+App authentication is the default because it lets the release pull request run required
+checks. A scaffold cannot provision the App, so repository setup must provide both credentials
+before the workflow runs. Set `release_app: false` only when release pull requests have no
+required checks; that opt-out uses `GITHUB_TOKEN`, and branch protection can require an
+administrator override.
 
 With it on there is no fallback: a missing or empty credential fails the run. Falling back to
 `GITHUB_TOKEN` would report success while producing a pull request nobody can merge, and the
