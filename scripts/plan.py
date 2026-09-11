@@ -34,7 +34,6 @@ def conflict_files(root: Path) -> list[str]:
 def target_is_greenfield(target: Path) -> bool:
     if not target.exists():
         return True
-    allowed = {".git"}
     return all(path.name == ".git" or path.name.startswith(".copier-answers") for path in target.iterdir())
 
 
@@ -60,10 +59,10 @@ def copy_command(source: str, target: str, tag: str, data: dict[str, str]) -> st
     return " ".join(parts)
 
 
-def render_files(source: Path, data: dict[str, str]) -> list[str]:
+def render_files(source: Path, data: dict[str, str], tag: str) -> list[str]:
     with tempfile.TemporaryDirectory(prefix="scaffold-plan-") as directory:
         destination = Path(directory) / "rendered"
-        command = ["uvx", "copier", "copy", "--defaults", "--quiet"]
+        command = ["uvx", "copier", "copy", "--defaults", "--quiet", "--vcs-ref", tag]
         for key, value in data.items():
             command.extend(["--data", f"{key}={value}"])
         command.extend([str(source), str(destination)])
@@ -73,9 +72,8 @@ def render_files(source: Path, data: dict[str, str]) -> list[str]:
         return sorted(
             str(path.relative_to(destination))
             for path in destination.rglob("*")
-            if path.is_file() and path.name != ".copier-answers.yml"
+            if path.is_file()
         )
-
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -83,13 +81,12 @@ def main() -> int:
     parser.add_argument("target", type=Path)
     parser.add_argument("--tag", default="HEAD")
     parser.add_argument("--data", action="append", default=[])
-    args = parser.parse_args()
     try:
         data = parse_data(args.data)
         if not target_is_greenfield(args.target):
             print(json.dumps({"error": "target must contain only .git and .copier-answers*.yml"}))
             return 2
-        files = render_files(args.source.resolve(), data)
+        files = render_files(args.source.resolve(), data, args.tag)
         plan = {
             "files": [{"path": path, "action": "create"} for path in files],
             "bootstrap": bootstrap_steps(data),

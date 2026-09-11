@@ -9,11 +9,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 @pytest.fixture
-def copy_template(tmp_path: Path):
+def copy_template():
     def render(destination: Path, **answers: object) -> Path:
-        command = ["uvx", "copier", "copy", "--defaults"]
+        command = ["uvx", "copier", "copy", "--defaults", "--vcs-ref", "HEAD"]
         for key, value in answers.items():
-            command.extend(["--data", f"{key}={str(value).lower() if isinstance(value, bool) else value}"])
+            rendered = str(value).lower() if isinstance(value, bool) else str(value)
+            command.extend(["--data", f"{key}={rendered}"])
         command.extend([str(ROOT), str(destination)])
         result = subprocess.run(command, capture_output=True, text=True, check=False)
         assert result.returncode == 0, result.stderr

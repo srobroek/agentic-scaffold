@@ -47,7 +47,7 @@ def test_plan_file_map(tmp_path: Path):
         str(ROOT),
         str(target),
         "--tag",
-        "v-test",
+        "HEAD",
         "--data",
         "name=demo",
         "--data",
@@ -69,5 +69,5 @@ def test_plan_file_map(tmp_path: Path):
     paths = {entry["path"] for entry in payload["files"]}
     assert "README.md" in paths
     assert "AGENTS.md" not in paths
-    assert payload["template_ref"] == "v-test"
+    assert payload["template_ref"] == "HEAD"
     assert payload["bootstrap"] == ["mise install"]
