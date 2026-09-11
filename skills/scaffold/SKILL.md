@@ -12,6 +12,6 @@ Use this procedure for a greenfield repository.
 8. Run `just bootstrap` and show its output.
 9. Run `just verify` and show its output.
 
-The template accepts only an empty directory or a directory containing `.git` and Copier answers. Copier owns its rendered files; `README.md` is repository-owned after creation. Generator-owned files remain untouched. Updates are three-way merges, and unresolved conflict markers fail `update-scaffold`.
+The template accepts only an empty directory or a directory containing `.git` and Copier answers. Copier owns its rendered files; `README.md` is repository-owned after creation. Generator-owned files remain untouched. Updates are three-way merges, and unresolved conflict markers fail `update-scaffold`. When the conflict is in `justfile` itself, `just` cannot parse the file: read Copier's own `unresolved conflict detected` line, resolve the markers with git, then run `just update-scaffold` again.
 
 The scaffold never runs `bootstrap`, `verify`, or any generated-repository command. The generated repository owns those commands.

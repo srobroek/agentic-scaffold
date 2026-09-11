@@ -33,3 +33,5 @@ Tag template changes. In a generated repository, run `just update-scaffold`. The
 - `scripts/interview.py` presents answers without writing files.
 - `scripts/plan.py` previews rendered files and bootstrap steps.
 - `skills/scaffold/SKILL.md` describes the agent procedure.
+
+`just update-scaffold` runs `copier update` and fails on unresolved conflict markers. A conflict inside `justfile` stops `just` before the recipe runs; Copier prints `unresolved conflict detected`, and the markers are resolved with git before the next run.
