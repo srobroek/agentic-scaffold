@@ -20,7 +20,7 @@ def test_update_round_trip_and_conflict_detection(tmp_path: Path):
         ROOT,
         source,
         symlinks=True,
-        ignore=shutil.ignore_patterns(".git", ".pytest_cache", "__pycache__"),
+        ignore=shutil.ignore_patterns(".git", ".agents", ".claude", ".pytest_cache", "__pycache__"),
     )
     git_init(source)
     git_commit(source, "template v-test")
@@ -51,6 +51,9 @@ def test_update_round_trip_and_conflict_detection(tmp_path: Path):
         str(source),
         str(destination),
     ]
+    rendered = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert rendered.returncode == 0, rendered.stderr or rendered.stdout
+    git_init(destination)
     git_commit(destination, "render")
     (source / "template/mise.toml.jinja").write_text(
         (source / "template/mise.toml.jinja").read_text() + "[env]\nSCAFFOLD_TEST = \"updated\"\n"

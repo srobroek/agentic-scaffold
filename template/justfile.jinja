@@ -16,11 +16,10 @@ verify:
 {% if hooks %}    prek run --all-files
 {% endif %}    if compgen -G '.github/ISSUE_TEMPLATE/*.yml' >/dev/null; then yamllint .github/ISSUE_TEMPLATE; fi
     if compgen -G '.github/workflows/*' >/dev/null; then actionlint .github/workflows/*; fi
-
 # Update Copier-owned files and refuse unresolved merge markers.
 update-scaffold:
     uvx copier update --defaults --conflict inline
-    markers="$$(git grep -l '<<<<<<<' || true)"; if [ -n "$$markers" ]; then printf 'unresolved conflict markers in:\n%s\n' "$$markers"; exit 1; fi
+    markers="$$(git grep -l '<''<''<''<''<''<' || true)"; if [ -n "$$markers" ]; then printf 'unresolved conflict markers in:\n%s\n' "$$markers"; exit 1; fi
 {% if agentic %}
 # Refresh repository context for agents.
 context:
