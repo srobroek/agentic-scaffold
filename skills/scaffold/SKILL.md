@@ -3,11 +3,11 @@
 Use this procedure for a greenfield repository.
 
 1. Work in a dedicated worktree. Do not scaffold a non-empty directory.
-2. Run `python3 scripts/interview.py` and relay each `ask.questions` page.
-3. Repeat with `--answers-so-far` until `complete` is true. Use `--page` for long choice lists.
-4. Run `python3 scripts/plan.py <template> <destination> --data ...` and show its file map.
-5. Ask a human to approve the plan.
-6. Run the exact `uvx copier copy` command from the interview output.
+2. Run `uv run <template>/scripts/interview.py --config <template>/copier.yml --source <template> --dest <target> --tag <tag>` from inside the target and relay each `ask.questions` page to the human.
+3. Repeat with `--answers-so-far <JSON of every answer so far>` until `complete` is true. When the human picks `More choices`, repeat with the `paging.more` value as `--page`.
+4. Run `uv run <template>/scripts/plan.py <template> <target> --data k=v ...` with the `data` list from the interview and show its file map and bootstrap steps.
+5. Ask the human to approve the plan.
+6. Run the exact `uvx copier copy` command that `--emit-command` prints.
 7. Commit the generated repository.
 8. Run `just bootstrap` and show its output.
 9. Run `just verify` and show its output.

@@ -15,8 +15,8 @@ A Copier template for a new repository.
 Run the interview, review the plan, and render into an empty directory:
 
 ```sh
-python3 scripts/interview.py --config copier.yml
-python3 scripts/plan.py . /tmp/new-repository --data name=new-repository --data license=apache-2.0
+uv run scripts/interview.py --config copier.yml --dest /tmp/new-repository
+uv run scripts/plan.py . /tmp/new-repository --data name=new-repository --data license=apache-2.0
 uvx copier copy --defaults --vcs-ref v1.0.0 --data name=new-repository . /tmp/new-repository
 ```
 

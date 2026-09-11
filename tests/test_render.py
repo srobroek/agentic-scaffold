@@ -75,7 +75,11 @@ def test_every_boolean_and_visibility_license_combination_renders_identically(co
         )
         assert files_in(first) == files_in(second)
         for relative in files_in(first):
-            assert (first / relative).read_bytes() == (second / relative).read_bytes()
+            content = (first / relative).read_bytes()
+            assert content == (second / relative).read_bytes()
+            # A fresh render passes its own hooks: one trailing newline, no trailing whitespace.
+            assert content.endswith(b"\n") and not content.endswith(b"\n\n"), relative
+            assert all(line == line.rstrip() for line in content.splitlines()), relative
         listing = subprocess.run(["just", "--list"], cwd=first, capture_output=True, text=True, check=False)
         assert listing.returncode == 0, listing.stderr
         count += 1

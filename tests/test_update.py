@@ -70,21 +70,18 @@ def test_update_round_trip_and_conflict_detection(tmp_path: Path):
     assert 'SCAFFOLD_TEST = "updated"' in (destination / "mise.toml").read_text()
     assert update.returncode == 0, update.stderr
     assert conflict_files(destination) == []
-    (destination / "justfile").write_text(
-        (destination / "justfile").read_text().replace("# List the available", "# Local list", 1)
+    # The conflict lives in mise.toml, not the justfile: a conflicted justfile cannot run its own guard.
+    (destination / "mise.toml").write_text(
+        (destination / "mise.toml").read_text().replace('SCAFFOLD_TEST = "updated"', 'SCAFFOLD_TEST = "local"', 1)
     )
     git_commit(destination, "local edit")
-    (source / "template/justfile.jinja").write_text(
-        (source / "template/justfile.jinja").read_text().replace("# List the available", "# Changed list", 1)
+    (source / "template/mise.toml.jinja").write_text(
+        (source / "template/mise.toml.jinja").read_text().replace('SCAFFOLD_TEST = "updated"', 'SCAFFOLD_TEST = "template"', 1)
     )
     git_commit(source, "template conflict")
     subprocess.run(["git", "-C", str(source), "tag", "v-test3"], check=True)
-    conflict = subprocess.run(
-        ["uvx", "copier", "update", "--defaults", "--vcs-ref", "v-test3", "--conflict", "inline"],
-        cwd=destination,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert conflict.returncode == 0
-    assert conflict_files(destination) == ["justfile"]
+    # The rendered command is the load-bearing path: it runs the update and refuses the markers it leaves.
+    guard = subprocess.run(["just", "update-scaffold"], cwd=destination, capture_output=True, text=True, check=False)
+    assert guard.returncode == 1, guard.stdout + guard.stderr
+    assert conflict_files(destination) == ["mise.toml"]
+    assert "unresolved conflict markers in:" in guard.stdout + guard.stderr and "mise.toml" in guard.stdout + guard.stderr

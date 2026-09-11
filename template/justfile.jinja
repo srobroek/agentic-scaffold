@@ -19,9 +19,10 @@ verify:
 # Update Copier-owned files and refuse unresolved merge markers.
 update-scaffold:
     uvx copier update --defaults --conflict inline
-    markers="$$(git grep -l '<''<''<''<''<''<' || true)"; if [ -n "$$markers" ]; then printf 'unresolved conflict markers in:\n%s\n' "$$markers"; exit 1; fi
-{% if agentic %}
+    markers="$(git grep -l '<''<''<''<''<''<' || true)"; if [ -n "$markers" ]; then printf 'unresolved conflict markers in:\n%s\n' "$markers"; exit 1; fi
+{%- if agentic %}
+
 # Refresh repository context for agents.
 context:
     python3 .omp/context.py refresh
-{% endif %}
+{%- endif %}

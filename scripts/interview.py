@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["copier>=9.18"]
+# ///
 """Present the Copier questions without writing files."""
 
 from __future__ import annotations
@@ -53,10 +57,15 @@ def _render_when(expression: object, answers: dict[str, object]) -> bool:
 
 
 def _default(question: dict, facts: dict[str, object]) -> object:
+    """A question's default, with Jinja rendered against the facts and answers known so far."""
     question_id = question["id"]
     if question_id in facts:
         return facts[question_id]
-    return question.get("default")
+    default = question.get("default")
+    if isinstance(default, str) and "{{" in default:
+        rendered = Template(default).render(**facts)
+        return rendered if rendered and "{{" not in rendered else None
+    return default
 
 
 def _normalise_data(value: object) -> str:
@@ -84,8 +93,46 @@ def merge_multi_select(previous: object, selected: list[object]) -> list[object]
     return list(dict.fromkeys([*old, *(item for item in selected if item != MORE_CHOICES)]))
 
 
+ASK_PAGE_QUESTIONS = 5
+
+
+def ask_question(question: dict[str, object], page_number: int) -> dict[str, object]:
+    """Shape one Copier question for the agent's ``ask`` tool.
+
+    At most five options; a list longer than that shows four per page plus the ``More choices``
+    sentinel. A free-text question shows its default as the only option: the tool adds its own
+    ``Other`` entry, which is the input path for a typed value.
+    """
+    question_id = str(question["id"])
+    default = question.get("default")
+    text = str(question.get("help") or question_id)
+    multi = question.get("type") == "yaml" and isinstance(default, list)
+    if question.get("type") == "bool":
+        options = [{"label": "true"}, {"label": "false"}]
+        recommended = 0 if default in (True, "true", None) else 1
+        return {"id": question_id, "question": text, "options": options, "recommended": recommended, "multi": False}
+    choices = [str(item) for item in question.get("choices", [])]
+    paging: dict[str, object] | None = None
+    if len(choices) > ASK_PAGE_QUESTIONS:
+        pages = -(-len(choices) // PAGE_SIZE)
+        page_number = max(0, min(page_number, pages - 1))
+        shown = page_choices(choices, page_number)
+        paging = {"page": page_number, "pages": pages, "more": None if page_number >= pages - 1 else json.dumps({"id": question_id, "number": page_number + 1})}
+        text += f" (values {page_number * PAGE_SIZE + 1}-{min((page_number + 1) * PAGE_SIZE, len(choices))} of {len(choices)})"
+    elif choices:
+        shown = choices
+    else:
+        shown = [str(default)] if default not in (None, "") else ["Provide a value"]
+    options = [{"label": str(item)} for item in shown]
+    recommended = next((index for index, option in enumerate(options) if option["label"] == str(default)), 0)
+    entry: dict[str, object] = {"id": question_id, "question": text, "options": options, "recommended": recommended, "multi": multi}
+    if paging:
+        entry["paging"] = paging
+    return entry
+
+
 def inspect(
-    config_path: Path, cwd: Path, answers: dict[str, object], page: dict[str, int] | None = None
+    config_path: Path, cwd: Path, answers: dict[str, object], page: dict[str, object] | None = None
 ) -> dict[str, object]:
     config = yaml.safe_load(config_path.read_text()) or {}
     facts: dict[str, object] = {
@@ -93,42 +140,52 @@ def inspect(
         "github_owner": answers.get("github_owner") or remote_owner(cwd),
         "hook_manager": answers.get("hook_manager") or hook_manager(cwd),
     }
+    # The sentinel is navigation, never an answer: it is dropped before anything else reads the answers.
+    answers = {key: value for key, value in answers.items() if value != MORE_CHOICES}
+    for key, value in list(answers.items()):
+        if isinstance(value, list):
+            answers[key] = merge_multi_select([], value)
     combined = {**facts, **answers}
     for question_id, raw in config.items():
         if isinstance(raw, dict) and "type" in raw and question_id not in combined:
-            default = _default({"id": question_id, **raw}, facts)
+            default = _default({"id": question_id, **raw}, combined)
             if default is not None:
                 combined[question_id] = default
-    questions: list[dict[str, object]] = []
+    pending: list[dict[str, object]] = []
     data: dict[str, object] = {}
     for question_id, raw in config.items():
         if question_id.startswith("_") or not isinstance(raw, dict) or "type" not in raw:
             continue
         if not _render_when(raw.get("when"), combined):
             continue
-        value = answers.get(question_id, _default({"id": question_id, **raw}, facts))
-        if value is not None:
+        value = answers.get(question_id, _default({"id": question_id, **raw}, combined))
+        # Only an answer, a derived fact, or a real default travels to Copier; an empty pending value does not.
+        if value is not None and value != "":
             data[question_id] = value
         derived_name = question_id == "name" and bool(facts["name"])
         derived_owner = question_id == "github_owner" and bool(facts["github_owner"])
         if question_id in answers or derived_name or derived_owner:
             continue
-        question = {"id": question_id, "type": raw["type"], "help": raw.get("help", "")}
+        question: dict[str, object] = {"id": question_id, "type": raw["type"], "help": raw.get("help", "")}
         if "choices" in raw:
-            choices = list(raw["choices"])
-            if page and page.get("id") == len(questions):
-                question["choices"] = page_choices(choices, page.get("number", 0))
-            else:
-                question["choices"] = choices
+            question["choices"] = list(raw["choices"])
         if raw.get("default") is not None or question_id == "hook_manager":
-            question["default"] = facts.get(question_id, raw.get("default"))
-        questions.append(question)
-    complete = not questions
+            question["default"] = facts.get(question_id, _default({"id": question_id, **raw}, combined))
+        pending.append(question)
+    page_number = int(page.get("number", 0)) if page else 0
+    paged_id = str(page.get("id")) if page else None
+    shown = pending[:ASK_PAGE_QUESTIONS]
+    ask_questions = [ask_question(question, page_number if question["id"] == paged_id else 0) for question in shown]
+    emitted = [f"{key}={_normalise_data(data[key])}" for key in config if key in data]
+    unresolved = [item for item in emitted if "{{" in item or "}}" in item]
+    if unresolved:
+        raise SystemExit(f"unresolved template in answers: {unresolved}")
     return {
         "facts": facts,
-        "ask": {"questions": questions},
-        "complete": complete,
-        "data": [f"{key}={_normalise_data(data[key])}" for key in config if key in data],
+        "ask": {"questions": ask_questions},
+        "remaining": len(pending),
+        "complete": not pending,
+        "data": emitted,
     }
 
 
