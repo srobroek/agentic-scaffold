@@ -19,7 +19,7 @@ bd_prefix:
   default: ""
 
 # Server mode is the documented init default in the beads plugin
-# (rule://beads-setup): an embedded database resolves by walking up from the
+# (beads setup policy): an embedded database resolves by walking up from the
 # working directory, so anything that copies the checkout -- isolation, a
 # worktree, a subagent -- gets a second writable database whose claims never
 # reach the run. A server resolves a host and port, which copying cannot change.

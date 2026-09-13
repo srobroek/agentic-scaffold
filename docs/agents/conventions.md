@@ -19,10 +19,10 @@ through `_external_data`, which resolves relative to the destination.
 ## Questions
 
 A question exists only for something Sjors varies between projects.
-`rules/choices.md` is the record of what that is. Anything else is fixed in the
+`skills/project-scaffold/references/choices.md` is the record of what that is. Anything else is fixed in the
 layer or derived by the agent.
 
-Adding a question is a change to `rules/choices.md` first, and to a `copier.yml`
+Adding a question is a change to `skills/project-scaffold/references/choices.md` first, and to a `copier.yml`
 second.
 
 ## Scripts

@@ -10,5 +10,5 @@ No workflows exist yet. `psc-196` adds the check target CI runs.
 `just check`. The steering drift check (`just steering-check`) runs inside
 that job rather than a workflow of its own.
 
-See `../../rules/ci-composition.md` for what a scaffolded repository gets, which
+See `../../architecture.md#ci-composition` for what a scaffolded repository gets, which
 is a different thing from what this repository runs.

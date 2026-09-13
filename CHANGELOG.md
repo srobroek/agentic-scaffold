@@ -44,7 +44,7 @@
 
 ### ⚠ BREAKING CHANGES
 
-* rules/choices.md no longer derives a licence.
+* skills/project-scaffold/references/choices.md no longer derives a licence.
 
 ### Bug Fixes
 

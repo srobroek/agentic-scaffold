@@ -170,7 +170,7 @@ Answers to the six interview questions:
 | create remote | boolean | `false` | runs `gh repo create` or `glab repo create` |
 | visibility | `private`, `public` | `private` | read back before creating a public repo |
 
-`rules/choices.md` holds the derivation rules. Fixed preferences live in the
+`skills/project-scaffold/references/choices.md` holds the derivation rules. Fixed preferences live in the
 recipes: `uv`, `bun`, `prek`, `biome`, `oxlint`, `release-please`, `renovate`,
 SHA-pinned actions.
 
@@ -198,8 +198,7 @@ writer dropped every comment in it. A script then ran to restore them.
 | `docs/architecture.md` | the model, every fixed decision, and what is excluded |
 | `docs/recipes.md` | what each recipe writes, and why it writes it that way |
 | `docs/INDEX.md` | generated recipe and variable listing |
-| `rules/choices.md` | what the agent derives instead of asking |
-| `rules/ci-composition.md` | how the GitHub caller workflow is written |
+| `skills/project-scaffold/references/choices.md` | what the agent derives instead of asking |
 | `profiles/README.md` | the profile format, and the shape each one covers |
 
 ## License

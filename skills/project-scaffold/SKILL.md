@@ -16,24 +16,24 @@ uv run --project "$SCAFFOLD" python "$SCAFFOLD/scripts/scaffold.py" <list|check|
 
 ## Interview
 
-A short opening round, one question per turn. `rules/choices.md` fixes or derives
-everything else, and a question it already answers invites a reply that contradicts
-the tree.
+A short opening round, one question per turn. Load `skill://project-scaffold/references/choices.md`
+when deciding the six interview questions or consulting its derived and fixed rows; a question
+it already answers invites a reply that contradicts the tree.
 
 1. **What are you building?** Name plus one line.
 2. **Which language?** rust, python, go, ts, or none for an agentic repository.
 3. **One package, a monorepo, or several repos?**
-4. **Licence.** Recommend one with its tradeoff (`rules/choices.md` lists the starting
+4. **Licence.** Recommend one with its tradeoff (`skill://project-scaffold/references/choices.md` lists the starting
    points) and ask -- never derived, the choice is the user's.
 5. **Create the remote now?**
 6. **Private or public**, if yes.
-More where the answers demand them, all in `rules/choices.md`. Ask `api` and `database`
+More where the answers demand them, all in `skill://project-scaffold/references/choices.md`. Ask `api` and `database`
 for a `ts-app`: a CLI or a static site needs neither, and no project name says which. Ask
 about infrastructure where the first answer implies it. Marketplaces are asked at the
 install gate, when registering is imminent, not here.
 
 Classify before asking: an answer is **strong** when the user stated it IN THIS
-conversation or `rules/choices.md` derives it from one, a **gap** otherwise. Memory,
+conversation or `skill://project-scaffold/references/choices.md` derives it from one, a **gap** otherwise. Memory,
 stored preferences, and tool lookups (a gh login, a past project's licence) are
 RECOMMENDATIONS: offer them as the default in the question, never record one as
 decided -- what the user often chooses is still theirs to choose. Read a choice
@@ -188,7 +188,7 @@ Codex reads `.agents/plugins/marketplace.json`.
 
 ## Rules
 
-- Ask what nothing derives; `rules/choices.md` marks the rest fixed or derived.
+- Ask what nothing derives; `skill://project-scaffold/references/choices.md` marks the rest fixed or derived.
 - Never name a marketplace the user did not. No check catches a suggested source, and one
   registration reaches every project on the machine.
 - Say a generator reaches the network before running it.

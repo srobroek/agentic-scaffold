@@ -1,8 +1,8 @@
 """The two skills, and how a harness reaches them.
 
 A skill is prose, so these tests assert the contract rather than the wording: the interview
-asks exactly the six questions `rules/choices.md` marks as asked, names no question that
-document marks fixed or derived, and names only CLI subcommands that exist.
+asks exactly the six questions `skill://project-scaffold/references/choices.md` marks as asked,
+names no question that document marks fixed or derived, and names only CLI subcommands that exist.
 
 Kept deliberately shallow. Skill prose is rewritten often, and a test pinning a sentence
 fails on an improvement rather than on a defect.
@@ -122,7 +122,7 @@ def interview() -> str:
 
 
 def test_the_opening_round_stays_six_questions_and_the_shape_gets_grilled() -> None:
-    """rules/choices.md fixes the opening count -- a seventh up-front question is one whose
+    """The choices reference fixes the opening count -- a seventh up-front question is one whose
     answer the document already derives. What nothing derives is grilled in rounds instead,
     and that section has to exist or the non-derivable decisions default silently."""
     numbered = [
@@ -138,7 +138,7 @@ def test_the_opening_round_stays_six_questions_and_the_shape_gets_grilled() -> N
 def test_it_asks_nothing_the_choices_table_derives() -> None:
     """A derived question wastes a turn and invites an answer contradicting the tree."""
     section = interview().lower()
-    # Rows in the Derive table of rules/choices.md, which the agent settles itself.
+    # Rows in the Derive table of the choices reference, which the agent settles itself.
     for derived in ("task runner", "coverage floor", "default branch", "version matrix"):
         assert derived not in section, f"the interview asks about {derived!r}, which is derived"
 
@@ -216,15 +216,16 @@ def test_it_points_at_the_documents_rather_than_restating_them() -> None:
     """A rule stated twice drifts, so the skill cites and the document holds the content.
 
     Checked by looking for the tables those documents own. A size ratio would prove
-    nothing: rules/choices.md is shorter than the skill.
+    nothing: skill://project-scaffold/references/choices.md is shorter than the skill.
     """
     body = skill_body()
-    assert "rules/choices.md" in body, "the skill must cite the choices table"
+    assert "skill://project-scaffold/references/choices.md" in body
+    assert "the skill must cite the choices table"
 
-    # The Derive and Fixed tables belong to rules/choices.md. Copying a row here is the
+    # The Derive and Fixed tables belong to the choices reference. Copying a row here is the
     # duplication that drifts.
     for row in ("| Task runner |", "| Sub-runner |", "| Coverage floor |", "| Docs engine |"):
-        assert row not in body, f"the skill copies {row!r} from rules/choices.md"
+        assert row not in body, f"the skill copies {row!r} from skill://project-scaffold/references/choices.md"
 
     # The recipe inventory belongs to docs/recipes.md and docs/INDEX.md.
     assert "| Layer | Writes |" not in body

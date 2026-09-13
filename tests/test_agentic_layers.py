@@ -151,7 +151,7 @@ def test_the_layer_never_skips_the_agent_hooks() -> None:
 
 
 def test_server_mode_is_the_default_and_reaches_bd() -> None:
-    """rule://beads-setup makes server mode the init default: an embedded database
+    """the beads setup policy makes server mode the init default: an embedded database
     resolves by walking up from the working directory, so a copied checkout gets a
     second writable database whose claims never reach the run."""
     assert "--server" in bd_command()

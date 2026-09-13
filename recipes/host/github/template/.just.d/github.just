@@ -3,7 +3,7 @@
 # Branch protection, required checks, merge types, and repository features are API-only:
 # GitHub reads no committed file for any of them, so the files this layer renders
 # (CODEOWNERS, the templates, the community health files) are one half and `repo-govern` is
-# the other. rules/choices.md records the split.
+# the other. skills/project-scaffold/references/choices.md records the split.
 
 # A reusable workflow does not run itself, and which ones exist depends on which layers
 # rendered, so the caller is derived from the directory rather than written by hand. Run
