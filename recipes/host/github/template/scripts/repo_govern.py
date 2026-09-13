@@ -7,7 +7,7 @@ Branch protection, required status checks, merge types, auto-merge, and which re
 features are on are all API-only. Verified against a live repository: `gh api repos/<slug>`
 reports every merge and feature setting, `/rulesets` returned zero entries and
 `/branches/<branch>/protection` returned `Branch not protected` on a fresh repository, and
-GitHub reads no committed file for any of it. `rules/choices.md` records the split.
+GitHub reads no committed file for any of it. The choices reference records the split.
 
 So this is a script rather than a layer: a layer renders a file, and there is no file.
 

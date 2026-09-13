@@ -58,7 +58,7 @@ title = "interview {{feature}}"
 type = "task"
 priority = 2
 labels = ["scaffold:run", "phase:interview"]
-description = "Collect every answer the {{profile}} profile's recipes need and write them to one YAML answers file outside the destination. Derive what rules/choices.md marks derived instead of asking. Preflight until it is silent: `scripts/scaffold.py check-answers --profile {{profile}} --data-file <answers>` prints every gap at once and exits 1 while any remain. Acceptance: exit 0, and the answers file committed nowhere near the destination tree."
+description = "Collect every answer the {{profile}} profile's recipes need and write them to one YAML answers file outside the destination. Derive what skills/project-scaffold/references/choices.md marks derived instead of asking. Preflight until it is silent: `scripts/scaffold.py check-answers --profile {{profile}} --data-file <answers>` prints every gap at once and exits 1 while any remain. Acceptance: exit 0, and the answers file committed nowhere near the destination tree."
 notes = "Answers file convention: <answers>.yml held beside the checkout, passed as --data-file to every later scaffold command. Profile answers in profiles/{{profile}}.yml are already applied and must not be repeated here; --data wins over both."
 
 [steps.metadata]

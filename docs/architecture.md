@@ -24,7 +24,7 @@ What renders comes from three inputs:
 | Input | Source | Example |
 |---|---|---|
 | Fixed preference | hard-coded in the recipe | `uv`, `prek`, `biome`, `release-please` |
-| Derived | `rules/choices.md`, applied by the agent | task runner, license, CI job set |
+| Derived | `skills/project-scaffold/references/choices.md`, applied by the agent | task runner, license, CI job set |
 | Asked | interview, one question at a time | project name, language, repo visibility |
 
 The interview asks what nothing derives -- a short opening round, then rounds
@@ -189,7 +189,7 @@ all. `lang/api` gates that document with vacuum and oasdiff, so orpc is what mak
 that gate mean anything for a `ts-app`.
 
 `database` defaults to `none` because it is one of the two questions
-`../rules/choices.md` marks as asked for `ts-app`. A CLI or a static site needs neither a
+`skills/project-scaffold/references/choices.md` marks as asked for `ts-app`. A CLI or a static site needs neither a
 database nor an api, and no project name reveals which.
 
 The CLI's own validator reports an incompatible combination, so the skill leans on it
@@ -276,6 +276,34 @@ reruns it. GitLab needs no caller, because the glob include resolves the same se
 Both hosts are supported. `*` in a GitLab include matches one level; `**`
 recurses. Glob order is not deterministic, so two recipes must not set the same
 key.
+
+## CI composition
+
+GitHub's `.github/workflows/ci.yml` is generated from the workflows rendered by the selected recipes. `scripts/gen_caller.py` finds every `wc-lint-<lang>.yml` and `wc-test-<lang>.yml`, rewrites the caller, and runs through `just ci-sync` and `render`. Do not hand-edit the generated caller. Delete its marker line before taking ownership of a caller that the generator cannot model; `ci-sync` then refuses it and re-rendering leaves it unchanged.
+
+The generated graph is:
+
+```
+changes ─┬─> lint-<lang> ─┐
+         └─> test-<lang> ─┤
+                          ├──> gate
+quality ──────────────────┤
+security ─────────────────┘
+```
+
+The generator emits one lint and test job per contributed workflow. A recipe may contribute only one kind. `changes` emits a filter key for each language's sources, manifests, lockfiles, workflow, and caller. Each language job consumes its own key. `quality` and `security` build matrices from `.github/quality.d/` and `.github/security.d/`; they do not receive language inputs or path filters.
+
+`gate` is the only required check. It lists every other job in `needs:`, passes `toJSON(needs)` to `wc-gate.yml`, and uses `if: always()` so skipped or failed dependencies still produce a result. Job-level path filtering belongs in the caller, never in `on.push.paths`: a workflow-level filter can prevent a required check from running, while a skipped job remains a pass for the gate. The generator refuses a language absent from its filter table rather than silently emitting an unfiltered job.
+
+Only `changes` and `gate` receive caller inputs. Lint and test workflows declare optional inputs with defaults chosen by their own language layer. A monorepo that needs per-member `working-directory` owns its caller instead of overriding a recorded answer.
+
+The caller grants `security-events: write` when `security` uploads SARIF; a called workflow cannot grant permissions that its caller did not provide. The `quality` commits job fetches the complete history, runs only on `pull_request`, and checks the whole request range because a commit hook sees one message and `--no-verify` bypasses it. It rejects hand-made version tags in that range because release-please derives versions from tags.
+
+Do not add path filters to `quality` or `security`. Their language-dependent jobs skip when no fragment exists, while their language-blind checks apply to any change. A reusable workflow not represented by the generator must be named in the generated file's comment and supplied with the credentials or trigger conditions it requires.
+
+GitLab has no caller. `host/gitlab` writes `.gitlab-ci.yml` with `include: - local: .gitlab/ci/*.yml`; each language recipe contributes one fragment. `*` matches one directory level and `**` recurses. Include order is nondeterministic, so recipes must not set the same key twice. Recipes declare their own `stage:` and `host/gitlab` generates the complete `stages:` list; an undeclared stage fails the pipeline.
+
+The `iac/terraform` recipe contributes `lint-tofu` and a matrixed `plan-tofu`. Apply is a manual job restricted to the default branch; plan runs on every merge request. Docs deployment workflows trigger on `docs/site/**`, require `pages: write` and `id-token: write`, and set `concurrency: group: docs-${{ github.ref }}` so pushes to one ref serialize without cancelling other refs.
 
 ## Quality
 

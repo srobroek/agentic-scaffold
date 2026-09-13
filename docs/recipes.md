@@ -6,7 +6,7 @@ date: 2026-07-29
 # Recipes
 
 31 recipes and 140 declared variables. Every variable listed here is asked or
-derived; anything absent is fixed in the recipe per `../rules/choices.md`, and a
+derived; anything absent is fixed in the recipe per `skills/project-scaffold/references/choices.md`, and a
 question whose answer the tree, the toolchain, or the generator already carries
 is not asked at all.
 
@@ -201,7 +201,7 @@ extractor.
 Measured against a live repository rather than assumed: `gh api repos/<slug>` reports every
 merge and feature setting, a freshly created repository returned zero rulesets and
 `Branch not protected`, and GitHub does not read a committed file for any of it. A recipe renders a
-file, so the API surface is a script. `../rules/choices.md` carries the split.
+file, so the API surface is a script. `skills/project-scaffold/references/choices.md` carries the split.
 
 `gate` is the only required check, `just repo-govern` applies the settings, and
 `just repo-govern-check` reports differences without changing anything, which is what CI can

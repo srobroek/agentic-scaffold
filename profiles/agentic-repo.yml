@@ -30,7 +30,7 @@ layers:
 # consumer manifest and no default marketplace is seeded.
 
 # What varies inside the profile, beyond what the six questions ask. Every key here is
-# either derived per rules/choices.md or fixed for the shape.
+# either derived per skills/project-scaffold/references/choices.md or fixed for the shape.
 answers:
   # A template or dev-tooling repository, per the licence policy.
   license: apache-2.0

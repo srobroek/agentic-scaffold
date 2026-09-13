@@ -1,5 +1,5 @@
 # python-app -- a Python application or service. The framework answer is asked rather than
-# derived, per rules/choices.md: "FastAPI service" selects fastapi, and only two frameworks
+# derived, per skills/project-scaffold/references/choices.md: "FastAPI service" selects fastapi, and only two frameworks
 # fitting equally makes it a question.
 name: python-app
 summary: A Python application or service.
