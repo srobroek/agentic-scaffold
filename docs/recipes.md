@@ -81,10 +81,9 @@ lang/<name>/template/
 | `lang/go` | `.golangci.yml`, `cmd/<name>/main.go` | `go_module_path`, `go_version` |
 | `lang/api` | `openapi.yaml`, `.just.d/api.just`, the mise, hook, CI, and quality fragments | `api_title`, `api_version`, `api_server_url`, `api_ruleset`, `api_fail_severity`, `api_baseline_ref` |
 
-`lang/ts` writes both `biome.json` and `.oxlintrc.json`. The pairing is fixed.
-When better-t-stack generated the project it already wrote `biome.json` and
-`tsconfig.json`, so `lang/ts` guards both with `_skip_if_exists` and contributes
-only the fragments and CI jobs.
+`lang/ts` writes both `biome.json` and `.oxlintrc.json`. That pairing is fixed.
+When better-t-stack generated the project it already wrote `biome.json` and `tsconfig.json`,
+so `lang/ts` guards both with `_skip_if_exists` and contributes only the fragments and CI jobs.
 
 `lang/api` uses vacuum for linting and oasdiff for breaking-change detection.
 spectral renders only when a custom ruleset needs it.
@@ -559,7 +558,8 @@ archives would need a matrix job, which means uploading and re-downloading `dist
 what the publishing job already holds. The SBOMs ship as release assets, and the provenance
 subject list includes them.
 
-The attestation runs after publishing because its subject digest exists only then.
+The publish job produces the attestation after it creates the digest. Its subject is a digest,
+and a digest exists only once the artefact does.
 
 ## docs
 
@@ -884,7 +884,7 @@ same flag on setup-go.
 
 `environments` defaults to `[dev, prod]`.
 
-### The ts-node configuration needs two call sites
+### Configure both ts-node call sites
 
 `projenrcTsOptions.runner: TypeScriptRunner.tsx()` governs only how `.projenrc.ts`
 itself executes. projen writes `cdk.json`'s `app` separately, as
