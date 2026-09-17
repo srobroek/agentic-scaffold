@@ -96,7 +96,7 @@ them or its review says why not.
 | A question may not ask what the toolchain or generator already decided | an empty `rust_edition` keeps what `cargo init` wrote; `go_version` reads go.mod's directive back |
 | A version pin resolves latest at render where the backend lists fast, with a verified floor as the offline fallback; a backend that resolves by listing module versions, or a pin renovate owns in the rendered repo, stays concrete | `resolve_versions.py` asks `mise latest` for opentofu and tflint; govulncheck is pinned concrete because mise's go backend timed out on every measured resolve |
 | A blank a user must fill stays blank, never guessed | `aws_region` and `state_bucket` render empty and fail at `tofu init` with their own message |
-| A question consumed by nothing stays out of the interview | `python_framework` was asked, recorded, and read by nothing |
+| Delete a question that nothing consumes. Do not default or hide it. | `python_framework` was asked, recorded, and read by nothing |
 
 Settling happens in a `_tasks` script that rewrites only an exact placeholder the
 render produced, so a hand-tuned file is never touched -- the same contract
@@ -367,6 +367,8 @@ single backend block, and `tofu test` reads `tests/` under the root module.
 S3 backend with `use_lockfile = true` and no DynamoDB lock table. Partial
 backend configuration through `-backend-config=envs/<env>.tfbackend`, wrapped
 in `just plan <env>`.
+
+Terragrunt, Atmos, and Digger are outside the supported Terraform stack.
 
 The terraform recipe supports two to four environments in one root module. Per-environment
 duplication is the provider and backend blocks, which partial configuration removes. Digger
