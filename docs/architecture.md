@@ -96,7 +96,7 @@ them or its review says why not.
 | A question may not ask what the toolchain or generator already decided | an empty `rust_edition` keeps what `cargo init` wrote; `go_version` reads go.mod's directive back |
 | A version pin resolves latest at render where the backend lists fast, with a verified floor as the offline fallback; a backend that resolves by listing module versions, or a pin renovate owns in the rendered repo, stays concrete | `resolve_versions.py` asks `mise latest` for opentofu and tflint; govulncheck is pinned concrete because mise's go backend timed out on every measured resolve |
 | A blank a user must fill stays blank, never guessed | `aws_region` and `state_bucket` render empty and fail at `tofu init` with their own message |
-Delete a question that nothing consumes. Do not default it. `python_framework` was asked, recorded, and read by nothing.
+| A question consumed by nothing stays out of the interview | `python_framework` was asked, recorded, and read by nothing |
 
 Settling happens in a `_tasks` script that rewrites only an exact placeholder the
 render produced, so a hand-tuned file is never touched -- the same contract
@@ -247,7 +247,7 @@ is what `gen_justfile.py` does between two markers. `mod` was the alternative an
 would namespace each fragment as `just rust::fmt`; `import` keeps the flat names the
 fragments already use, at the cost of requiring them to be unique.
 
-lefthook cannot run here. `lefthook install` rewrites the configured
+The repository uses prek instead of lefthook. `lefthook install` rewrites the configured
 `core.hooksPath` directory, which fails without write access to it, and
 `--reset-hooks-path` unsets a repo-local override without restoring it. prek
 installs into `.git/hooks` when `core.hooksPath` is set repo-locally.
@@ -319,8 +319,8 @@ them.
 oxlint carries 59 of typescript-eslint's 61 type-aware rules against biome's 4
 outside nursery. Type-aware mode requires TypeScript 7.
 
-oxfmt duplicates biome output across 400 files, so the repository does not use it.
-`oxfmt --migrate=biome` converts the configuration if the split is later abandoned.
+oxfmt produces byte-identical output to biome across 400 files. The repository therefore uses
+biome for formatting, and `oxfmt --migrate=biome` converts the configuration if needed.
 
 Other languages fix their own tooling: ruff and ty for python, clippy with
 `cargo-deny` and `cargo-machete` for rust, golangci-lint v2 schema with gosec
@@ -368,10 +368,9 @@ S3 backend with `use_lockfile = true` and no DynamoDB lock table. Partial
 backend configuration through `-backend-config=envs/<env>.tfbackend`, wrapped
 in `just plan <env>`.
 
-Terragrunt, Atmos, and Digger are outside the supported stack. At two to four
-environments of one root module, per-environment duplication is the provider and backend blocks,
-which partial configuration removes. Digger licenses its GitLab CI backend
-under a per-seat Enterprise license.
+The terraform recipe supports two to four environments in one root module. Per-environment
+duplication is the provider and backend blocks, which partial configuration removes. Digger
+licenses its GitLab CI backend under a per-seat Enterprise license.
 
 Tests use `tofu test` with `command = plan` and provider mocks.
 

@@ -85,8 +85,8 @@ questions, and `index.md` names which of the two this repository has.
 ### One statement per fact
 
 A source belongs in `AGENTS.md` when it states something no other loaded source
-states. Judge a source by its content. Two pointers to the same tool can both remain when
-each carries different content.
+does. The test checks content. Two pointers to the same tool are fine when each carries different
+content.
 
 Beads is the worked example, and it cuts both ways.
 
