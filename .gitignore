@@ -12,7 +12,7 @@ dist/
 *.log
 /tmp/
 
-# orchestrate/beads per-run audit state, not source
+# orchestrate/beads per-run audit state,
 .orchestration/
 
 # Beads / Dolt files (added by bd init)
@@ -20,4 +20,4 @@ dist/
 *.db
 .beads-credential-key
 .beads/proxieddb/
-.beads.gate.lock
+*.gate.lock*
