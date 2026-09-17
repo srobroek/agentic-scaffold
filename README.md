@@ -195,7 +195,7 @@ writer dropped every comment in it. A script then ran to restore them.
 
 | Document | Contents |
 |---|---|
-| `docs/architecture.md` | the model, every fixed decision, and what is excluded |
+| `docs/architecture.md` | the model, every fixed decision, and the supported exclusions |
 | `docs/recipes.md` | what each recipe writes, and why it writes it that way |
 | `docs/INDEX.md` | generated recipe and variable listing |
 | `skills/project-scaffold/references/choices.md` | what the agent derives instead of asking |
